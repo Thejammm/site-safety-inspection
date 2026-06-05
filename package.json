@@ -1,0 +1,22 @@
+{
+  "name": "site-safety-inspection",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AHS Site Safety Inspection — auth-protected, server-saved inspection reports (offline-capable single-file front-end)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --env-file=.env server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.3",
+    "pg": "^8.21.0"
+  },
+  "license": "UNLICENSED"
+}
