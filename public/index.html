@@ -618,6 +618,36 @@ body {
   color: var(--text);
 }
 
+.arr-item {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  cursor: default;
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+.arr-item .pill-label {
+  display: block;
+  width: 100%;
+  min-height: 1.2em;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  font-size: 0.9rem;
+  color: var(--text);
+  cursor: pointer;
+}
+.arr-item .pill-x {
+  border: none;
+  background: transparent;
+  color: #991b1b;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.35rem;
+  border-radius: 4px;
+}
+.arr-item .pill-x:hover { background: #fee2e2; }
+
 /* ============================================================
    Inspection sections
    ============================================================ */
@@ -1390,10 +1420,6 @@ body {
       <!-- Structure controls -->
       <div class="tb-group" title="Report structure">
         <button data-action="edit-frontpage" onclick="openFrontPageEditor()" class="tb-primary" title="Edit cover/front page info">📋 Front Page</button>
-        <button data-action="addhs" title="Add H&amp;S arrangement row">+ H&amp;S</button>
-        <button data-action="delhs" class="tb-danger" title="Remove last H&amp;S row">− H&amp;S</button>
-        <button data-action="add inspection" title="Add inspection section">+ Inspection</button>
-        <button data-action="del inspection" class="tb-danger" title="Remove last inspection section">− Inspection</button>
         <button data-action="togglescore" title="Show/hide score detail">Score details</button>
         <button data-action="Page break" title="Insert page break after current section">Page break</button>
       </div>
@@ -1562,67 +1588,19 @@ body {
 
       <div class="section">
         <h3>H&amp;S Arrangements</h3>
-        <div class="arrangements" id="hsg">
-          <div class="arr-item"><input type="checkbox" /> <span contenteditable="true">Documentation</span></div>
-          <div class="arr-item"><input type="checkbox" /> <span contenteditable="true">Site Management</span></div>
-          <div class="arr-item"><input type="checkbox" /> <span contenteditable="true">Protection Against falls</span></div>
-          <div class="arr-item"><input type="checkbox" /> <span contenteditable="true">Lifting</span></div>
-          <div class="arr-item"><input type="checkbox" /> <span contenteditable="true">Excavations</span></div>
-          <div class="arr-item"><input type="checkbox" /> <span contenteditable="true">Plant &amp; Equipment</span></div>
-          <div class="arr-item"><input type="checkbox" /> <span contenteditable="true">Electrics</span></div>
-          <div class="arr-item"><input type="checkbox" /> <span contenteditable="true">Access &amp; Egress</span></div>
-          <div class="arr-item"><input type="checkbox" /> <span contenteditable="true">Scaffolds Other Temporary Work </span></div>
-          <div class="arr-item"><input type="checkbox" /> <span contenteditable="true">Fire &amp; First Aid</span></div>
-          <div class="arr-item"><input type="checkbox" /> <span contenteditable="true">Personal Protective Equipment</span></div>
-          <div class="arr-item"><input type="checkbox" /> <span contenteditable="true">Signage</span></div>
-          <div class="arr-item"><input type="checkbox" /> <span contenteditable="true">Site Good Order </span></div>
-          <div class="arr-item"><input type="checkbox" /> <span contenteditable="true">Welfare Arrangements</span></div>
-          <div class="arr-item"><input type="checkbox" /> <span contenteditable="true">Traffic Management </span></div>
-          <div class="arr-item"><input type="checkbox" /> <span contenteditable="true">Health Management</span></div>
+                <div style="margin-bottom:0.85rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+          <label for="hsTopicSelect" style="font-weight:600;">Add H&amp;S topic:</label>
+          <select id="hsTopicSelect" style="padding:0.45rem;border:2px solid var(--border);border-radius:6px;min-width:300px;font-size:0.9rem;">
+            <option value="">Choose a topic…</option>
+          </select>
+          <button type="button" id="hsTopicAddBtn" class="btn btn-primary btn-small">➕ Add</button>
         </div>
+        <div class="arrangements" id="hsg"></div>
       </div>
 
       <div class="section">
         <h3>Inspection Sections</h3>
-        <div id="secs">
-          <div class="section insp-section" id="inspection_1">
-            <div style="display:flex;justify-content:space-between;margin-bottom:1rem"></div>
-
-            <div class="field">
-              <label>Section Name</label>
-              <div class="rte" contenteditable="true" placeholder="e.g. Management/Supervision & Documentation" style="min-width:100%;max-width:100%;min-height:32px;resize:none;overflow:auto;font-weight:600;"></div>
-            </div>
-
-            <div class="field">
-              <label>Comments</label>
-              <div class="rte" contenteditable="true" style="min-width:100%;max-width:100%;min-height:32px;resize:none;overflow:auto;"></div>
-            </div>
-
-            <div class="items-header" style="display:grid;grid-template-columns:2fr .5fr 2fr;gap:0.5rem;align-items:left;padding-left:0.5rem;">
-              <div style="padding-left:0;"><b>Item</b></div>
-              <div><b>Status</b></div>
-              <div><b>Comments</b></div>
-            </div>
-
-            <div class="items-list">
-              <div class="item-row" style="display:grid;grid-template-columns:2fr .5fr 2fr;gap:0.5rem;align-items:left;margin-bottom:0.5rem;">
-                <div class="rte" contenteditable="true" style="min-width:100%;max-width:100%;min-height:32px;resize:none;overflow:auto;"></div>
-                <select class="status-select" style="width:100%;padding:0.4rem;border:1.5px solid #d0d5dd;border-radius:6px;background:#f8fafb;font-family:inherit;">
-                  <option value="">Select Status</option>
-                  <option value="compliant"  style="background:#d1fae5;color:#065f46;border:2px solid #10b981;">Compliant</option>
-                  <option value="advisory"   style="background:#fef3c7;color:#92400e;border:2px solid #fbbf24;">Advisory</option>
-                  <option value="minor"      style="background:#fee2e2;color:#991b1b;border:2px solid #ef4444;">Action</option>
-                  <option value="observation" style="background:#e0f2fe;color:#0369a1;border:2px solid #38bdf8;">Observation</option>
-                  <option value="na"         style="background:#fce7f3;color:#a21caf;border:2px solid #f9a8d4;">N/A</option>
-                </select>
-                <div class="rte" contenteditable="true" style="min-width:100%;max-width:100%;min-height:32px;resize:none;overflow:auto;"></div>
-              </div>
-            </div>
-
-            <button class="btn btn-secondary btn-small add-item-row-btn" style="margin-top:1rem;">+ Add Item Row</button>
-            <button class="btn btn-remove-row-btn btn-small" style="margin-top:1rem;background:#fee2e2;color:#991b1b;border:1.5px solid #ef4444;border-radius:6px;">− Remove Item Row</button>
-          </div>
-        </div>
+        <div id="secs"></div>
       </div>
 
       <div class="section">
@@ -3291,9 +3269,8 @@ function generateClosingDraft() {
   // --- Ticked H&S arrangements -----------------------------------------
   const arrangements = [];
   document.querySelectorAll('#hsg .arr-item').forEach(item => {
-    const cb   = item.querySelector('input[type="checkbox"]');
-    const span = item.querySelector('span[contenteditable]');
-    if (cb && cb.checked && span) {
+    const span = item.querySelector('.pill-label') || item.querySelector('span[contenteditable]');
+    if (span) {
       const t = span.textContent.trim();
       if (t) arrangements.push(t);
     }
@@ -4073,16 +4050,15 @@ window.showPhraseModal = showPhraseModal;
       }));
     }
 
-    // H&S Arrangements: store label html + checkbox state in order
-    const hsItems = qsa("#hsg .arr-item");
-    state.hsArrangements = hsItems.map(item => {
-      const cb = qs('input[type="checkbox"]', item);
-      const label = qs('span[contenteditable="true"]', item);
-      return {
-        checked: !!(cb && cb.checked),
-        labelHtml: getEditableText(label)
-      };
-    });
+    // H&S topics + inspection sections are one thing now: the `instances`
+    // array is the single source of truth. Persist it so pills + sections
+    // restore together and can never drift apart.
+    state.instances = (typeof instances !== "undefined" ? instances : []).map(i => ({
+      instanceId: i.instanceId,
+      topicId: i.topicId,
+      title: i.title,
+      content: i.content
+    }));
 
     // Inspections: store each section's sectionName + comments + item rows
     // (Title field was removed — no titleHtml to capture anymore)
@@ -4133,91 +4109,44 @@ window.showPhraseModal = showPhraseModal;
     setEditableText(qs("#mgr"), f.mgr);
     setEditableText(qs("#cslt"), f.cslt);
 
-    // H&S arrangements: reconcile count using existing add/remove helpers if present
-    const desiredHs = Array.isArray(state.hsArrangements) ? state.hsArrangements : [];
-    const hsGrid = qs("#hsg");
-    if (hsGrid) {
-      const addHSRow = window.addHSRow;
-      const removeHSRow = window.removeHSRow;
-
-      // Adjust item count
-      while (hsGrid.querySelectorAll(".arr-item").length < desiredHs.length && typeof addHSRow === "function") addHSRow();
-      while (hsGrid.querySelectorAll(".arr-item").length > desiredHs.length && typeof removeHSRow === "function") removeHSRow();
-
-      // Apply values in order
-      const hsItems = qsa("#hsg .arr-item");
-      desiredHs.forEach((it, idx) => {
-        const item = hsItems[idx];
-        if (!item) return;
-        const cb = qs('input[type="checkbox"]', item);
-        const label = qs('span[contenteditable="true"]', item);
-        if (cb) cb.checked = !!it.checked;
-        setEditableText(label, it.labelHtml || "");
-      });
+    // Rebuild the single source of truth (instances). Prefer the new
+    // `state.instances`; fall back to deriving one instance per saved section
+    // for legacy drafts saved before this refactor.
+    let savedInstances = Array.isArray(state.instances) ? state.instances : null;
+    if (!savedInstances && Array.isArray(state.inspections)) {
+      savedInstances = state.inspections.map(s => ({
+        instanceId: (typeof _uid === "function" ? _uid() : "inst_" + Math.random().toString(36).slice(2)),
+        topicId: "custom",
+        title: (s.sectionNameHtml || "").replace(/<[^>]*>/g, "").trim(),
+        content: ""
+      }));
     }
+    if (Array.isArray(savedInstances)) {
+      instances = savedInstances.map(s => ({
+        instanceId: s.instanceId || (typeof _uid === "function" ? _uid() : "inst_" + Math.random().toString(36).slice(2)),
+        topicId: s.topicId || "custom",
+        title: s.title || "",
+        content: s.content || ""
+      }));
+      if (typeof window.renderInstances === "function") window.renderInstances();
 
-    // Inspections: rebuild using your existing creators so button listeners remain intact
-    const desiredSecs = Array.isArray(state.inspections) ? state.inspections : [];
-    const secsContainer = qs("#secs");
-    if (secsContainer && desiredSecs.length > 0) {
-      // Remove all existing sections, then recreate in the correct count (using your functions if present)
-      // Keep it safe: we will *not* touch if helpers are missing.
-      const addInspectionSection = window.addInspectionSection;
-      const removeInspectionSection = window.removeInspectionSection;
-      const createInspectionSection = window.createInspectionSection;
-      const addItemRow = window.addItemRow;
-
-      // First, reduce to 1 (your UI expects at least one)
-      while (secsContainer.querySelectorAll(".insp-section").length > 1 && typeof removeInspectionSection === "function") {
-        removeInspectionSection();
-      }
-
-      // Clear rows in the remaining first section
-      const first = secsContainer.querySelector(".insp-section");
-      if (first) {
-        const itemsList = qs(".items-list", first);
-        if (itemsList) itemsList.innerHTML = "";
-      }
-
-      // Add additional sections to match
-      while (secsContainer.querySelectorAll(".insp-section").length < desiredSecs.length) {
-        if (typeof addInspectionSection === "function") addInspectionSection();
-        else if (typeof createInspectionSection === "function") secsContainer.appendChild(createInspectionSection());
-        else break;
-      }
-
-      // Apply content + rows
+      const desiredSecs = Array.isArray(state.inspections) ? state.inspections : [];
       const liveSecs = qsa("#secs .insp-section");
       desiredSecs.forEach((s, idx) => {
         const sec = liveSecs[idx];
         if (!sec) return;
-
         const fields = qsa(".field .rte[contenteditable='true']", sec);
-        if (fields[0]) setEditableText(fields[0], s.sectionNameHtml || "");
-        // Title field was removed. If we're restoring a legacy draft that still
-        // has a titleHtml, prepend it to the comments so the user doesn't lose
-        // any previously-typed content.
         var _legacyTitle = (s.titleHtml && s.titleHtml.trim()) ? s.titleHtml : "";
         var _combined    = s.commentsHtml || "";
-        if (_legacyTitle) {
-          _combined = _legacyTitle + (_combined ? "<br>" + _combined : "");
-        }
+        if (_legacyTitle) _combined = _legacyTitle + (_combined ? "<br>" + _combined : "");
         if (fields[1]) setEditableText(fields[1], _combined);
-
         const itemsList = qs(".items-list", sec);
         if (!itemsList) return;
-
-        // Clear then add rows
         itemsList.innerHTML = "";
         (s.rows || []).forEach(r => {
-          if (typeof addItemRow === "function") addItemRow(itemsList);
-          else {
-            // If helper missing, bail (prevents broken DOM)
-            return;
-          }
+          if (typeof addItemRow === "function") addItemRow(itemsList); else return;
           const newRow = itemsList.lastElementChild;
           if (!newRow) return;
-
           const rtes = qsa(".rte[contenteditable='true']", newRow);
           if (rtes[0]) setEditableText(rtes[0], r.itemHtml || "");
           const sel = qs("select.status-select", newRow);
@@ -4226,7 +4155,6 @@ window.showPhraseModal = showPhraseModal;
         });
       });
 
-      // Reapply styling/score after restore
       if (typeof window.updateStatusSelectColors === "function") window.updateStatusSelectColors();
       if (typeof window.updateScoreDashboard === "function") window.updateScoreDashboard();
     }
@@ -4652,81 +4580,209 @@ function filterPhraseItems(q)  { _ahsFilterList('phraseList',  'phraseListEmpty'
   };
 })('showPhraseModal', 'phraseSearch', filterPhraseItems);
 
-// ---------- H&S pill check → auto-create / reuse inspection section ----------
-//
-// Rule: when the user TICKS a H&S arrangements checkbox, find or create an
-// inspection section and set its "Section Name" field to the pill's label.
-//   • If there is already an inspection section that is completely blank
-//     (typically the default empty inspection_1), reuse that one.
-//   • Otherwise append a new section.
-//   • Unticking a pill does NOT touch the section (per user spec) —
-//     remove it manually with the "− Inspection" button if desired.
-//
-function _ahsFindBlankInspectionSection() {
-  const sections = document.querySelectorAll('#secs .insp-section');
-  for (const sec of sections) {
-    const rtes = sec.querySelectorAll('.rte');
-    const allBlank = Array.from(rtes).every(r => !r.textContent.trim());
-    if (allBlank) return sec;
-  }
-  return null;
+// =====================================================================
+// SINGLE SOURCE OF TRUTH: H&S topics -> instances -> pills + sections
+// ---------------------------------------------------------------------
+// `instances` is the ONLY list that matters. Each entry drives BOTH a H&S
+// pill and an inspection section, kept in lock-step via data-instance-id.
+// Adding the same topic twice creates two independent instances.
+// =====================================================================
+
+// TOPICS: derived from the existing SIMPLE_SNIPPETS catalogue so the topic
+// list and the default section wording share ONE source (no drift). Includes
+// every PC-Section and C-Section topic; the picker offers all of them.
+const TOPICS = (typeof SIMPLE_SNIPPETS !== 'undefined' ? SIMPLE_SNIPPETS : [])
+  .filter(s => typeof s.content === 'string' && /Section\s*\d/i.test(s.title))
+  .map(s => ({ id: s.id, title: String(s.title).trim(), templateHtml: s.content }));
+
+// Runtime state (single source of truth). Empty on load.
+let instances = [];
+
+function _uid() {
+  return (window.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : 'inst_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+}
+function _escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+// Match the snippet inserter: plain text with newlines -> <br>-separated HTML.
+function _textToHtml(text) {
+  return _escapeHtml(text).split('\n').join('<br>');
+}
+function _suffixTitle(topic) {
+  const n = instances.filter(i => i.topicId === topic.id).length;
+  return n === 0 ? topic.title : topic.title + ' (' + (n + 1) + ')';
 }
 
-function _ahsCreateSectionForPill(pillLabel) {
-  let section = _ahsFindBlankInspectionSection();
-  if (!section) {
-    if (typeof addInspectionSection === 'function') {
-      addInspectionSection();
-    } else {
-      return null;
+// ----- Add / remove instances (both pill-x and section-remove call remove) --
+function addInstance(topicId) {
+  const topic = TOPICS.find(t => t.id === topicId);
+  if (!topic) return;
+  const inst = {
+    instanceId: _uid(),
+    topicId: topic.id,
+    title: _suffixTitle(topic),
+    content: topic.templateHtml
+  };
+  instances.push(inst);
+  renderInstances();                       // ONE call builds pill + section
+  const sec = document.querySelector('.insp-section[data-instance-id="' + inst.instanceId + '"]');
+  if (sec) { try { sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {} }
+  if (typeof window.AHS_DRAFT !== 'undefined' && window.AHS_DRAFT.scheduleSave) window.AHS_DRAFT.scheduleSave();
+}
+function removeInstance(instanceId) {
+  const idx = instances.findIndex(i => i.instanceId === instanceId);
+  if (idx < 0) return;
+  if (_sectionHasUserContent(instanceId) &&
+      !confirm('Remove this topic and its inspection section? Any notes you have typed will be lost.')) {
+    return;
+  }
+  instances.splice(idx, 1);                 // removes ONLY this instance
+  renderInstances();
+  if (typeof window.AHS_DRAFT !== 'undefined' && window.AHS_DRAFT.scheduleSave) window.AHS_DRAFT.scheduleSave();
+}
+
+// Has the user changed the section away from its seeded template?
+function _sectionHasUserContent(instanceId) {
+  const sec = document.querySelector('.insp-section[data-instance-id="' + instanceId + '"]');
+  if (!sec) return false;
+  const inst = instances.find(i => i.instanceId === instanceId);
+  const rtes = sec.querySelectorAll('.field .rte');
+  const comments = rtes[1] ? rtes[1].innerHTML.trim() : '';
+  const seeded = inst ? _textToHtml(inst.content).trim() : '';
+  if (comments && comments !== seeded) return true;
+  if (sec.querySelector('.items-list .item-row')) return true;
+  return false;
+}
+
+// ----- Render pills (rebuilt from instances; pills carry no user content) ---
+function renderPills() {
+  const hsg = document.getElementById('hsg');
+  if (!hsg) return;
+  hsg.innerHTML = '';
+  instances.forEach(inst => {
+    const div = document.createElement('div');
+    div.className = 'arr-item';
+    div.setAttribute('data-instance-id', inst.instanceId);
+
+    const label = document.createElement('span');
+    label.className = 'pill-label';
+    label.textContent = inst.title;
+    label.title = 'Go to this section';
+    label.addEventListener('click', () => {
+      const sec = document.querySelector('.insp-section[data-instance-id="' + inst.instanceId + '"]');
+      if (sec) { try { sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {} }
+    });
+
+    const x = document.createElement('button');
+    x.className = 'pill-x';
+    x.type = 'button';
+    x.textContent = '×';
+    x.title = 'Remove this topic + its section';
+    x.addEventListener('click', e => { e.stopPropagation(); removeInstance(inst.instanceId); });
+
+    div.appendChild(label);
+    div.appendChild(x);
+    hsg.appendChild(div);
+  });
+}
+
+// ----- Render sections INCREMENTALLY (never rebuild existing nodes, so all
+//       typed comments / item rows / statuses survive a re-render) -----------
+function renderSections() {
+  const cont = document.getElementById('secs');
+  if (!cont) return;
+
+  // Remove section nodes whose instance is gone.
+  Array.from(cont.querySelectorAll('.insp-section')).forEach(sec => {
+    const id = sec.getAttribute('data-instance-id');
+    if (!instances.some(i => i.instanceId === id)) sec.remove();
+  });
+
+  // Ensure a node exists for every instance, in order.
+  let prev = null;
+  instances.forEach(inst => {
+    let sec = cont.querySelector('.insp-section[data-instance-id="' + inst.instanceId + '"]');
+    if (!sec) {
+      sec = createInspectionSection();               // identical DOM + wired item buttons
+      sec.setAttribute('data-instance-id', inst.instanceId);
+      _initSection(sec, inst);
     }
-    const all = document.querySelectorAll('#secs .insp-section');
-    section = all[all.length - 1];
-  }
-  if (!section) return null;
-
-  // Fill Section Name (always the first .field > .rte inside the insp-section)
-  const fields = section.querySelectorAll('.field');
-  const sectionNameRTE = fields[0] && fields[0].querySelector('.rte');
-  if (sectionNameRTE) sectionNameRTE.textContent = pillLabel;
-
-  // Scroll into view
-  try { section.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {}
-
-  // Focus the Comments RTE (2nd .field, now that Title has been removed)
-  // so user can start typing immediately.
-  const commentsRTE = fields[1] && fields[1].querySelector('.rte');
-  if (commentsRTE) {
-    setTimeout(() => {
-      commentsRTE.focus();
-      // place caret at end
-      try {
-        const sel = window.getSelection();
-        const r = document.createRange();
-        r.selectNodeContents(commentsRTE);
-        r.collapse(false);
-        sel.removeAllRanges();
-        sel.addRange(r);
-      } catch (_) {}
-    }, 400); // wait for scroll to finish
-  }
-
-  return section;
+    if (prev) {
+      if (prev.nextElementSibling !== sec) cont.insertBefore(sec, prev.nextElementSibling);
+    } else if (cont.firstElementChild !== sec) {
+      cont.insertBefore(sec, cont.firstElementChild);
+    }
+    prev = sec;
+  });
 }
 
-document.addEventListener('change', function(e) {
-  const target = e.target;
-  if (!(target instanceof HTMLInputElement)) return;
-  if (target.type !== 'checkbox') return;
-  const arrItem = target.closest('#hsg .arr-item');
-  if (!arrItem) return;             // only H&S arrangements pills
-  if (!target.checked) return;      // only on CHECK (spec: leave section alone on uncheck)
+// Seed a freshly created section from its instance + wire heading<->pill sync
+// and the per-section remove button.
+function _initSection(sec, inst) {
+  const rtes = sec.querySelectorAll('.field .rte');
+  const heading = rtes[0];   // Section Name (master)
+  const comments = rtes[1];  // Comments (seeded from templateHtml)
 
-  const labelSpan = arrItem.querySelector('span[contenteditable]');
-  const pillLabel = labelSpan ? labelSpan.textContent.trim() : '';
-  if (!pillLabel) return;
+  if (heading) {
+    heading.textContent = inst.title;
+    heading.addEventListener('input', () => {
+      inst.title = heading.textContent.trim();
+      const pill = document.querySelector('#hsg .arr-item[data-instance-id="' + inst.instanceId + '"] .pill-label');
+      if (pill) pill.textContent = inst.title;   // live pill update
+      if (typeof window.AHS_DRAFT !== 'undefined' && window.AHS_DRAFT.scheduleSave) window.AHS_DRAFT.scheduleSave();
+    });
+  }
+  if (comments) comments.innerHTML = _textToHtml(inst.content);
 
-  _ahsCreateSectionForPill(pillLabel);
+  // Remove button, in the section's top flex bar.
+  const bar = sec.querySelector('div[style*="justify-content:space-between"]');
+  if (bar) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-small';
+    btn.style.cssText = 'margin-left:auto;background:#fee2e2;color:#991b1b;border:1.5px solid #ef4444;border-radius:6px;';
+    btn.textContent = '✕ Remove section';
+    btn.title = 'Remove this topic + its pill';
+    btn.addEventListener('click', () => removeInstance(inst.instanceId));
+    bar.appendChild(btn);
+  }
+}
+
+// Render both, from state, in the same order.
+function renderInstances() {
+  renderPills();
+  renderSections();
+}
+window.addInstance = addInstance;
+window.removeInstance = removeInstance;
+window.renderInstances = renderInstances;
+
+// Populate the "Add H&S topic" picker + wire the Add button.
+function _populateTopicPicker() {
+  const sel = document.getElementById('hsTopicSelect');
+  if (!sel) return;
+  sel.querySelectorAll('option[data-topic]').forEach(o => o.remove());
+  TOPICS.forEach(t => {
+    const o = document.createElement('option');
+    o.value = t.id;
+    o.textContent = t.title;
+    o.setAttribute('data-topic', '1');
+    sel.appendChild(o);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  _populateTopicPicker();
+  const sel = document.getElementById('hsTopicSelect');
+  const btn = document.getElementById('hsTopicAddBtn');
+  if (btn && sel) {
+    btn.addEventListener('click', () => {
+      if (sel.value) { addInstance(sel.value); sel.value = ''; }
+    });
+  }
+  renderInstances();   // starts empty
 });
 
 // =====================================================================
@@ -5972,20 +6028,19 @@ function cleanText(text) {
 function collectCheckedHSArrangements() {
   const arrangements = [];
   const container = document.getElementById('hsg');
-  
+
   if (container) {
     const items = container.querySelectorAll('.arr-item');
     items.forEach(item => {
-      const checkbox = item.querySelector('input[type="checkbox"]');
-      const textSpan = item.querySelector('span[contenteditable]');
-      
-      if (checkbox && checkbox.checked && textSpan) {
-        arrangements.push(textSpan.textContent.trim());
+      const textSpan = item.querySelector('.pill-label') || item.querySelector('span[contenteditable]');
+      if (textSpan) {
+        const t = textSpan.textContent.trim();
+        if (t) arrangements.push(t);
       }
     });
   }
-  
-  console.log('Checked H&S Arrangements:', arrangements.length);
+
+  console.log('H&S Arrangements for PDF:', arrangements.length);
   return arrangements;
 }
 
