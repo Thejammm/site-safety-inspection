@@ -6194,6 +6194,98 @@ function addPageFooter(doc, pageNum, totalPages) {
       finally{ _pulling=false; setStatus(_user?'saved':'off'); }
     }
 
+    // ── Project management (DRM-style): list / open / save-as / new ──────────
+    function _esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+    function _clearSyncedKeys(){
+      try{
+        SYNC_KEYS.forEach(function(k){ localStorage.removeItem(k); });
+        var toDel=[];
+        for(var i=0;i<localStorage.length;i++){
+          var key=localStorage.key(i);
+          if(key && SYNC_PREFIXES.some(function(p){ return key.indexOf(p)===0; })) toDel.push(key);
+        }
+        toDel.forEach(function(k){ localStorage.removeItem(k); });
+      }catch(_){}
+    }
+    async function listProjects(){
+      try{
+        var r = await api('/api/state/projects?tenantId='+encodeURIComponent(TENANT));
+        var list = (r && r.projects) ? r.projects.slice() : [];
+        list.sort(function(a,b){ return String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')); });
+        return list;
+      }catch(e){ return []; }
+    }
+    function _fmtWhen(s){
+      if(!s) return '';
+      try{ var d=new Date(s); if(isNaN(d)) return ''; return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; }
+    }
+    async function openProject(name){
+      if(!name) return;
+      setProject(name);
+      try{
+        var r = await api('/api/state?tenantId='+encodeURIComponent(TENANT)+'&project='+encodeURIComponent(name));
+        _clearSyncedKeys();
+        if(r && r.state) applyState(r.state);
+        try{ sessionStorage.setItem('ahsSyncHydrated','1'); }catch(_){}
+      }catch(e){}
+      location.reload();
+    }
+    async function saveAsProject(name){
+      if(!name) return;
+      setProject(name);
+      await push();
+      setStatus('saved');
+    }
+    function newBlankProject(name){
+      if(!name) return;
+      setProject(name);
+      _clearSyncedKeys();
+      try{ sessionStorage.setItem('ahsSyncHydrated','1'); }catch(_){}
+      location.reload();
+    }
+    function _suggestName(){
+      var base='';
+      try{ var e=document.getElementById('fp-display-project-name'); base=(e&&e.textContent||'').trim(); }catch(_){}
+      if(!base || /^x+\/?x*$/i.test(base)) base=project();
+      var d=new Date(); var ymd=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
+      return (base?base+' ':'')+ymd;
+    }
+    async function openProjects(){
+      if(!_user){ openLogin(); return; }
+      var ov = el('div',{style:'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;'});
+      var box = el('div',{style:'background:#fff;border-radius:10px;padding:20px;width:440px;max-width:100%;max-height:85vh;overflow:auto;font:14px system-ui,sans-serif;color:#222'});
+      box.innerHTML =
+        '<h3 style="margin:0 0 6px;font:600 18px system-ui">Projects</h3>'+
+        '<div style="font-size:12px;color:#666;margin-bottom:12px;">Current: <strong id="ahsPjCur"></strong></div>'+
+        '<div style="font-size:12px;font-weight:600;color:#444;margin-bottom:6px;">Open a saved project (loads its last-saved data)</div>'+
+        '<div id="ahsPjList" style="border:1px solid #eee;border-radius:8px;max-height:230px;overflow:auto;margin-bottom:14px;">Loading…</div>'+
+        '<div style="font-size:12px;font-weight:600;color:#444;margin-bottom:6px;">New / save as</div>'+
+        '<input id="ahsPjName" type="text" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;margin-bottom:8px;">'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
+          '<button id="ahsPjSaveAs" type="button" style="flex:1;min-width:160px;padding:9px 12px;border:0;background:#4BBFD6;color:#fff;border-radius:6px;cursor:pointer;font-weight:600;">Save current inspection as this</button>'+
+          '<button id="ahsPjBlank" type="button" style="flex:1;min-width:160px;padding:9px 12px;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer;">Start a blank inspection</button>'+
+        '</div>'+
+        '<div style="display:flex;justify-content:flex-end;margin-top:14px;"><button id="ahsPjClose" type="button" style="padding:8px 12px;border:1px solid #ccc;background:#fff;border-radius:6px;cursor:pointer;">Close</button></div>';
+      ov.appendChild(box); document.body.appendChild(ov);
+      box.querySelector('#ahsPjCur').textContent = project();
+      box.querySelector('#ahsPjName').value = _suggestName();
+      box.querySelector('#ahsPjClose').onclick=function(){ ov.remove(); };
+      box.querySelector('#ahsPjSaveAs').onclick=async function(){ var n=box.querySelector('#ahsPjName').value.trim(); if(!n) return; ov.remove(); await saveAsProject(n); };
+      box.querySelector('#ahsPjBlank').onclick=function(){ var n=box.querySelector('#ahsPjName').value.trim(); if(!n) return; if(!confirm('Start a blank inspection under "'+n+'"?\n\nYour current project stays saved separately.')) return; ov.remove(); newBlankProject(n); };
+      var listEl=box.querySelector('#ahsPjList');
+      var projs=await listProjects();
+      if(!projs.length){ listEl.innerHTML='<div style="padding:12px;color:#888;">No saved projects yet. Do an inspection and use \'Save current inspection as\' to create one.</div>'; }
+      else{
+        listEl.innerHTML='';
+        projs.forEach(function(p){
+          var cur = p.project===project();
+          var row=el('button',{type:'button',style:'display:flex;justify-content:space-between;gap:10px;align-items:center;width:100%;text-align:left;border:0;border-bottom:1px solid #f0f0f0;background:'+(cur?'#eaf7fb':'#fff')+';padding:10px 12px;cursor:pointer;font:inherit;color:#222;'});
+          row.innerHTML='<span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📁 '+_esc(p.project)+(cur?' <span style="font-weight:400;color:#4BBFD6;">(current)</span>':'')+'</span><span style="font-size:11px;color:#888;white-space:nowrap;flex-shrink:0;">'+_esc(_fmtWhen(p.updatedAt))+'</span>';
+          row.onclick=function(){ if(cur){ ov.remove(); return; } ov.remove(); openProject(p.project); };
+          listEl.appendChild(row);
+        });
+      }
+    }
     function setStatus(s){
       if(!statusEl) return;
       if(!_user){ statusEl.textContent='Local only'; return; }
@@ -6210,10 +6302,11 @@ function addPageFooter(doc, pageNum, totalPages) {
         : {style:'position:fixed;top:10px;right:10px;z-index:99999;font:500 13px system-ui,-apple-system,sans-serif;background:#fff;border:1px solid #d0d5dd;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.12);padding:6px 10px;display:flex;gap:10px;align-items:center'});
       statusEl = el('span',{style:'color:#555;white-space:nowrap'});
       var btn = el('button',{type:'button',style:'border:0;background:#4BBFD6;color:#fff;border-radius:6px;padding:6px 11px;cursor:pointer;font:inherit;white-space:nowrap'});
-      bar.appendChild(statusEl); bar.appendChild(btn); (slot||document.body).appendChild(bar);
+      var projBtn = el('button',{type:'button',title:'Open, save-as or start a project',style:'border:1px solid #bfe3ec;background:#eef6f8;color:#0b6b7f;border-radius:6px;padding:6px 11px;cursor:pointer;font:inherit;white-space:nowrap'}, '📁 Projects'); projBtn.onclick=openProjects;
+      bar.appendChild(statusEl); bar.appendChild(projBtn); bar.appendChild(btn); (slot||document.body).appendChild(bar);
       bar._refresh = function(){
-        if(_user){ statusEl.textContent='Cloud: '+(_user.email||'on'); btn.textContent='Sign out'; btn.onclick=doLogout; }
-        else { statusEl.textContent='Local only'; btn.textContent='Sign in to save online'; btn.onclick=openLogin; }
+        if(_user){ statusEl.textContent='Cloud: '+(_user.email||'on'); btn.textContent='Sign out'; btn.onclick=doLogout; projBtn.style.display=''; }
+        else { statusEl.textContent='Local only'; btn.textContent='Sign in to save online'; btn.onclick=openLogin; projBtn.style.display='none'; }
       };
       bar._refresh();
     }
