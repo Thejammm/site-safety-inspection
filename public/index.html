@@ -6194,7 +6194,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       finally{ _pulling=false; setStatus(_user?'saved':'off'); }
     }
 
-    // ── Project management (DRM-style): list / open / save-as / new ──────────
+    // ── Project management (DRM-style): list / open / save-as / rename / delete ──
     function _esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
     function _clearSyncedKeys(){
       try{
@@ -6243,6 +6243,15 @@ function addPageFooter(doc, pageNum, totalPages) {
       try{ sessionStorage.setItem('ahsSyncHydrated','1'); }catch(_){}
       location.reload();
     }
+    async function deleteProjectRemote(name){
+      await api('/api/state?tenantId='+encodeURIComponent(TENANT)+'&project='+encodeURIComponent(name),{method:'DELETE'});
+    }
+    async function renameProjectRemote(oldName, newName){
+      var r = await api('/api/state?tenantId='+encodeURIComponent(TENANT)+'&project='+encodeURIComponent(oldName));
+      var st = (r && r.state) || {};
+      await api('/api/state',{method:'POST',body:JSON.stringify({tenantId:TENANT,project:newName,state:st})});
+      await deleteProjectRemote(oldName);
+    }
     function _suggestName(){
       var base='';
       try{ var e=document.getElementById('fp-display-project-name'); base=(e&&e.textContent||'').trim(); }catch(_){}
@@ -6250,15 +6259,51 @@ function addPageFooter(doc, pageNum, totalPages) {
       var d=new Date(); var ymd=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
       return (base?base+' ':'')+ymd;
     }
+    async function _paintProjList(listEl, ov){
+      listEl.innerHTML='Loading…';
+      var projs=await listProjects();
+      if(!projs.length){ listEl.innerHTML='<div style="padding:12px;color:#888;">No saved projects yet. Do an inspection and use "Save current inspection as" to create one.</div>'; return; }
+      listEl.innerHTML='';
+      projs.forEach(function(p){
+        var cur = p.project===project();
+        var row=el('div',{style:'display:flex;gap:6px;align-items:center;border-bottom:1px solid #f0f0f0;background:'+(cur?'#eaf7fb':'#fff')+';padding:6px 8px;'});
+        var openBtn=el('button',{type:'button',title:'Open this project',style:'flex:1;min-width:0;text-align:left;border:0;background:transparent;cursor:pointer;font:inherit;color:#222;padding:4px 2px;overflow:hidden;'});
+        openBtn.innerHTML='<div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📁 '+_esc(p.project)+(cur?' <span style="font-weight:400;color:#4BBFD6;">(current)</span>':'')+'</div><div style="font-size:11px;color:#888;">'+_esc(_fmtWhen(p.updatedAt))+'</div>';
+        openBtn.onclick=function(){ ov.remove(); if(!cur) openProject(p.project); };
+        var editBtn=el('button',{type:'button',title:'Rename this project',style:'flex:0 0 auto;border:1px solid #ddd;background:#fff;border-radius:6px;padding:5px 9px;cursor:pointer;font:inherit;'}, '✎');
+        editBtn.onclick=function(){ renameProjectUI(p.project, listEl, ov); };
+        var delBtn=el('button',{type:'button',title:'Delete this project',style:'flex:0 0 auto;border:1px solid #f2c2c2;background:#fff;color:#b91c1c;border-radius:6px;padding:5px 9px;cursor:pointer;font:inherit;'}, '🗑');
+        delBtn.onclick=function(){ deleteProjectUI(p.project, listEl, ov); };
+        row.appendChild(openBtn); row.appendChild(editBtn); row.appendChild(delBtn);
+        listEl.appendChild(row);
+      });
+    }
+    async function deleteProjectUI(name, listEl, ov){
+      if(!confirm('Delete the project "'+name+'"?\n\nThis permanently removes its saved inspection from the cloud. This cannot be undone.')) return;
+      try{ await deleteProjectRemote(name); }
+      catch(e){ alert('Could not delete the project. Check you are online and signed in.'); return; }
+      if(name===project()){ setProject('Default Project'); }
+      await _paintProjList(listEl, ov);
+    }
+    async function renameProjectUI(oldName, listEl, ov){
+      var nn = prompt('Rename project "'+oldName+'" to:', oldName);
+      if(nn===null) return;
+      nn=String(nn).trim();
+      if(!nn || nn===oldName) return;
+      try{ await renameProjectRemote(oldName, nn); }
+      catch(e){ alert('Could not rename the project. Check you are online and signed in.'); return; }
+      if(oldName===project()){ setProject(nn); }
+      await _paintProjList(listEl, ov);
+    }
     async function openProjects(){
       if(!_user){ openLogin(); return; }
       var ov = el('div',{style:'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;'});
-      var box = el('div',{style:'background:#fff;border-radius:10px;padding:20px;width:440px;max-width:100%;max-height:85vh;overflow:auto;font:14px system-ui,sans-serif;color:#222'});
+      var box = el('div',{style:'background:#fff;border-radius:10px;padding:20px;width:460px;max-width:100%;max-height:85vh;overflow:auto;font:14px system-ui,sans-serif;color:#222'});
       box.innerHTML =
         '<h3 style="margin:0 0 6px;font:600 18px system-ui">Projects</h3>'+
         '<div style="font-size:12px;color:#666;margin-bottom:12px;">Current: <strong id="ahsPjCur"></strong></div>'+
-        '<div style="font-size:12px;font-weight:600;color:#444;margin-bottom:6px;">Open a saved project (loads its last-saved data)</div>'+
-        '<div id="ahsPjList" style="border:1px solid #eee;border-radius:8px;max-height:230px;overflow:auto;margin-bottom:14px;">Loading…</div>'+
+        '<div style="font-size:12px;font-weight:600;color:#444;margin-bottom:6px;">Your projects — tap to open, ✎ to rename, 🗑 to delete</div>'+
+        '<div id="ahsPjList" style="border:1px solid #eee;border-radius:8px;max-height:240px;overflow:auto;margin-bottom:14px;">Loading…</div>'+
         '<div style="font-size:12px;font-weight:600;color:#444;margin-bottom:6px;">New / save as</div>'+
         '<input id="ahsPjName" type="text" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;margin-bottom:8px;">'+
         '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
@@ -6273,19 +6318,9 @@ function addPageFooter(doc, pageNum, totalPages) {
       box.querySelector('#ahsPjSaveAs').onclick=async function(){ var n=box.querySelector('#ahsPjName').value.trim(); if(!n) return; ov.remove(); await saveAsProject(n); };
       box.querySelector('#ahsPjBlank').onclick=function(){ var n=box.querySelector('#ahsPjName').value.trim(); if(!n) return; if(!confirm('Start a blank inspection under "'+n+'"?\n\nYour current project stays saved separately.')) return; ov.remove(); newBlankProject(n); };
       var listEl=box.querySelector('#ahsPjList');
-      var projs=await listProjects();
-      if(!projs.length){ listEl.innerHTML='<div style="padding:12px;color:#888;">No saved projects yet. Do an inspection and use \'Save current inspection as\' to create one.</div>'; }
-      else{
-        listEl.innerHTML='';
-        projs.forEach(function(p){
-          var cur = p.project===project();
-          var row=el('button',{type:'button',style:'display:flex;justify-content:space-between;gap:10px;align-items:center;width:100%;text-align:left;border:0;border-bottom:1px solid #f0f0f0;background:'+(cur?'#eaf7fb':'#fff')+';padding:10px 12px;cursor:pointer;font:inherit;color:#222;'});
-          row.innerHTML='<span style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📁 '+_esc(p.project)+(cur?' <span style="font-weight:400;color:#4BBFD6;">(current)</span>':'')+'</span><span style="font-size:11px;color:#888;white-space:nowrap;flex-shrink:0;">'+_esc(_fmtWhen(p.updatedAt))+'</span>';
-          row.onclick=function(){ if(cur){ ov.remove(); return; } ov.remove(); openProject(p.project); };
-          listEl.appendChild(row);
-        });
-      }
+      await _paintProjList(listEl, ov);
     }
+
     function setStatus(s){
       if(!statusEl) return;
       if(!_user){ statusEl.textContent='Local only'; return; }

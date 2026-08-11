@@ -130,4 +130,26 @@ router.post('/', requireAuth, express.json({ limit: '50mb' }), async (req, res) 
   }
 });
 
+// DELETE /api/state?project=yyy — permanently remove one saved project.
+router.delete('/', requireAuth, async (req, res) => {
+  const tenantId = _resolveTenant(req);
+  if(!tenantId){
+    return res.status(400).json({ error: 'tenant_required' });
+  }
+  const project = _resolveProject(req);
+  if(req.user.role === 'client_user' && req.user.tenantId !== tenantId){
+    return res.status(403).json({ error: 'forbidden' });
+  }
+  try {
+    const r = await pool.query(
+      `DELETE FROM app_state WHERE tenant_id = $1 AND project = $2`,
+      [tenantId, project]
+    );
+    res.json({ ok: true, deleted: r.rowCount });
+  } catch(err){
+    console.error('DELETE /api/state error:', err);
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
 module.exports = router;
