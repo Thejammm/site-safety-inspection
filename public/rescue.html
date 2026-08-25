@@ -6,8 +6,9 @@
 <title>AHS Inspection — Draft Rescue</title>
 <style>
   body{font:16px/1.5 -apple-system,system-ui,sans-serif;margin:0;padding:20px;background:#f4f6f8;color:#1c2530}
-  .wrap{max-width:720px;margin:0 auto}
+  .wrap{max-width:760px;margin:0 auto}
   h1{font-size:22px;margin:0 0 4px}
+  h2{font-size:16px;margin:0 0 10px}
   .sub{color:#5a6b7c;margin:0 0 20px;font-size:14px}
   .card{background:#fff;border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
   table{width:100%;border-collapse:collapse;font-size:14px}
@@ -23,6 +24,7 @@
   label{display:block;margin-top:10px;font-size:13px;color:#5a6b7c;font-weight:600}
   .ok{color:#15803d;font-weight:600}
   .bad{color:#b91c1c;font-weight:600}
+  .hit{background:#dcfce7}
   .big{font-size:30px;font-weight:700;margin:6px 0}
   #msg{margin-top:12px;font-size:14px;min-height:20px}
   .warn{background:#fef3c7;border-left:4px solid #d97706;padding:12px;border-radius:6px;font-size:14px;margin-bottom:16px}
@@ -32,24 +34,29 @@
 <body>
 <div class="wrap">
   <h1>Inspection Draft Rescue</h1>
-  <p class="sub">Read-only recovery tool. This page never changes or deletes anything stored on this device.</p>
+  <p class="sub">Read-only. This page never changes or deletes anything stored on this device.</p>
 
-  <div class="warn"><strong>Do not open the main inspection app on this device</strong> until Step 2 below reports success.</div>
+  <div class="warn"><strong>Do not open the main inspection app on this device</strong> until Step 2 reports success.</div>
 
   <div class="card">
-    <h2 style="font-size:16px;margin:0 0 10px">What is on this device</h2>
+    <h2>Storage on this device</h2>
+    <div id="estimate" class="sub">Measuring&hellip;</div>
     <div id="summary">Reading&hellip;</div>
   </div>
 
   <div class="card">
-    <h2 style="font-size:16px;margin:0 0 4px">Step 1 &mdash; Save a copy to this device</h2>
-    <p class="sub" style="margin:0">Writes a backup file you can keep. Do this first.</p>
+    <h2>Everything found, largest first</h2>
+    <div id="dump">Reading&hellip;</div>
+  </div>
+
+  <div class="card">
+    <h2>Step 1 &mdash; Save a copy to this device</h2>
+    <p class="sub" style="margin:0">Saves <em>all</em> of it, whatever the photos turn out to be stored under.</p>
     <button class="b1" id="dl">Save backup to Files</button>
   </div>
 
   <div class="card">
-    <h2 style="font-size:16px;margin:0 0 4px">Step 2 &mdash; Send it to the server</h2>
-    <p class="sub" style="margin:0">Puts the draft back on the server so it opens on your PC.</p>
+    <h2>Step 2 &mdash; Send it to the server</h2>
     <div id="authbox"></div>
     <label for="proj">Save under project name</label>
     <input id="proj" type="text">
@@ -60,9 +67,9 @@
 
 <script>
 (function(){
-  var KEYS = ['FRONTPAGE_DATA_V1','clientLogo'];
-  var PREFIX = 'AHS_REPORT_DRAFT_V1:';
-  var blob = {}, totalBytes = 0, imageCount = 0, projGuess = 'Default Project';
+  var blob = {}, session = {}, totalBytes = 0, imageCount = 0;
+  var projGuess = 'Default Project';
+  var entries = [];
 
   function bytes(n){
     if(n < 1024) return n + ' B';
@@ -74,66 +81,108 @@
       return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
     });
   }
+  // Count embedded photos in any value, whatever key it lives under.
+  function countImages(v){
+    var n = 0, i = 0;
+    while((i = v.indexOf('data:image', i)) !== -1){ n++; i += 10; }
+    return n;
+  }
 
-  // Collect from localStorage. Read only, nothing is written back.
   try { projGuess = localStorage.getItem('ahsSyncProject') || 'Default Project'; } catch(e){}
+
+  // ── Enumerate EVERY localStorage key, no assumptions ──
   try {
-    KEYS.forEach(function(k){
-      var v = localStorage.getItem(k);
-      if(v !== null) blob[k] = v;
-    });
     for(var i = 0; i < localStorage.length; i++){
-      var key = localStorage.key(i);
-      if(key && key.indexOf(PREFIX) === 0) blob[key] = localStorage.getItem(key);
+      var k = localStorage.key(i);
+      if(k === null) continue;
+      var v = localStorage.getItem(k);
+      if(v === null) continue;
+      blob[k] = v;
+      var imgs = countImages(v);
+      imageCount += imgs;
+      totalBytes += v.length;
+      entries.push({ store:'localStorage', key:k, len:v.length, imgs:imgs });
     }
   } catch(e){}
 
-  var rows = '';
-  Object.keys(blob).forEach(function(k){
-    var len = blob[k].length;
-    totalBytes += len;
-    var extra = '';
-    if(k.indexOf(PREFIX) === 0){
-      try {
-        var d = JSON.parse(blob[k]);
-        var imgs = Array.isArray(d.images) ? d.images.length : 0;
-        imageCount += imgs;
-        var secs = Array.isArray(d.inspections) ? d.inspections.length : 0;
-        var arr  = Array.isArray(d.hsArrangements) ? d.hsArrangements.length : 0;
-        extra = imgs + ' photos, ' + secs + ' inspection sections, ' + arr + ' H&amp;S items';
-      } catch(e){ extra = '<span class="bad">could not be read</span>'; }
-    } else if(k === 'clientLogo'){
-      extra = 'logo image';
-    } else if(k === 'FRONTPAGE_DATA_V1'){
-      try {
-        var f = JSON.parse(blob[k]);
-        extra = esc(f.projectName || '') + ' &mdash; ' + esc(f.reportDate || '');
-      } catch(e){ extra = ''; }
+  // ── sessionStorage too ──
+  try {
+    for(var j = 0; j < sessionStorage.length; j++){
+      var sk = sessionStorage.key(j);
+      if(sk === null) continue;
+      var sv = sessionStorage.getItem(sk);
+      if(sv === null) continue;
+      session[sk] = sv;
+      var simgs = countImages(sv);
+      imageCount += simgs;
+      entries.push({ store:'sessionStorage', key:sk, len:sv.length, imgs:simgs });
     }
-    rows += '<tr><td><code>' + esc(k) + '</code><br><span class="sub">' + extra + '</span></td><td class="n">' + bytes(len) + '</td></tr>';
-  });
+  } catch(e){}
+
+  entries.sort(function(a,b){ return b.len - a.len; });
 
   document.getElementById('proj').value = projGuess;
 
+  // ── Summary ──
   var sum = document.getElementById('summary');
-  if(!Object.keys(blob).length){
-    sum.innerHTML = '<p class="bad">Nothing found in this browser&rsquo;s storage for this site.</p>' +
-      '<p class="sub">Check you opened this page on the same device and the same browser you used on site (Safari, not Chrome).</p>';
+  if(!entries.length){
+    sum.innerHTML = '<p class="bad">Nothing at all found in this browser&rsquo;s storage for this site.</p>' +
+      '<p class="sub">Make sure this is the same device and the same browser you used on site.</p>';
   } else {
     sum.innerHTML =
-      '<div class="big">' + imageCount + ' photo' + (imageCount === 1 ? '' : 's') + '</div>' +
-      '<p class="sub" style="margin:0 0 12px">' + bytes(totalBytes) + ' total &middot; last project used: <strong>' + esc(projGuess) + '</strong></p>' +
-      '<table><tr><th>Stored item</th><th class="n">Size</th></tr>' + rows + '</table>';
+      '<div class="big">' + imageCount + ' image' + (imageCount === 1 ? '' : 's') + ' found</div>' +
+      '<p class="sub" style="margin:0">' + bytes(totalBytes) + ' in localStorage &middot; ' +
+      entries.length + ' stored items &middot; last project used: <strong>' + esc(projGuess) + '</strong></p>';
     document.getElementById('up').disabled = false;
   }
 
-  // Step 1 - download a local backup file
+  // ── Full dump table ──
+  var rows = '';
+  entries.forEach(function(e){
+    rows += '<tr' + (e.imgs ? ' class="hit"' : '') + '>' +
+            '<td><code>' + esc(e.key) + '</code>' +
+            (e.store === 'sessionStorage' ? '<br><span class="sub">sessionStorage</span>' : '') +
+            (e.imgs ? '<br><span class="ok">' + e.imgs + ' image' + (e.imgs===1?'':'s') + '</span>' : '') +
+            '</td><td class="n">' + bytes(e.len) + '</td></tr>';
+  });
+  document.getElementById('dump').innerHTML = entries.length
+    ? '<table><tr><th>Key</th><th class="n">Size</th></tr>' + rows + '</table>'
+    : '<p class="sub">Nothing stored.</p>';
+
+  // ── Browser's own view of how much this site is using ──
+  (async function(){
+    var el = document.getElementById('estimate');
+    var parts = [];
+    try {
+      if(navigator.storage && navigator.storage.estimate){
+        var est = await navigator.storage.estimate();
+        parts.push('Browser reports <strong>' + bytes(est.usage || 0) + '</strong> used of ' + bytes(est.quota || 0));
+        if(est.usageDetails){
+          Object.keys(est.usageDetails).forEach(function(k){
+            parts.push(k + ': ' + bytes(est.usageDetails[k]));
+          });
+        }
+      }
+    } catch(e){}
+    try {
+      if(indexedDB && indexedDB.databases){
+        var dbs = await indexedDB.databases();
+        parts.push('IndexedDB databases: ' + (dbs.length ? dbs.map(function(d){ return esc(d.name); }).join(', ') : 'none'));
+      }
+    } catch(e){}
+    el.innerHTML = parts.length ? parts.join(' &middot; ') : 'Storage estimate unavailable.';
+  })();
+
+  // ── Step 1: download everything ──
   document.getElementById('dl').onclick = function(){
     var payload = JSON.stringify({
       rescuedFrom: location.hostname,
+      rescuedAt: new Date().toISOString(),
       project: document.getElementById('proj').value || projGuess,
       userAgent: navigator.userAgent,
-      state: blob
+      imageCount: imageCount,
+      localStorage: blob,
+      sessionStorage: session
     });
     var b = new Blob([payload], {type:'application/json'});
     var url = URL.createObjectURL(b);
@@ -145,7 +194,7 @@
     setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 4000);
   };
 
-  // Step 2 - push to the server
+  // ── Step 2: push to the server ──
   var msg = document.getElementById('msg');
   function say(t, cls){ msg.className = cls || ''; msg.innerHTML = t; }
 
@@ -199,18 +248,15 @@
     var project = document.getElementById('proj').value.trim() || projGuess;
     var btn = this;
     btn.disabled = true;
-    say('Sending ' + bytes(totalBytes) + '&hellip; this can take a minute. Keep this page open.');
+    say('Sending ' + bytes(totalBytes) + '&hellip; keep this page open.');
     try {
       await api('/api/state', {method:'POST', body: JSON.stringify({
         tenantId: 'archer', project: project, state: blob
       })});
-      say('Sent successfully. Saved on the server under &ldquo;' + esc(project) + '&rdquo;. ' +
-          'You can now open the inspection app on your PC.', 'ok');
+      say('Sent successfully, saved under &ldquo;' + esc(project) + '&rdquo;.', 'ok');
     } catch(e){
       btn.disabled = false;
-      say(e.status === 413
-            ? 'Server rejected it as too large (413) &mdash; the fix has not deployed yet. Tell Claude.'
-            : 'Upload failed (' + esc(e.status || 'no response') + '). Nothing on this device was changed &mdash; try again, or use the Step 1 backup.', 'bad');
+      say('Upload failed (' + esc(e.status || 'no response') + '). Nothing on this device was changed.', 'bad');
     }
   };
 })();
