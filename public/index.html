@@ -2234,6 +2234,9 @@ if (clearAllBtn) {
     });
     if (imgInput) imgInput.value = '';
     if (imgPreview) imgPreview.innerHTML = '';
+    // This report's photos only — the store pool is shared across projects
+    allImages.forEach(img =>
+      window.AHS_PHOTOS.del(img.id).catch(e => console.warn('Could not remove stored photo:', e)));
     allImages = [];
     if (hsGrid) {
       hsGrid.innerHTML = '';
@@ -2342,6 +2345,174 @@ document.addEventListener('change', function(e) {
 updateScoreDashboard();
 updateStatusSelectColors();
 
+// ══════════════════════════════════════════════════════════════
+//  Photo store — IndexedDB
+//
+//  Photos used to be written into the localStorage draft alongside the text.
+//  Browsers cap localStorage at about 5MB, counted in UTF-16 (two bytes a
+//  character), so a report died silently at roughly three photos: setItem
+//  threw QuotaExceededError into a catch that only wrote to the console.
+//  IndexedDB has no such ceiling, so photos live here keyed by image id and
+//  the draft keeps only ids and captions.
+// ══════════════════════════════════════════════════════════════
+window.AHS_PHOTOS = (function () {
+  const DB_NAME = 'ahs-inspection';
+  const STORE   = 'photos';
+  const VERSION = 1;
+  let _db = null;
+
+  function open() {
+    if (_db) return Promise.resolve(_db);
+    return new Promise((resolve, reject) => {
+      if (!window.indexedDB) { reject(new Error('This browser has no IndexedDB')); return; }
+      const req = indexedDB.open(DB_NAME, VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' });
+      };
+      req.onsuccess = () => { _db = req.result; resolve(_db); };
+      req.onerror   = () => reject(req.error || new Error('Could not open the photo store'));
+      req.onblocked = () => reject(new Error('The photo store is blocked by another tab'));
+    });
+  }
+
+  // Writes wait for the transaction, not just the request, so a quota failure
+  // on commit still surfaces as a rejection rather than a silent loss.
+  function write(fn) {
+    return open().then(db => new Promise((resolve, reject) => {
+      const t = db.transaction(STORE, 'readwrite');
+      try { fn(t.objectStore(STORE)); } catch (e) { reject(e); return; }
+      t.oncomplete = () => resolve(true);
+      t.onerror    = () => reject(t.error || new Error('Photo write failed'));
+      t.onabort    = () => reject(t.error || new Error('Photo write aborted'));
+    }));
+  }
+
+  function read(fn) {
+    return open().then(db => new Promise((resolve, reject) => {
+      const req = fn(db.transaction(STORE, 'readonly').objectStore(STORE));
+      req.onsuccess = () => resolve(req.result);
+      req.onerror   = () => reject(req.error || new Error('Photo read failed'));
+    }));
+  }
+
+  return {
+    put(id, dataUrl) { return write(s => s.put({ id, dataUrl })); },
+    del(id)          { return write(s => s.delete(id)); },
+    clear()          { return write(s => s.clear()); },
+
+    get(id) {
+      return read(s => s.get(id)).then(r => (r && r.dataUrl) || null);
+    },
+
+    // Every stored photo as { id: dataUrl } — used to push photos to the server
+    all() {
+      return read(s => s.getAll()).then(rows => {
+        const out = {};
+        (rows || []).forEach(r => { if (r && r.id && r.dataUrl) out[r.id] = r.dataUrl; });
+        return out;
+      });
+    },
+
+    // Bulk restore in one transaction (server pull, or opening an export)
+    putAll(map) {
+      const ids = Object.keys(map || {});
+      if (!ids.length) return Promise.resolve(true);
+      return write(s => ids.forEach(id => s.put({ id, dataUrl: map[id] })));
+    },
+
+    async count() {
+      const rows = await read(s => s.getAllKeys());
+      return (rows || []).length;
+    },
+
+    // Is the store usable at all? Falls back to the old inline behaviour if not.
+    async available() {
+      try { await open(); return true; } catch (e) { return false; }
+    }
+  };
+})();
+
+// ══════════════════════════════════════════════════════════════
+//  Save status — a failed save must stop you on site, not on the way home
+//
+//  The old code turned a small pill red and wrote to the console. On an iPad
+//  that is invisible. This puts an unmissable bar across the top and keeps it
+//  there until a save actually succeeds.
+// ══════════════════════════════════════════════════════════════
+window.AHS_SAVE_STATUS = (function () {
+  let bar = null;
+  let failing = false;
+
+  function ensureBar() {
+    if (bar) return bar;
+    bar = document.createElement('div');
+    bar.id = 'ahs-save-alert';
+    bar.setAttribute('role', 'alert');
+    bar.style.cssText = [
+      'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:2147483647',
+      'background:#b91c1c', 'color:#fff', 'padding:14px 16px',
+      'font:600 15px/1.4 -apple-system,system-ui,sans-serif',
+      'text-align:center', 'box-shadow:0 2px 10px rgba(0,0,0,.35)', 'display:none'
+    ].join(';');
+    (document.body || document.documentElement).appendChild(bar);
+    return bar;
+  }
+
+  // Messages are tracked per kind, so a photo saving successfully cannot clear
+  // a warning about the draft, or the other way round.
+  const messages = new Map(); // kind -> { text, severity }
+
+  function repaint() {
+    if (!messages.size) {
+      failing = false;
+      if (bar) bar.style.display = 'none';
+      try { document.body.style.paddingTop = ''; } catch (e) {}
+      return;
+    }
+    const list = Array.from(messages.values());
+    const isSave = list.some(m => m.severity === 'save');
+    failing = isSave;
+
+    const b = ensureBar();
+    b.style.background = isSave ? '#b91c1c' : '#b45309';
+    b.innerHTML = '&#9888;&nbsp; ' + (isSave ? 'NOT SAVED &mdash; ' : '') +
+                  list.map(m => m.text).join('; ') + '.' +
+                  (isSave
+                    ? '<br><span style="font-weight:400;font-size:13px">' +
+                      'Do not close this tab. Use &ldquo;Export HTML&rdquo; to save your work to a file.</span>'
+                    : '');
+    b.style.display = 'block';
+    try { document.body.style.paddingTop = b.offsetHeight + 'px'; } catch (e) {}
+  }
+
+  function reasonOf(err) {
+    if (err && err.name === 'QuotaExceededError') return 'this device is out of storage space';
+    return (err && err.message) ? err.message : 'unknown error';
+  }
+
+  return {
+    // A save did not happen. Red, with what to do about it.
+    fail(kind, what, err) {
+      messages.set(kind, { text: what + ' (' + reasonOf(err) + ')', severity: 'save' });
+      repaint();
+      console.error('AHS save failure [' + kind + ']:', what, err);
+    },
+    // Worth knowing, but nothing was lost. Amber.
+    note(kind, what) {
+      messages.set(kind, { text: what, severity: 'note' });
+      repaint();
+      console.warn('AHS note [' + kind + ']:', what);
+    },
+    ok(kind) {
+      if (!messages.has(kind)) return;
+      messages.delete(kind);
+      repaint();
+    },
+    isFailing() { return failing; }
+  };
+})();
+
 // --- Images Section: Allow duplicate images + remove single image ---
 const imgInput = document.getElementById('imgs');
 const imgPreview = document.getElementById('imgp');
@@ -2386,6 +2557,20 @@ function fileToDataUrl(file) {
   });
 }
 
+// Put one photo in the store. Called the moment a photo has its data, so it
+// survives even if the tab dies before the next draft save.
+async function persistPhoto(imgObj) {
+  if (!imgObj || !imgObj.id || !imgObj.dataUrl) return false;
+  try {
+    await window.AHS_PHOTOS.put(imgObj.id, imgObj.dataUrl);
+    window.AHS_SAVE_STATUS.ok('photos');
+    return true;
+  } catch (e) {
+    window.AHS_SAVE_STATUS.fail('photos', 'a photo could not be stored', e);
+    return false;
+  }
+}
+
 // Renders the preview area from the allImages array
 async function renderImages() {
   if (!imgPreview) return;
@@ -2406,6 +2591,9 @@ async function renderImages() {
         return; // Skip this image on error
       }
       imagesLoadingCount--;
+      // Put it in the photo store straight away, so the photo is safe even if
+      // the tab dies before the next draft save.
+      await persistPhoto(imgObj);
     }
 
     const imgBox = document.createElement('div');
@@ -2472,6 +2660,7 @@ if (imgPreview) {
         const imageIndex = allImages.findIndex(img => img.id === imageId);
         if (imageIndex > -1) {
           allImages.splice(imageIndex, 1);
+          window.AHS_PHOTOS.del(imageId).catch(e => console.warn('Could not remove stored photo:', e));
           renderImages();
           // Trigger save after removing image
           if (typeof window.AHS_DRAFT !== 'undefined' && typeof window.AHS_DRAFT.scheduleSave === 'function') {
@@ -2498,6 +2687,10 @@ if (imgInput && imgPreview) {
 if (imgClearBtn && imgPreview && imgInput) {
   imgClearBtn.addEventListener('click', function() {
     imgInput.value = '';
+    // Delete just this report's photos — the store is one pool shared by
+    // every project on the device, so clear() would take the others with it.
+    allImages.forEach(img =>
+      window.AHS_PHOTOS.del(img.id).catch(e => console.warn('Could not remove stored photo:', e)));
     allImages = [];
     renderImages();
   });
@@ -4056,11 +4249,13 @@ window.showPhraseModal = showPhraseModal;
       images: []
     };
 
-    // IMAGES: Store DataURLs and captions
+    // IMAGES: ids and captions only. The photo data lives in the IndexedDB
+    // store — writing it in here is exactly what used to blow the ~5MB
+    // localStorage ceiling and silently lose a day's photos.
     if (typeof allImages !== 'undefined' && Array.isArray(allImages)) {
+      state.photoStore = 'idb';
       state.images = allImages.map(img => ({
         id: img.id,
-        dataUrl: img.dataUrl || null,
         caption: img.caption || ''
       }));
     }
@@ -4177,21 +4372,60 @@ window.showPhraseModal = showPhraseModal;
     // IMAGES: Restore images from saved state
     if (Array.isArray(state.images) && typeof allImages !== 'undefined') {
       try {
-        // Clear existing images
         allImages = [];
-        
-        // Restore from saved state
-        state.images.forEach(imgData => {
-          if (imgData.dataUrl) {
-            allImages.push({
-              id: imgData.id || ('img-restored-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9)),
-              file: null,
-              dataUrl: imgData.dataUrl,
-              caption: imgData.caption || ''
-            });
+        let missing = 0;
+
+        // Three places a photo can come from, in order of preference:
+        //   1. inline in the draft   — an import, or a draft saved before the
+        //                              store existed
+        //   2. the IndexedDB store   — the normal case
+        //   3. the page's own markup — an exported file carries its photos as
+        //                              image tags. This runs before
+        //                              renderImages() wipes the preview, so
+        //                              the tiles are still readable, which is
+        //                              why an export needs only one copy of
+        //                              each photo rather than two.
+        // Anything found outside the store is folded into it, so it is there
+        // next time this report is opened on this device.
+        for (const imgData of state.images) {
+          const id = imgData.id ||
+            ('img-restored-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9));
+          let dataUrl = imgData.dataUrl || null;
+          let fromStore = false;
+
+          if (!dataUrl) {
+            try {
+              dataUrl = await window.AHS_PHOTOS.get(id);
+              fromStore = !!dataUrl;
+            } catch (e) { dataUrl = null; }
           }
-        });
-        
+
+          if (!dataUrl) {
+            const tile = document.querySelector('.img-item[data-image-id="' + id + '"] img');
+            const src = tile && tile.getAttribute('src');
+            if (src && src.indexOf('data:image') === 0) dataUrl = src;
+          }
+
+          if (dataUrl && !fromStore) {
+            try { await window.AHS_PHOTOS.put(id, dataUrl); }
+            catch (e) { console.warn('Could not fold restored photo into the store:', e); }
+          }
+
+          if (dataUrl) {
+            allImages.push({ id, file: null, dataUrl, caption: imgData.caption || '' });
+          } else {
+            missing++;
+          }
+        }
+
+        if (missing) {
+          window.AHS_SAVE_STATUS.note('photos',
+            missing + ' photo' + (missing === 1 ? ' is' : 's are') + ' not stored in this browser' +
+            ' &mdash; open this report on the device it was taken on, or sign in to pull them down');
+        } else {
+          window.AHS_SAVE_STATUS.ok('photos');
+        }
+
         // Re-render images to the UI with proper event listeners
         if (typeof renderImages === 'function') {
           await renderImages();
@@ -4203,22 +4437,41 @@ window.showPhraseModal = showPhraseModal;
   }
 
   // --------- Persistence ----------
+  // Guards against saving over good data with an empty page:
+  //  - _restoredOnce: pagehide/visibilitychange fire saveNow, and if that
+  //    happens while the initial restore is still awaiting the photo store,
+  //    collectState() would see a half-restored page and write that.
+  //  - AHS_SYNC_RELOADING: the sync layer hydrates localStorage from the
+  //    server and reloads; the reload's own pagehide used to collect the
+  //    still-empty page and overwrite the just-pulled draft.
+  let _restoredOnce = false;
+
   function saveNow() {
+    if (!_restoredOnce || window.AHS_SYNC_RELOADING) return;
+    let stateJson;
     try {
-      const state = collectState();
-      const stateJson = JSON.stringify(state);
-      
-      // Save to localStorage
-      localStorage.setItem(AHS_DRAFT.KEY, stateJson);
-      
-      // Also embed in HTML for offline persistence
-      const embedDraftEl = document.getElementById('AHS_EMBEDDED_DRAFT');
-      if (embedDraftEl) {
-        embedDraftEl.textContent = stateJson;
-      }
+      stateJson = JSON.stringify(collectState());
     } catch (e) {
-      // If localStorage is full, at least don't crash the app
-      console.warn("Draft save failed:", e);
+      window.AHS_SAVE_STATUS.fail('draft', 'your report could not be prepared for saving', e);
+      return;
+    }
+
+    // Fill the embedded copy FIRST. This used to run after the localStorage
+    // write, so when that write threw, this line never ran and the exported
+    // file was stale too — which is how a day's photos went missing with
+    // nothing on screen to say so.
+    try {
+      const embedDraftEl = document.getElementById('AHS_EMBEDDED_DRAFT');
+      if (embedDraftEl) embedDraftEl.textContent = stateJson;
+    } catch (e) {
+      console.warn('Could not update the embedded draft:', e);
+    }
+
+    try {
+      localStorage.setItem(AHS_DRAFT.KEY, stateJson);
+      window.AHS_SAVE_STATUS.ok('draft');
+    } catch (e) {
+      window.AHS_SAVE_STATUS.fail('draft', 'your report could not be saved in this browser', e);
     }
   }
 
@@ -4228,7 +4481,21 @@ window.showPhraseModal = showPhraseModal;
     saveTimer = setTimeout(saveNow, AHS_DRAFT.SAVE_DEBOUNCE_MS);
   }
 
-  async function restoreIfPresent() {
+  // Restores are serialised. DOMContentLoaded and pageshow both fire one, and
+  // now that restoring awaits the photo store, two runs could interleave:
+  // each clears allImages and then appends, so you ended up with every photo
+  // twice. Chaining them means the second run simply re-applies the same
+  // state after the first has finished.
+  let _restoreChain = Promise.resolve();
+  function restoreIfPresent() {
+    _restoreChain = _restoreChain
+      .then(() => _restoreOnce())
+      .catch(e => { console.warn('Draft restore failed:', e); })
+      .then(() => { _restoredOnce = true; });
+    return _restoreChain;
+  }
+
+  async function _restoreOnce() {
     try {
       let raw = null;
       
@@ -4322,9 +4589,11 @@ window.showPhraseModal = showPhraseModal;
     clearBtn.addEventListener("click", () => clearDraft(), true);
   }
 
-  // Expose for debugging if needed
+  // Expose for debugging if needed.
+  // scheduleSave is on here because the image-remove handler calls it — it was
+  // not exported before, so deleting a photo never actually triggered a save.
   window.AHS_DRAFT = {
-    saveNow, restoreIfPresent, clearDraft, key: AHS_DRAFT.KEY
+    saveNow, scheduleSave, restoreIfPresent, clearDraft, key: AHS_DRAFT.KEY
   };
 
 })();
@@ -6140,18 +6409,63 @@ function addPageFooter(doc, pageNum, totalPages) {
       return res.status===204 ? null : res.json();
     }
 
-    function collectState(){
+    // Photos no longer live in localStorage, so they have to be carried
+    // separately or they would stop following you between devices. They ride
+    // under PHOTO_KEY, which is unpacked into the photo store on the way back
+    // in rather than written to localStorage.
+    var PHOTO_KEY = '__photos__';
+
+    // Every reload here happens right after this layer has deliberately
+    // rewritten localStorage (hydrate, open project, new project). The
+    // reload's own pagehide fires the draft's saveNow, which would collect
+    // the not-yet-refreshed page and overwrite what was just written — that
+    // is how a pulled draft lost its photo list. The flag makes saveNow a
+    // no-op for the remainder of this doomed page.
+    function _reload(){
+      window.AHS_SYNC_RELOADING = true;
+      location.reload();
+    }
+
+    async function collectState(){
       var blob={};
       SYNC_KEYS.forEach(function(k){ var v=localStorage.getItem(k); if(v!==null) blob[k]=v; });
       for(var i=0;i<localStorage.length;i++){
         var key=localStorage.key(i);
         if(key && SYNC_PREFIXES.some(function(p){ return key.indexOf(p)===0; })) blob[key]=localStorage.getItem(key);
       }
+      try{
+        // Only the photos this draft actually references. The store is one
+        // pool shared by every project on the device — pushing all of it
+        // would upload every project's photos into every project's blob.
+        var wanted = {};
+        Object.keys(blob).forEach(function(k){
+          if(SYNC_PREFIXES.some(function(p){ return k.indexOf(p)===0; })){
+            try{
+              (JSON.parse(blob[k]).images||[]).forEach(function(im){ if(im && im.id) wanted[im.id]=true; });
+            }catch(_){}
+          }
+        });
+        var ids = Object.keys(wanted);
+        if(ids.length){
+          var pool = await window.AHS_PHOTOS.all();
+          var photos = {};
+          ids.forEach(function(id){ if(pool[id]) photos[id]=pool[id]; });
+          if(Object.keys(photos).length) blob[PHOTO_KEY] = photos;
+        }
+      }catch(e){ console.warn('Could not read photos for upload:', e); }
       return blob;
     }
-    function applyState(blob){
+
+    async function applyState(blob){
       if(!blob||typeof blob!=='object') return;
-      Object.keys(blob).forEach(function(k){ try{ _rawSet(k, blob[k]); }catch(_){} });
+      Object.keys(blob).forEach(function(k){
+        if(k===PHOTO_KEY) return;
+        try{ _rawSet(k, blob[k]); }catch(_){}
+      });
+      if(blob[PHOTO_KEY]){
+        try{ await window.AHS_PHOTOS.putAll(blob[PHOTO_KEY]); }
+        catch(e){ console.warn('Could not store photos pulled from the server:', e); }
+      }
     }
 
     var _rawSet = localStorage.setItem.bind(localStorage);
@@ -6169,10 +6483,21 @@ function addPageFooter(doc, pageNum, totalPages) {
     }
     async function push(){
       if(!_user) return;
-      var blob = collectState();
+      var blob = await collectState();
       if(!Object.keys(blob).length) return;
-      try{ await api('/api/state',{method:'POST',body:JSON.stringify({tenantId:TENANT,project:project(),state:blob})}); setStatus('saved'); }
-      catch(e){ setStatus('error'); }
+      try{
+        await api('/api/state',{method:'POST',body:JSON.stringify({tenantId:TENANT,project:project(),state:blob})});
+        setStatus('saved');
+        window.AHS_SAVE_STATUS.ok('server');
+      }
+      catch(e){
+        setStatus('error');
+        // A red pill in the toolbar is not enough — that is how a whole day's
+        // work went up the road without anyone noticing.
+        window.AHS_SAVE_STATUS.fail('server',
+          e.status === 413 ? 'this report is too large for the server'
+                           : 'your report could not be saved online', e);
+      }
     }
     async function pull(){
       // Hydrate from server once per tab session, to avoid reload loops.
@@ -6181,9 +6506,9 @@ function addPageFooter(doc, pageNum, totalPages) {
         var r = await api('/api/state?tenantId='+encodeURIComponent(TENANT)+'&project='+encodeURIComponent(project()));
         if(r && r.state && Object.keys(r.state).length){
           if(!sessionStorage.getItem('ahsSyncHydrated')){
-            applyState(r.state);
+            await applyState(r.state);
             sessionStorage.setItem('ahsSyncHydrated','1');
-            location.reload();
+            _reload();
             return;
           }
         } else {
@@ -6225,10 +6550,10 @@ function addPageFooter(doc, pageNum, totalPages) {
       try{
         var r = await api('/api/state?tenantId='+encodeURIComponent(TENANT)+'&project='+encodeURIComponent(name));
         _clearSyncedKeys();
-        if(r && r.state) applyState(r.state);
+        if(r && r.state) await applyState(r.state);
         try{ sessionStorage.setItem('ahsSyncHydrated','1'); }catch(_){}
       }catch(e){}
-      location.reload();
+      _reload();
     }
     async function saveAsProject(name){
       if(!name) return;
@@ -6241,7 +6566,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       setProject(name);
       _clearSyncedKeys();
       try{ sessionStorage.setItem('ahsSyncHydrated','1'); }catch(_){}
-      location.reload();
+      _reload();
     }
     async function deleteProjectRemote(name){
       await api('/api/state?tenantId='+encodeURIComponent(TENANT)+'&project='+encodeURIComponent(name),{method:'DELETE'});

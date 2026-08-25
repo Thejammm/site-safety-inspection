@@ -119,35 +119,79 @@
     }
   } catch(e){}
 
+  // ── The photo store ('ahs-inspection' / 'photos' in IndexedDB) ──
+  // Photos moved out of localStorage in Aug 2026; without this the page
+  // would report 0 images in exactly the situation it exists for.
+  // Read-only: opened without an upgrade, never written.
+  function readPhotoStore(){
+    return new Promise(function(resolve){
+      if(!window.indexedDB) return resolve({});
+      var req;
+      try { req = indexedDB.open('ahs-inspection'); } catch(e){ return resolve({}); }
+      req.onerror = function(){ resolve({}); };
+      req.onsuccess = function(){
+        var db = req.result;
+        if(!db.objectStoreNames.contains('photos')){ db.close(); return resolve({}); }
+        try {
+          var all = db.transaction('photos','readonly').objectStore('photos').getAll();
+          all.onsuccess = function(){
+            var out = {};
+            (all.result || []).forEach(function(r){ if(r && r.id && r.dataUrl) out[r.id] = r.dataUrl; });
+            db.close(); resolve(out);
+          };
+          all.onerror = function(){ db.close(); resolve({}); };
+        } catch(e){ db.close(); resolve({}); }
+      };
+    });
+  }
+
+  var photoPool = {}; // filled asynchronously below, before the summary renders
+
   entries.sort(function(a,b){ return b.len - a.len; });
 
   document.getElementById('proj').value = projGuess;
 
-  // ── Summary ──
-  var sum = document.getElementById('summary');
-  if(!entries.length){
-    sum.innerHTML = '<p class="bad">Nothing at all found in this browser&rsquo;s storage for this site.</p>' +
-      '<p class="sub">Make sure this is the same device and the same browser you used on site.</p>';
-  } else {
-    sum.innerHTML =
-      '<div class="big">' + imageCount + ' image' + (imageCount === 1 ? '' : 's') + ' found</div>' +
-      '<p class="sub" style="margin:0">' + bytes(totalBytes) + ' in localStorage &middot; ' +
-      entries.length + ' stored items &middot; last project used: <strong>' + esc(projGuess) + '</strong></p>';
-    document.getElementById('up').disabled = false;
+  // ── Summary + dump, re-rendered once the photo store has been read ──
+  function renderSummary(){
+    var sum = document.getElementById('summary');
+    if(!entries.length){
+      sum.innerHTML = '<p class="bad">Nothing at all found in this browser&rsquo;s storage for this site.</p>' +
+        '<p class="sub">Make sure this is the same device and the same browser you used on site.</p>';
+    } else {
+      sum.innerHTML =
+        '<div class="big">' + imageCount + ' image' + (imageCount === 1 ? '' : 's') + ' found</div>' +
+        '<p class="sub" style="margin:0">' + bytes(totalBytes) + ' total &middot; ' +
+        entries.length + ' stored items &middot; last project used: <strong>' + esc(projGuess) + '</strong></p>';
+      document.getElementById('up').disabled = false;
+    }
+
+    var rows = '';
+    entries.forEach(function(e){
+      rows += '<tr' + (e.imgs ? ' class="hit"' : '') + '>' +
+              '<td><code>' + esc(e.key) + '</code>' +
+              (e.store !== 'localStorage' ? '<br><span class="sub">' + esc(e.store) + '</span>' : '') +
+              (e.imgs ? '<br><span class="ok">' + e.imgs + ' image' + (e.imgs===1?'':'s') + '</span>' : '') +
+              '</td><td class="n">' + bytes(e.len) + '</td></tr>';
+    });
+    document.getElementById('dump').innerHTML = entries.length
+      ? '<table><tr><th>Key</th><th class="n">Size</th></tr>' + rows + '</table>'
+      : '<p class="sub">Nothing stored.</p>';
   }
 
-  // ── Full dump table ──
-  var rows = '';
-  entries.forEach(function(e){
-    rows += '<tr' + (e.imgs ? ' class="hit"' : '') + '>' +
-            '<td><code>' + esc(e.key) + '</code>' +
-            (e.store === 'sessionStorage' ? '<br><span class="sub">sessionStorage</span>' : '') +
-            (e.imgs ? '<br><span class="ok">' + e.imgs + ' image' + (e.imgs===1?'':'s') + '</span>' : '') +
-            '</td><td class="n">' + bytes(e.len) + '</td></tr>';
+  renderSummary();
+
+  readPhotoStore().then(function(pool){
+    photoPool = pool;
+    var ids = Object.keys(pool);
+    if(!ids.length) return;
+    var poolBytes = 0;
+    ids.forEach(function(id){ poolBytes += pool[id].length; });
+    imageCount += ids.length;
+    totalBytes += poolBytes;
+    entries.push({ store:'photo store (IndexedDB)', key:'ahs-inspection / photos', len:poolBytes, imgs:ids.length });
+    entries.sort(function(a,b){ return b.len - a.len; });
+    renderSummary();
   });
-  document.getElementById('dump').innerHTML = entries.length
-    ? '<table><tr><th>Key</th><th class="n">Size</th></tr>' + rows + '</table>'
-    : '<p class="sub">Nothing stored.</p>';
 
   // ── Browser's own view of how much this site is using ──
   (async function(){
@@ -182,7 +226,8 @@
       userAgent: navigator.userAgent,
       imageCount: imageCount,
       localStorage: blob,
-      sessionStorage: session
+      sessionStorage: session,
+      photoStore: photoPool
     });
     var b = new Blob([payload], {type:'application/json'});
     var url = URL.createObjectURL(b);
@@ -250,8 +295,13 @@
     btn.disabled = true;
     say('Sending ' + bytes(totalBytes) + '&hellip; keep this page open.');
     try {
+      // Photos ride under __photos__, the same key the app's own sync uses,
+      // so a normal signed-in pull unpacks them into the photo store.
+      var state = {};
+      Object.keys(blob).forEach(function(k){ state[k] = blob[k]; });
+      if(Object.keys(photoPool).length) state.__photos__ = photoPool;
       await api('/api/state', {method:'POST', body: JSON.stringify({
-        tenantId: 'archer', project: project, state: blob
+        tenantId: 'archer', project: project, state: state
       })});
       say('Sent successfully, saved under &ldquo;' + esc(project) + '&rdquo;.', 'ok');
     } catch(e){
