@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AHS Inspection — Draft Rescue</title>
+<style>
+  body{font:16px/1.5 -apple-system,system-ui,sans-serif;margin:0;padding:20px;background:#f4f6f8;color:#1c2530}
+  .wrap{max-width:720px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:#5a6b7c;margin:0 0 20px;font-size:14px}
+  .card{background:#fff;border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:7px 6px;border-bottom:1px solid #eceff2;vertical-align:top}
+  th{color:#5a6b7c;font-weight:600}
+  td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  button{display:block;width:100%;padding:16px;font-size:17px;font-weight:600;border:0;border-radius:10px;margin-top:12px;cursor:pointer;-webkit-appearance:none}
+  .b1{background:#0f766e;color:#fff}
+  .b2{background:#4BBFD6;color:#fff}
+  .b3{background:#fff;color:#1c2530;border:1px solid #c9d2da}
+  button:disabled{opacity:.5}
+  input{width:100%;padding:12px;font-size:16px;border:1px solid #c9d2da;border-radius:8px;box-sizing:border-box;margin-top:6px}
+  label{display:block;margin-top:10px;font-size:13px;color:#5a6b7c;font-weight:600}
+  .ok{color:#15803d;font-weight:600}
+  .bad{color:#b91c1c;font-weight:600}
+  .big{font-size:30px;font-weight:700;margin:6px 0}
+  #msg{margin-top:12px;font-size:14px;min-height:20px}
+  .warn{background:#fef3c7;border-left:4px solid #d97706;padding:12px;border-radius:6px;font-size:14px;margin-bottom:16px}
+  code{font-size:12px;word-break:break-all}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Inspection Draft Rescue</h1>
+  <p class="sub">Read-only recovery tool. This page never changes or deletes anything stored on this device.</p>
+
+  <div class="warn"><strong>Do not open the main inspection app on this device</strong> until Step 2 below reports success.</div>
+
+  <div class="card">
+    <h2 style="font-size:16px;margin:0 0 10px">What is on this device</h2>
+    <div id="summary">Reading&hellip;</div>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:16px;margin:0 0 4px">Step 1 &mdash; Save a copy to this device</h2>
+    <p class="sub" style="margin:0">Writes a backup file you can keep. Do this first.</p>
+    <button class="b1" id="dl">Save backup to Files</button>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:16px;margin:0 0 4px">Step 2 &mdash; Send it to the server</h2>
+    <p class="sub" style="margin:0">Puts the draft back on the server so it opens on your PC.</p>
+    <div id="authbox"></div>
+    <label for="proj">Save under project name</label>
+    <input id="proj" type="text">
+    <button class="b2" id="up" disabled>Send to server</button>
+    <div id="msg"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var KEYS = ['FRONTPAGE_DATA_V1','clientLogo'];
+  var PREFIX = 'AHS_REPORT_DRAFT_V1:';
+  var blob = {}, totalBytes = 0, imageCount = 0, projGuess = 'Default Project';
+
+  function bytes(n){
+    if(n < 1024) return n + ' B';
+    if(n < 1048576) return (n/1024).toFixed(1) + ' KB';
+    return (n/1048576).toFixed(2) + ' MB';
+  }
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  // Collect from localStorage. Read only, nothing is written back.
+  try { projGuess = localStorage.getItem('ahsSyncProject') || 'Default Project'; } catch(e){}
+  try {
+    KEYS.forEach(function(k){
+      var v = localStorage.getItem(k);
+      if(v !== null) blob[k] = v;
+    });
+    for(var i = 0; i < localStorage.length; i++){
+      var key = localStorage.key(i);
+      if(key && key.indexOf(PREFIX) === 0) blob[key] = localStorage.getItem(key);
+    }
+  } catch(e){}
+
+  var rows = '';
+  Object.keys(blob).forEach(function(k){
+    var len = blob[k].length;
+    totalBytes += len;
+    var extra = '';
+    if(k.indexOf(PREFIX) === 0){
+      try {
+        var d = JSON.parse(blob[k]);
+        var imgs = Array.isArray(d.images) ? d.images.length : 0;
+        imageCount += imgs;
+        var secs = Array.isArray(d.inspections) ? d.inspections.length : 0;
+        var arr  = Array.isArray(d.hsArrangements) ? d.hsArrangements.length : 0;
+        extra = imgs + ' photos, ' + secs + ' inspection sections, ' + arr + ' H&amp;S items';
+      } catch(e){ extra = '<span class="bad">could not be read</span>'; }
+    } else if(k === 'clientLogo'){
+      extra = 'logo image';
+    } else if(k === 'FRONTPAGE_DATA_V1'){
+      try {
+        var f = JSON.parse(blob[k]);
+        extra = esc(f.projectName || '') + ' &mdash; ' + esc(f.reportDate || '');
+      } catch(e){ extra = ''; }
+    }
+    rows += '<tr><td><code>' + esc(k) + '</code><br><span class="sub">' + extra + '</span></td><td class="n">' + bytes(len) + '</td></tr>';
+  });
+
+  document.getElementById('proj').value = projGuess;
+
+  var sum = document.getElementById('summary');
+  if(!Object.keys(blob).length){
+    sum.innerHTML = '<p class="bad">Nothing found in this browser&rsquo;s storage for this site.</p>' +
+      '<p class="sub">Check you opened this page on the same device and the same browser you used on site (Safari, not Chrome).</p>';
+  } else {
+    sum.innerHTML =
+      '<div class="big">' + imageCount + ' photo' + (imageCount === 1 ? '' : 's') + '</div>' +
+      '<p class="sub" style="margin:0 0 12px">' + bytes(totalBytes) + ' total &middot; last project used: <strong>' + esc(projGuess) + '</strong></p>' +
+      '<table><tr><th>Stored item</th><th class="n">Size</th></tr>' + rows + '</table>';
+    document.getElementById('up').disabled = false;
+  }
+
+  // Step 1 - download a local backup file
+  document.getElementById('dl').onclick = function(){
+    var payload = JSON.stringify({
+      rescuedFrom: location.hostname,
+      project: document.getElementById('proj').value || projGuess,
+      userAgent: navigator.userAgent,
+      state: blob
+    });
+    var b = new Blob([payload], {type:'application/json'});
+    var url = URL.createObjectURL(b);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'AHS-inspection-rescue.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 4000);
+  };
+
+  // Step 2 - push to the server
+  var msg = document.getElementById('msg');
+  function say(t, cls){ msg.className = cls || ''; msg.innerHTML = t; }
+
+  async function api(path, opts){
+    opts = opts || {};
+    opts.headers = Object.assign({'Content-Type':'application/json'}, opts.headers || {});
+    opts.credentials = 'same-origin';
+    var res = await fetch(path, opts);
+    if(!res.ok){ var e = new Error('http_' + res.status); e.status = res.status; throw e; }
+    return res.status === 204 ? null : res.json();
+  }
+
+  var signedIn = false;
+  var authbox = document.getElementById('authbox');
+
+  function showSignIn(){
+    authbox.innerHTML =
+      '<label for="em">Email</label><input id="em" type="email" autocomplete="username">' +
+      '<label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password">' +
+      '<button class="b3" id="si">Sign in</button>';
+    document.getElementById('si').onclick = async function(){
+      say('Signing in&hellip;');
+      try {
+        var r = await api('/api/auth/login', {method:'POST', body: JSON.stringify({
+          email: document.getElementById('em').value.trim(),
+          password: document.getElementById('pw').value
+        })});
+        signedIn = true;
+        authbox.innerHTML = '<p class="ok">Signed in as ' + esc(r.user && r.user.email || '') + '</p>';
+        say('');
+      } catch(e){
+        say(e.status === 401 ? 'Wrong email or password.' : 'Sign-in failed &mdash; check you are online.', 'bad');
+      }
+    };
+  }
+
+  (async function(){
+    try {
+      var r = await api('/api/auth/me');
+      if(r && r.user){
+        signedIn = true;
+        authbox.innerHTML = '<p class="ok">Signed in as ' + esc(r.user.email) + '</p>';
+        return;
+      }
+    } catch(e){}
+    showSignIn();
+  })();
+
+  document.getElementById('up').onclick = async function(){
+    if(!signedIn){ say('Sign in first, using the box above.', 'bad'); return; }
+    var project = document.getElementById('proj').value.trim() || projGuess;
+    var btn = this;
+    btn.disabled = true;
+    say('Sending ' + bytes(totalBytes) + '&hellip; this can take a minute. Keep this page open.');
+    try {
+      await api('/api/state', {method:'POST', body: JSON.stringify({
+        tenantId: 'archer', project: project, state: blob
+      })});
+      say('Sent successfully. Saved on the server under &ldquo;' + esc(project) + '&rdquo;. ' +
+          'You can now open the inspection app on your PC.', 'ok');
+    } catch(e){
+      btn.disabled = false;
+      say(e.status === 413
+            ? 'Server rejected it as too large (413) &mdash; the fix has not deployed yet. Tell Claude.'
+            : 'Upload failed (' + esc(e.status || 'no response') + '). Nothing on this device was changed &mdash; try again, or use the Step 1 backup.', 'bad');
+    }
+  };
+})();
+</script>
+</body>
+</html>

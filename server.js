@@ -29,7 +29,7 @@ app.set('trust proxy', 1);
 
 // ── Middleware ────────────────────────────────────────────────
 app.use(cookieParser());
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '50mb' }));
 
 // ── Health check ──────────────────────────────────────────────
 app.get('/healthz', async (_req, res) => {
