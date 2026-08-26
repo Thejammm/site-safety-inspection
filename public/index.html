@@ -1679,12 +1679,8 @@ button.r3-ai:hover{ background:var(--muted-bg); }
         <span class="tb-sep"></span>
         <button id="snippetModalBtn"
                 data-action="show-snippets"
-                onclick="if(typeof window.showSnippetModal === 'function') { window.showSnippetModal(); } else { alert('Snippet functionality loading.'); }"
-                class="ms-accent-snippet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>Snippet</button>
-        <button id="phraseModalBtn"
-                data-action="show-phrases"
-                onclick="if(typeof window.showPhraseModal === 'function') { window.showPhraseModal(); } else { alert('Phrase picker loading.'); }"
-                class="ms-accent-phrase"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg>Phrase</button>
+                onclick="if(typeof window.showSnippetModal === 'function') { window.showSnippetModal(); } else { alert('Phases library loading.'); }"
+                class="ms-accent-snippet" title="Insert an intro, statement or summary (report phases)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>Phases</button>
       </div>
     </div>
 
@@ -1872,11 +1868,11 @@ button.r3-ai:hover{ background:var(--muted-bg); }
       </div>
     </div>
 
-    <!-- Snippet Modal -->
+    <!-- Phases Modal (intros, statements, summaries) -->
     <div id="snippetModal" class="snippet-modal">
       <div class="snippet-dialog">
-        <h3>Select Template</h3>
-        <input type="search" id="snippetSearch" class="snippet-search" placeholder="Search templates — title or content..." autocomplete="off" autocorrect="off" spellcheck="false">
+        <h3>Insert a phase — intro, statement or summary</h3>
+        <input type="search" id="snippetSearch" class="snippet-search" placeholder="Search phases — title or content..." autocomplete="off" autocorrect="off" spellcheck="false">
         <div id="snippetList" class="snippet-list"></div>
       </div>
     </div>
@@ -3984,13 +3980,25 @@ function insertTextAtCursorSimple(target, text) {
   window.snippetTargetRange = endRange.cloneRange();
 }
 
-// 4) Build the snippet list inside the modal
+// 4) Build the snippet list inside the modal — report "phases" only.
+// The per-section observation snippets now live in the Inspection Criteria
+// (the single source of truth), so only the intros, opening/closing statements
+// and summaries are offered here. (SIMPLE_SNIPPETS is kept whole because TOPICS
+// still derives the section titles from it.)
+function _isPhaseSnippet(sn){
+  const m = /(PC|C)\s*-\s*Section\s*(\d+)/i.exec(String(sn.title || ''));
+  if (!m) return true;                                  // Opening/Closing/Auto-draft
+  const mode = m[1].toUpperCase(), n = +m[2];
+  if (mode === 'PC' && n >= 3 && n <= 18) return false; // PC criteria sections
+  if (mode === 'C'  && n >= 21 && n <= 37) return false;// Contractor criteria sections
+  return true;                                          // intros (1,2), accidents (19,38), summaries (20,39)
+}
 function buildSnippetList() {
   const listEl = document.getElementById('snippetList');
   if (!listEl) return;
   listEl.innerHTML = '';
 
-  SIMPLE_SNIPPETS.forEach(sn => {
+  SIMPLE_SNIPPETS.filter(_isPhaseSnippet).forEach(sn => {
     const item = document.createElement('div');
     item.className = 'snippet-item';
 
@@ -4055,17 +4063,14 @@ window.showSnippetModal = showSnippetModal;
 
 // 1) Define your phrases here
 const SIMPLE_PHRASES = [
-  { id: 'd1', label: 'SSSTS valid', text: 'The site supervisor holds a valid SSSTS card.' },
-  { id: 'd2', label: 'Supervisor experience', text: 'The supervisor has demonstrated suitable experience for managing work activities.' },
-  { id: 'd3', label: 'Daily briefings', text: 'Daily briefings and safe-start meetings are carried out on site.' },
-  { id: 'd4', label: 'EoD planning', text: 'End-of-day planning meetings are held to prepare for the next shift.' },
-  { id: 'd5', label: 'PTW understood', text: 'Permit to Work systems are in place and understood by contractors.' },
-  { id: 'd6', label: 'RAMS adequate', text: 'RAMS were available and reviewed to a suitable and sufficient standard.' },
-  { id: 'd7', label: 'CPP understanding', text: 'The CPP is available and the site manager demonstrated understanding of its content.' },
-  { id: 'd8', label: 'Competence evidence', text: 'Operatives provided evidence of relevant qualifications or training.' },
+  { id: 'd1', label: 'SSSTS valid', text: 'The site supervisor holds a valid SMSTS/SSSTS card.' },
+  { id: 'd2', label: 'Supervisor experience', text: 'The supervisor has demonstrated awareness of key site risks and appropriate control measures/arrangements and the level of experience suitable for managing the work activities.' },
+  { id: 'd3', label: 'Daily briefings', text: 'The PC regularly liaises with the Supervisor and circulates H&S information;Daily briefing (DABS/safe-start\'s) meetings are carried out on site. At…................ or weekly at ….............' },
+  { id: 'd5', label: 'PTW understood', text: 'The procedure of PTW has been understood by the contractors on site.' },
+  { id: 'd6', label: 'RAMS adequate', text: 'RAMS were in place and have been reviewed to a suitable and sufficient standard.' },
+  { id: 'd7', label: 'CPP understanding', text: 'The CPP was produced and is being revised at regular intervals during the project the CPP is available …................. And has been circulated to all contractors either by document circulation or relevant information and arrangements being communicated at briefings.' },
+  { id: 'd8', label: 'Competence evidence', text: 'Operatives provided evidence of relevant qualifications or training appropriate to the work activities they were engaged in.' },
   { id: 'd9', label: 'Plant checks', text: 'Plant and equipment are being checked and recorded on site.' },
-
-  // improvement / opportunities
   { id: 'd10', label: 'Docs improvement', text: 'Some documentation needs updating or further review.' },
   { id: 'd11', label: 'RAMS clarity', text: 'RAMS require additional detail to fully address task-specific risks.' },
   { id: 'd12', label: 'CPP improvement', text: 'The Construction Phase Plan could be expanded to cover site-specific arrangements.' },
@@ -4073,34 +4078,22 @@ const SIMPLE_PHRASES = [
   { id: 'd14', label: 'Briefings records', text: 'Records of briefings and toolbox talks could be more consistently documented.' },
   { id: 'd15', label: 'Qualification gaps', text: 'Some operatives need to provide further evidence of competence.' },
   { id: 'd16', label: 'Plant record gaps', text: 'Plant inspection records could be more up-to-date and accessible.' },
-
-  // positive generic
   { id: 'd17', label: 'Good supervision', text: 'Supervision levels on site appear adequate for the tasks being undertaken.' },
   { id: 'd18', label: 'Clear communication', text: 'Communication between the PC and contractors is effective and proactive.' },
   { id: 'd19', label: 'Engagement', text: 'The site team is engaged and aware of documentation requirements.' },
-
-  // neutral
-  { id: 'd20', label: 'None to note', text: 'None to note at this time.' },
-
-    { id: 's4_1', label: '(PC - Section 4) Site management aware of risks', text: 'The site manager demonstrated awareness of key site risks and appropriate control measures.' },
+  { id: 'd20', label: 'None to note', text: 'No significant concerns were noted at this time.' },
   { id: 's4_2', label: '(PC - Section 4) Site management forward planning', text: 'Forward planning for upcoming high-risk activities was evident and proportionate to the work scope.' },
-  { id: 's4_3', label: '(PC - Section 4) Site management SMSTS evidence', text: 'Evidence of SMSTS (or equivalent) qualification was available and appropriate for the scale of the project.' },
-  { id: 's4_4', label: '(PC - Section 4) Site management subcontractor liaison', text: 'Regular liaison with subcontractors is undertaken, including RAMS reviews and daily briefings.' },
-  { id: 's4_5', label: '(PC - Section 4) Site management leadership', text: 'Leadership and communication were effective in coordinating multiple trades safely.' },
+  { id: 's4_4', label: '(PC - Section 4) Site management subcontractor liaison', text: 'Regular liaison with subcontractors is undertaken, including RAMS approval reviews and Toolbox talks.' },
   { id: 's4_6', label: '(PC - Section 4) Site management CPP & RAMS', text: 'The CPP and RAMS were accessible on site, and the manager demonstrated understanding of their application.' },
-  { id: 's4_7', label: '(PC - Section 4) Site management consultation', text: 'Consultation with operatives was evident and hazard communication was clear.' },
-  { id: 's4_8', label: '(PC - Section 4) Site management monitoring records', text: 'Inspection and monitoring records were available, demonstrating due diligence and traceability.' },
-  { id: 's4_9', label: '(PC - Section 4) Site management access control', text: 'Access control and segregation arrangements considered public interface and visitor safety.' },
+  { id: 's4_8', label: '(PC - Section 4) Site management monitoring records', text: 'The site manager has deveolped effective Inspection and monitoring initiatives and could provide records demonstrating due diligence and traceability.' },
+  { id: 's4_9', label: '(PC - Section 4) Site management access control', text: 'Access control and segregation arrangements considered public interface and visitor safety were being carried out.' },
   { id: 's4_10', label: '(PC - Section 4) Site management evidence-based approach', text: 'Management demonstrated a proportional, evidence-based approach to planning and supervising site activities.' },
   { id: 's4_11', label: '(PC - Section 4) Site management leadership development', text: 'Further development in proactive leadership could enhance coordination during complex phases.' },
   { id: 's4_12', label: '(PC - Section 4) Site management communication records', text: 'Communication records could be improved to demonstrate consultation more consistently.' },
   { id: 's4_13', label: '(PC - Section 4) Site management documentation updates', text: 'Some documentation requires more frequent updates to reflect ongoing operational changes.' },
   { id: 's4_14', label: '(PC - Section 4) Site management RAMS review frequency', text: 'RAMS reviews should be carried out more frequently during periods of change.' },
   { id: 's4_15', label: '(PC - Section 4) Site management monitoring consistency', text: 'Inspection and monitoring records could be more consistently documented and stored.' },
-  { id: 's4_16', label: '(PC - Section 4) Site management none to note', text: 'No significant concerns were noted at this time.' }
-,
-// === PC - Section 5 – Work at Height & Excavations ===
-
+  { id: 's4_16', label: '(PC - Section 4) Site management none to note', text: 'No further significant concerns were noted at this time.' },
   { id: 's5_1', label: '(PC - Section 5) Fall protection in place', text: 'Adequate fall protection was in place with operatives using MEWPs fitted with guardrails and harness anchor points where required.' },
   { id: 's5_2', label: '(PC - Section 5) Appropriate WAH equipment', text: 'The most appropriate work at height equipment was selected, avoiding ladders where collective protection was practicable.' },
   { id: 's5_3', label: '(PC - Section 5) MEWP inspection records', text: 'Evidence of inspections and pre-use checks was available for MEWPs and associated access equipment.' },
@@ -4118,8 +4111,6 @@ const SIMPLE_PHRASES = [
   { id: 's5_15', label: '(PC - Section 5) Excavation hazard awareness', text: 'Operatives demonstrated understanding of excavation hazards and recognised signs of ground movement or collapse.' },
   { id: 's5_16', label: '(PC - Section 5) Safe access around excavations', text: 'Access routes around excavations were free of obstructions and adequately lit where required.' },
   { id: 's5_17', label: '(PC - Section 5) Inspection records', text: 'Inspections and pre-use checks for MEWPs, barriers and excavation supports were recorded and maintained to ensure compliance.' },
-// === PC - Section 6 – Lifting Operations ===
-
   { id: 's6_1', label: '(PC - Section 6) Lifting risk assessments', text: 'Risk assessments were in place with controls identified to manage hazards associated with lifting operations.' },
   { id: 's6_2', label: '(PC - Section 6) Lifting plans available', text: 'Lifting plans were available and referenced during operations.' },
   { id: 's6_3', label: '(PC - Section 6) Procedures followed', text: 'Lifting procedures were being carried out in line with the Principal Contractor’s safety rules.' },
@@ -4133,8 +4124,6 @@ const SIMPLE_PHRASES = [
   { id: 's6_11', label: '(PC - Section 6) Communication maintained', text: 'Communication was maintained between crane operator, banksman and lift supervisor using recognised hand signals or radios.' },
   { id: 's6_12', label: '(PC - Section 6) Weather monitored', text: 'Weather conditions were monitored and lifting paused or adjusted when conditions risked stability or safety.' },
   { id: 's6_13', label: '(PC - Section 6) Public and delivery control', text: 'Public interface and vehicle movements were controlled to prevent unauthorised access into the lifting zone.' },
-// === PC - Section 7 – Excavations ===
-
   { id: 's7_1', label: '(PC - Section 7) Excavation support installed', text: 'Excavations were assessed for depth, ground type and stability, with trench boxes, shoring or battering installed where required to prevent collapse.' },
   { id: 's7_2', label: '(PC - Section 7) Controlled access and egress', text: 'Access and egress into excavations was controlled using designated entry points with secured ladders or steps extending above ground level.' },
   { id: 's7_3', label: '(PC - Section 7) Stand-off distances maintained', text: 'Stand-off distances for heavy plant and vehicles were maintained to prevent surcharge loading on excavation edges, with banksmen controlling movements where required.' },
@@ -4145,8 +4134,6 @@ const SIMPLE_PHRASES = [
   { id: 's7_8', label: '(PC - Section 7) Competent person inspections', text: 'Inspection records for excavations were maintained, with checks completed by a competent person at the start of shifts and after significant events.' },
   { id: 's7_9', label: '(PC - Section 7) Lighting and communication', text: 'Lighting and communication arrangements enabled safe working during reduced visibility or winter conditions, reducing trip hazards and improving awareness.' },
   { id: 's7_10', label: '(PC - Section 7) Confined space considerations', text: 'The method of entry reflected consideration for air quality, confined space risks and emergency arrangements appropriate to the depth and access complexity.' },
-  // === PC - Section 8 – Plant & Equipment ===
-
   { id: 's8_1', label: '(PC - Section 8) Plant appropriate for task', text: 'Plant and equipment were appropriate for the task and selected based on load capacity, reach and ground conditions in compliance with PUWER and manufacturer specifications.' },
   { id: 's8_2', label: '(PC - Section 8) Competent operators', text: 'Operators held valid competency training such as CPCS or NPORS and demonstrated knowledge of safe operating procedures.' },
   { id: 's8_3', label: '(PC - Section 8) Pre-use checks and inspections', text: 'Pre-use checks and daily inspection records were available with defects identified and arrangements in place for rectification or withdrawal from service.' },
@@ -4156,8 +4143,6 @@ const SIMPLE_PHRASES = [
   { id: 's8_7', label: '(PC - Section 8) Fuel and maintenance control', text: 'Fuel, battery charging and maintenance areas were controlled with spill kits and drip trays available to minimise fire and environmental risks.' },
   { id: 's8_8', label: '(PC - Section 8) Attachments compatible and secure', text: 'Attachments and accessories were compatible with the plant, correctly installed and verified with quick-hitch systems locked before use.' },
   { id: 's8_9', label: '(PC - Section 8) Public and delivery interface', text: 'Public and delivery vehicle movements were controlled with signage, restricted access and supervision to prevent unauthorised access into operational zones.' },
-  // === PC - Section 9 – Temporary Electrics ===
-
   { id: 's9_1', label: '(PC - Section 9) Appropriate voltage systems', text: 'Temporary electrical installations used 110V in external or unfinished areas and restricted 230V to controlled internal zones with RCD protection.' },
   { id: 's9_2', label: '(PC - Section 9) Weather-resistant cabling', text: 'External cables and distribution boxes were weather-resistant, elevated or routed to avoid pooling water, vehicle movement and trip hazards.' },
   { id: 's9_3', label: '(PC - Section 9) Internal cable management', text: 'Internal temporary supplies were secured and routed along walls or trays, protected from mechanical damage by plant, materials or doorways.' },
@@ -4167,8 +4152,6 @@ const SIMPLE_PHRASES = [
   { id: 's9_7', label: '(PC - Section 9) Temporary lighting adequate', text: 'Temporary lighting provided adequate illumination in internal and external areas, avoiding shadowing around excavations and plant routes.' },
   { id: 's9_8', label: '(PC - Section 9) Weather risk management', text: 'Weather conditions were considered with cables and transformers protected from heavy rain, frost and standing water or soft ground.' },
   { id: 's9_9', label: '(PC - Section 9) Public interface control', text: 'Public interface was controlled with secure placement of distribution boards and cables and signage restricting access to non-authorised persons.' },
-  // === PC - Section 10 – Access & Egress ===
-
   { id: 's10_1', label: '(PC - Section 10) Secure site boundary', text: 'The site boundary was secured with fencing or hoarding to control access and prevent unauthorised entry, with gates locked or supervised during movements and out-of-hours.' },
   { id: 's10_2', label: '(PC - Section 10) Segregated pedestrian and vehicle routes', text: 'Pedestrian and vehicle routes were segregated and clearly marked with barriers, signage and designated walkways to reduce collision risk.' },
   { id: 's10_3', label: '(PC - Section 10) Controlled access points', text: 'Access points were signed and suitable for deliveries, plant and pedestrian entry, with gate control and banksmen for larger vehicle movements.' },
@@ -4181,8 +4164,6 @@ const SIMPLE_PHRASES = [
   { id: 's10_10', label: '(PC - Section 10) Route housekeeping and surface management', text: 'Mud, ice and debris on access routes were managed through housekeeping, gritting or matting to maintain safe traction.' },
   { id: 's10_11', label: '(PC - Section 10) Hazard signage displayed', text: 'Hazard signage highlighted changes in level, restricted access, overhead work or lifting zones to raise awareness before entering.' },
   { id: 's10_12', label: '(PC - Section 10) Emergency access arrangements', text: 'Access control measures included arrangements for emergency services access into confined or controlled areas.' },
-  // === PC - Section 11 – Scaffolding & Temporary Works ===
-
   { id: 's11_1', label: '(PC - Section 11) CISRS erection and inspection', text: 'Scaffolding was erected and altered by CISRS-trained operatives with handover or inspection tagging in accordance with TG20 guidance.' },
   { id: 's11_2', label: '(PC - Section 11) Guard rails and access', text: 'Guard rails, toe boards and ladder access towers were present and secured, with ladders extending to the working platform.' },
   { id: 's11_3', label: '(PC - Section 11) Platforms clear and protected', text: 'Scaffold platforms were clear of significant debris with brick guards or debris netting used above pedestrian or work areas.' },
@@ -4199,8 +4180,6 @@ const SIMPLE_PHRASES = [
   { id: 's11_14', label: '(PC - Section 11) RAMS address interaction risks', text: 'Risk assessments and method statements addressed interaction between temporary works, plant movements, weather and adjacent structures.' },
   { id: 's11_15', label: '(PC - Section 11) Signage and exclusion zones', text: 'Signage and exclusion zones were established around active temporary works erection or modification to restrict unauthorised access.' },
   { id: 's11_16', label: '(PC - Section 11) Communication and briefing', text: 'Communication systems such as toolbox talks and inductions briefed operatives on temporary works hazards and responsibilities.' },
-  // === PC - Section 12 – First Aid & Fire Safety ===
-
   { id: 's12_1', label: '(PC - Section 12) First aid provisions available', text: 'First aid provisions were available on site, provided by the Principal Contractor and Site Supervisor.' },
   { id: 's12_2', label: '(PC - Section 12) Qualified first aider', text: 'The Site Supervisor was a qualified first aider and information for Principal Contractor first aiders was displayed in welfare areas.' },
   { id: 's12_3', label: '(PC - Section 12) Stocked first aid box', text: 'A suitably stocked first aid box was provided with contents appropriate to the type of construction work.' },
@@ -4210,8 +4189,6 @@ const SIMPLE_PHRASES = [
   { id: 's12_7', label: '(PC - Section 12) Fire risk assessment', text: 'A fire risk assessment had been completed and communicated to all operatives.' },
   { id: 's12_8', label: '(PC - Section 12) Fire-fighting equipment', text: 'Fire-fighting equipment was located in prominent positions around the site.' },
   { id: 's12_9', label: '(PC - Section 12) Emergency alarms and procedure', text: 'Means of raising the alarm were available and operatives were aware of the site emergency procedure.' },
-  // === PC - Section 13 – PPE & RPE ===
-
   { id: 's13_1', label: '(PC - Section 13) Suitable PPE issued', text: 'Suitable PPE was issued and worn, including helmets, hi-visibility clothing, gloves, protective footwear and eye protection appropriate to identified hazards.' },
   { id: 's13_2', label: '(PC - Section 13) RPE available and appropriate', text: 'RPE was available and used where dust, fumes or airborne contaminants were foreseeable, with type selection reflecting the level of risk.' },
   { id: 's13_3', label: '(PC - Section 13) Face-fit testing records', text: 'Face-fit testing records were available for tight-fitting RPE used on site.' },
@@ -4220,8 +4197,6 @@ const SIMPLE_PHRASES = [
   { id: 's13_6', label: '(PC - Section 13) PPE selection proportional', text: 'PPE selection was proportionate to hazards present and used only where risks could not be reduced through other controls.' },
   { id: 's13_7', label: '(PC - Section 13) PPE and RPE storage managed', text: 'Storage arrangements maintained PPE and RPE in a clean and serviceable condition with filters and visors protected from contamination.' },
   { id: 's13_8', label: '(PC - Section 13) PPE based on risk profile', text: 'PPE selection aligned with foreseeable hazards including head impacts, sharp edges, dust inhalation, debris and visibility to plant operators.' },
-  // === PC - Section 14 – Signage & Signals ===
-
   { id: 's14_1', label: '(PC - Section 14) Mandatory signage displayed', text: 'Mandatory site signage was displayed at access points identifying PPE requirements, site rules and induction arrangements.' },
   { id: 's14_2', label: '(PC - Section 14) Warning signage at high-risk zones', text: 'Warning signage was positioned at lifting areas, excavations, live electrical installations, hot works and overhead work to communicate foreseeable hazards.' },
   { id: 's14_3', label: '(PC - Section 14) Prohibition signage used', text: 'Prohibition signage clearly marked restricted zones, no-entry areas and plant-only routes to prevent unauthorised access.' },
@@ -4230,8 +4205,6 @@ const SIMPLE_PHRASES = [
   { id: 's14_6', label: '(PC - Section 14) Wayfinding signage provided', text: 'Wayfinding signage supported safe movement with pedestrian routes and delivery or vehicle routes signposted.' },
   { id: 's14_7', label: '(PC - Section 14) Signage maintained', text: 'Signage was weather-resistant, legible and maintained, with damaged or faded signs replaced.' },
   { id: 's14_8', label: '(PC - Section 14) Signage aligned with regulations', text: 'Signage selection and placement reflected risk assessment findings and legal duties under the Safety Signs and Signals Regulations.' },
-  // === PC - Section 15 – Housekeeping & Material Storage ===
-
   { id: 's15_1', label: '(PC - Section 15) Work areas kept tidy', text: 'Work areas, access routes and storage zones were maintained in a tidy condition to reduce slips, trips and falls.' },
   { id: 's15_2', label: '(PC - Section 15) Waste segregated and managed', text: 'Waste was managed using designated skips with segregation for timber, metal, inert and hazardous materials to prevent accumulation and fire loading.' },
   { id: 's15_3', label: '(PC - Section 15) Materials stored correctly', text: 'Materials were stored on level ground, stacked securely and positioned away from pedestrian routes and emergency access points.' },
@@ -4242,8 +4215,6 @@ const SIMPLE_PHRASES = [
   { id: 's15_8', label: '(PC - Section 15) Adequate lighting for movement', text: 'Adequate lighting was provided in work and circulation areas to support safe movement during low visibility.' },
   { id: 's15_9', label: '(PC - Section 15) Housekeeping expectations communicated', text: 'Housekeeping expectations were communicated at induction and reinforced during briefings, with operatives actively maintaining order.' },
   { id: 's15_10', label: '(PC - Section 15) Emergency routes kept clear', text: 'Site access points, fire escape routes and first aid locations were kept clear of materials and waste to support emergency response.' },
-  // === PC - Section 16 – Welfare & Wellbeing ===
-
   { id: 's16_1', label: '(PC - Section 16) Welfare facilities available', text: 'Welfare facilities were available in accordance with CDM, including toilets, washing facilities, drinking water, rest areas and drying rooms.' },
   { id: 's16_2', label: '(PC - Section 16) Toilets and wash stations maintained', text: 'Toilets and wash stations were clean, stocked and serviced with soap, hot and cold water and drying materials.' },
   { id: 's16_3', label: '(PC - Section 16) Rest areas suitable', text: 'Rest areas had seating, heating and means for preparing or heating food and drinks to support operatives during breaks.' },
@@ -4253,8 +4224,6 @@ const SIMPLE_PHRASES = [
   { id: 's16_7', label: '(PC - Section 16) Cleaning and servicing arrangements', text: 'Cleaning and replenishment arrangements were in place with evidence of regular servicing and waste removal.' },
   { id: 's16_8', label: '(PC - Section 16) Welfare capacity adequate', text: 'Welfare capacity reflected workforce numbers and peak labour periods.' },
   { id: 's16_9', label: '(PC - Section 16) Information displayed', text: 'Information regarding first aid, emergency procedures and site rules was displayed in welfare areas.' },
-  // === PC - Section 17 – Traffic Management ===
-
   { id: 's17_1', label: '(PC - Section 17) Traffic management plan in place', text: 'A traffic management plan detailed vehicle routes, pedestrian routes, delivery points and restricted zones and was understood by site management.' },
   { id: 's17_2', label: '(PC - Section 17) Segregated routes', text: 'Vehicle routes and pedestrian walkways were segregated using barriers or marked walkways to reduce collision risk.' },
   { id: 's17_3', label: '(PC - Section 17) Controlled access and egress', text: 'Access and egress points were controlled with banksmen or gatemen and sign-in procedures for drivers and visitors.' },
@@ -4271,8 +4240,6 @@ const SIMPLE_PHRASES = [
   { id: 's17_14', label: '(PC - Section 17) Public highway interface', text: 'Traffic interface with the public highway was controlled to prevent queuing or reversing into live traffic or blocking footpaths.' },
   { id: 's17_15', label: '(PC - Section 17) Driver compliance reinforced', text: 'Drivers and plant operators were required to wear seatbelts, avoid mobile phone use and follow site traffic rules.' },
   { id: 's17_16', label: '(PC - Section 17) Emergency access maintained', text: 'Emergency access routes for fire and ambulance vehicles were maintained and arrangements understood by the Site Manager.' },
-  // === PC - Section 18 – Occupational Health & Wellbeing ===
-
   { id: 's18_1', label: '(PC - Section 18) Occupational health hazards identified', text: 'Occupational health risks such as dust, noise, vibration, manual handling, stress and fatigue were identified and managed alongside safety risks.' },
   { id: 's18_2', label: '(PC - Section 18) Mental health support', text: 'Mental health support was available with access to Mental Health First Aiders or wellbeing champions and information displayed in welfare areas.' },
   { id: 's18_3', label: '(PC - Section 18) Awareness of stress factors', text: 'Site management demonstrated awareness of cognitive stress factors including workload pressure, shift length and concentration demands.' },
@@ -4284,8 +4251,6 @@ const SIMPLE_PHRASES = [
   { id: 's18_9', label: '(PC - Section 18) Welfare supports wellbeing', text: 'Welfare facilities supported hydration, rest and privacy to manage fatigue and mental load.' },
   { id: 's18_10', label: '(PC - Section 18) Open communication on wellbeing', text: 'Operatives felt able to raise concerns about workload, stress or wellbeing due to open communication routes.' },
   { id: 's18_11', label: '(PC - Section 18) Health expectations covered at induction', text: 'Site inductions covered health expectations and support routes regarding wellbeing and fatigue management.' },
-  // === C - Section 21 – Contractor Duties & Coordination ===
-
   { id: 'c21_1', label: '(C - Section 21) Understanding of CDM duties', text: 'The Contractor demonstrated a clear understanding of their duties under CDM 2015 and their role within the project team.' },
   { id: 'c21_2', label: '(C - Section 21) Cooperation with PC', text: 'The Contractor is cooperating effectively with the Principal Contractor and other duty holders to manage health and safety risks.' },
   { id: 'c21_3', label: '(C - Section 21) Communication arrangements', text: 'Regular communication arrangements were in place, including attendance at daily briefings and coordination meetings.' },
@@ -4293,113 +4258,81 @@ const SIMPLE_PHRASES = [
   { id: 'c21_5', label: '(C - Section 21) Compliance with site rules', text: 'The Contractor followed site rules and directions issued by the Principal Contractor.' },
   { id: 'c21_6', label: '(C - Section 21) Managing trade interfaces', text: 'Interfaces with other trades and site activities were discussed and managed to reduce risk.' },
   { id: 'c21_7', label: '(C - Section 21) Notification of method changes', text: 'The Contractor understood the requirement to notify the Principal Contractor of changes to working methods or subcontracting.' },
-  // === C - Section 22 – Construction Phase Plan (CPP) ===
-
-  { id: 'c22_1', label: '(C - Section 22) CPP available on site', text: 'A Construction Phase Plan relevant to the project was available on site.' },
+  { id: 'c22_1', label: '(C - Section 22) CPP available on site', text: 'A Construction Phase Plan relevant to the project was being revised and was available on site.' },
   { id: 'c22_2', label: '(C - Section 22) Understanding of CPP arrangements', text: 'The Contractor demonstrated a good understanding of the CPP and the arrangements relevant to their scope of works.' },
-  { id: 'c22_3', label: '(C - Section 22) Awareness of site rules and emergency arrangements', text: 'Site rules, emergency arrangements and key control measures were understood and followed.' },
+  { id: 'c22_3', label: '(C - Section 22) Awareness of site rules and emergency arrangements', text: 'The CPP has been produced and is being revised at regular intervals during the project the CPP is available …................. And has been circulated to all contractors either by document circulation or relevant information and arrangements being communicated at briefings.' },
   { id: 'c22_4', label: '(C - Section 22) CPP proportionate to work', text: 'The CPP was proportionate to the scale and risk of the works being undertaken.' },
   { id: 'c22_5', label: '(C - Section 22) Working in accordance with CPP', text: 'The Contractor understood the requirement to work in accordance with the CPP and raise conflicts or changes with the Principal Contractor.' },
-  // === C - Section 23 – RAMS ===
-
-  { id: 'c23_1', label: '(C - Section 23) Task-specific RAMS in place', text: 'Task-specific RAMS were in place for the activities being undertaken.' },
+  { id: 'c23_1', label: '(C - Section 23) Task-specific RAMS in place', text: 'Task-specific RAMS were in place for the activities being undertaken. The RAMS have been reviewed and approved by the Principal Contractor/ Contractor' },
   { id: 'c23_2', label: '(C - Section 23) RAMS suitable and sufficient', text: 'The RAMS were suitable and sufficient and reflected site conditions.' },
   { id: 'c23_3', label: '(C - Section 23) RAMS control measures implemented', text: 'Control measures identified within the RAMS were observed to be implemented on site.' },
   { id: 'c23_4', label: '(C - Section 23) Operatives aware of risks and controls', text: 'Operatives were able to describe the key risks and controls associated with their tasks.' },
   { id: 'c23_5', label: '(C - Section 23) RAMS review and update', text: 'The Contractor understood the requirement to review and update RAMS where site conditions or work methods change.' },
-  // === C - Section 24 – Competence, Behaviour & Supervision ===
-
   { id: 'c24_1', label: '(C - Section 24) Evidence of training and qualifications', text: 'Operatives on site were able to provide evidence of relevant training, qualifications and experience.' },
   { id: 'c24_2', label: '(C - Section 24) Competent plant operators', text: 'Plant and equipment operators were suitably trained and competent for the equipment in use.' },
   { id: 'c24_3', label: '(C - Section 24) Adequate supervision', text: 'Adequate supervision was provided to manage the work activities safely.' },
   { id: 'c24_4', label: '(C - Section 24) Appropriate behaviour observed', text: 'The standard of behaviour observed was appropriate, with operatives following site rules and instructions.' },
   { id: 'c24_5', label: '(C - Section 24) Support for less experienced workers', text: 'The Contractor demonstrated awareness of the need to support less experienced workers through supervision and briefing.' },
-  // === C - Section 25 – Information, Instruction & Consultation ===
-
   { id: 'c25_1', label: '(C - Section 25) Site induction received', text: 'Operatives had received a site induction appropriate to the project.' },
   { id: 'c25_2', label: '(C - Section 25) Toolbox talks and briefings', text: 'Task briefings and toolbox talks were being delivered to support safe working.' },
-  { id: 'c25_3', label: '(C - Section 25) Encouraged to raise concerns', text: 'Operatives were encouraged to raise health and safety concerns.' },
+  { id: 'c25_3', label: '(C - Section 25) Encouraged to raise concerns', text: 'Operatives were encouraged to raise health and safety concerns. Through the don’t walk by/you see we say …..... And have so far this month raised …..' },
   { id: 'c25_4', label: '(C - Section 25) Awareness of emergency arrangements', text: 'Workers demonstrated awareness of emergency arrangements and reporting procedures.' },
   { id: 'c25_5', label: '(C - Section 25) Workforce consultation', text: 'The Contractor was consulting with their workforce on health and safety matters.' },
-  // === C - Section 26 – Site Set-Up & Working Environment ===
-
   { id: 'c26_1', label: '(C - Section 26) Safe access and egress', text: 'Safe access and egress routes were provided and maintained.' },
   { id: 'c26_2', label: '(C - Section 26) Acceptable housekeeping', text: 'Housekeeping standards were acceptable, reducing the risk of slips, trips and falls.' },
   { id: 'c26_3', label: '(C - Section 26) Organised material storage', text: 'Materials and equipment were stored in an organised manner.' },
   { id: 'c26_4', label: '(C - Section 26) Adequate lighting', text: 'Lighting levels were adequate for the work activities observed.' },
   { id: 'c26_5', label: '(C - Section 26) Site set-up appropriate', text: 'The site set-up was appropriate for the current stage of the works.' },
-  // === C - Section 27 – Site Security & Protection of Others ===
-
   { id: 'c27_1', label: '(C - Section 27) Measures to prevent unauthorised access', text: 'Reasonable measures were in place to prevent unauthorised access to the work area.' },
   { id: 'c27_2', label: '(C - Section 27) Site boundaries defined', text: 'Site boundaries were clearly defined using suitable barriers and signage.' },
   { id: 'c27_3', label: '(C - Section 27) Activities managed to protect the public', text: 'The Contractor’s activities were managed to prevent risk to the public and others.' },
   { id: 'c27_4', label: '(C - Section 27) End-of-shift arrangements', text: 'End-of-shift arrangements were in place to leave the site in a safe condition.' },
   { id: 'c27_5', label: '(C - Section 27) Responsibility to protect others', text: 'The Contractor understood their responsibility to protect others affected by their work.' },
-  // === C - Section 28 – Traffic & Movement Control ===
-
   { id: 'c28_1', label: '(C - Section 28) Vehicle movements managed', text: 'Vehicle movements were planned and managed to reduce risk.' },
   { id: 'c28_2', label: '(C - Section 28) Pedestrian segregation considered', text: 'Pedestrian routes were considered and segregation provided where practicable.' },
   { id: 'c28_3', label: '(C - Section 28) Deliveries coordinated', text: 'Deliveries were coordinated to avoid unnecessary congestion.' },
   { id: 'c28_4', label: '(C - Section 28) Reversing controlled', text: 'Reversing activities were controlled through agreed arrangements.' },
   { id: 'c28_5', label: '(C - Section 28) Compliance with traffic management', text: 'The Contractor was following site traffic management requirements.' },
-  // === C - Section 29 – Plant, Equipment & PUWER ===
-
   { id: 'c29_1', label: '(C - Section 29) Suitable plant and equipment', text: 'Plant and equipment provided were suitable for the tasks being undertaken.' },
   { id: 'c29_2', label: '(C - Section 29) Pre-use checks completed', text: 'Pre-use checks were being carried out by operatives.' },
   { id: 'c29_3', label: '(C - Section 29) No defective equipment observed', text: 'Defective equipment was not observed in use.' },
   { id: 'c29_4', label: '(C - Section 29) Temporary electrical equipment managed', text: 'Temporary electrical equipment was appropriately managed.' },
   { id: 'c29_5', label: '(C - Section 29) Understanding PUWER requirements', text: 'The Contractor demonstrated an understanding of PUWER requirements.' },
-  // === C - Section 30 – Lifting Operations ===
-
   { id: 'c30_1', label: '(C - Section 30) Lifting activities planned', text: 'Lifting activities were planned and appropriately supervised.' },
   { id: 'c30_2', label: '(C - Section 30) Suitable lifting equipment', text: 'Lifting equipment and accessories were in good condition and suitable for use.' },
   { id: 'c30_3', label: '(C - Section 30) Exclusion zones established', text: 'Exclusion zones were established to protect others during lifting operations.' },
   { id: 'c30_4', label: '(C - Section 30) Competent lifting operatives', text: 'Operatives involved in lifting activities were competent.' },
   { id: 'c30_5', label: '(C - Section 30) Clear lifting communication', text: 'Communication during lifting operations was clear.' },
-  // === C - Section 31 – Work at Height ===
-
   { id: 'c31_1', label: '(C - Section 31) Work at height avoided where possible', text: 'Work at height was avoided where practicable.' },
   { id: 'c31_2', label: '(C - Section 31) Suitable access equipment provided', text: 'Suitable access equipment was provided for the tasks observed.' },
   { id: 'c31_3', label: '(C - Section 31) Edge protection in place', text: 'Edge protection and controls to prevent falling objects were in place.' },
   { id: 'c31_4', label: '(C - Section 31) Ladder and podium use appropriate', text: 'Ladders and podiums were in good condition and used appropriately.' },
   { id: 'c31_5', label: '(C - Section 31) Awareness of fall risks', text: 'Operatives demonstrated awareness of fall risks.' },
-  // === C - Section 32 – Excavations ===
-
   { id: 'c32_1', label: '(C - Section 32) Excavations identified and protected', text: 'Excavations were identified and protected to prevent falls.' },
   { id: 'c32_2', label: '(C - Section 32) Safe access and egress', text: 'Safe access and egress to excavations were provided.' },
   { id: 'c32_3', label: '(C - Section 32) Spoil stored away from edges', text: 'Spoil and materials were stored away from excavation edges.' },
   { id: 'c32_4', label: '(C - Section 32) Ground conditions monitored', text: 'Ground conditions were considered and monitored.' },
   { id: 'c32_5', label: '(C - Section 32) Temporary works understood', text: 'Temporary works arrangements were understood where applicable.' },
-  // === C - Section 33 – Underground & Overhead Services ===
-
   { id: 'c33_1', label: '(C - Section 33) Service information available', text: 'Information relating to underground and overhead services was available.' },
   { id: 'c33_2', label: '(C - Section 33) Permit to dig followed', text: 'Permit to dig arrangements were followed where required.' },
   { id: 'c33_3', label: '(C - Section 33) Controls to prevent service contact', text: 'Controls were in place to prevent contact with live services.' },
   { id: 'c33_4', label: '(C - Section 33) Operatives briefed on service risks', text: 'Operatives were briefed on service-related risks.' },
   { id: 'c33_5', label: '(C - Section 33) Understanding permit systems', text: 'The Contractor understood the importance of following permit systems.' },
-  // === C - Section 34 – Occupational Health & COSHH ===
-
   { id: 'c34_1', label: '(C - Section 34) COSHH assessments available', text: 'COSHH assessments were available where hazardous substances were used.' },
   { id: 'c34_2', label: '(C - Section 34) Dust, noise and vibration controlled', text: 'Dust, noise and vibration risks were considered and controlled.' },
   { id: 'c34_3', label: '(C - Section 34) Manual handling assessed', text: 'Manual handling risks were assessed where applicable.' },
   { id: 'c34_4', label: '(C - Section 34) PPE and RPE appropriate', text: 'Appropriate PPE and RPE were provided for the health risks identified.' },
   { id: 'c34_5', label: '(C - Section 34) Awareness of occupational health', text: 'The Contractor demonstrated awareness of occupational health considerations.' },
-  // === C - Section 35 – PPE Compliance & Enforcement ===
-
   { id: 'c35_1', label: '(C - Section 35) Mandatory PPE defined and complied', text: 'Mandatory PPE requirements were clearly defined and complied with.' },
   { id: 'c35_2', label: '(C - Section 35) Task-specific PPE used', text: 'Task-specific PPE was provided and used correctly.' },
   { id: 'c35_3', label: '(C - Section 35) Supervisors challenging non-compliance', text: 'Supervisors were challenging non-compliance where necessary.' },
   { id: 'c35_4', label: '(C - Section 35) PPE in serviceable condition', text: 'PPE was in a serviceable condition.' },
   { id: 'c35_5', label: '(C - Section 35) Leadership in PPE enforcement', text: 'The Contractor demonstrated leadership in enforcing PPE standards.' },
-  // === C - Section 36 – Emergency Preparedness & Response ===
-
   { id: 'c36_1', label: '(C - Section 36) Suitable first aid arrangements', text: 'First aid arrangements were suitable for the number of operatives on site.' },
   { id: 'c36_2', label: '(C - Section 36) Fire-fighting equipment accessible', text: 'Fire-fighting equipment was provided and accessible.' },
   { id: 'c36_3', label: '(C - Section 36) Escape routes kept clear', text: 'Escape routes were kept clear.' },
   { id: 'c36_4', label: '(C - Section 36) Emergency procedures communicated', text: 'Emergency procedures were communicated to operatives.' },
   { id: 'c36_5', label: '(C - Section 36) Awareness of emergency response', text: 'The Contractor demonstrated awareness of emergency response arrangements.' },
-  // === C - Section 37 – Welfare Facilities ===
-
   { id: 'c37_1', label: '(C - Section 37) Welfare provided to requirements', text: 'Welfare facilities were provided in accordance with site requirements.' },
   { id: 'c37_2', label: '(C - Section 37) Facilities clean and maintained', text: 'Facilities were clean, maintained and suitable for the workforce.' },
   { id: 'c37_3', label: '(C - Section 37) Drinking water and washing facilities', text: 'Drinking water and washing facilities were available.' },
