@@ -1419,7 +1419,17 @@ body{ font-size:14px; line-height:1.6; color:var(--text); background:var(--bg); 
 .tab-bar-row::-webkit-scrollbar{ display:none; }
 .tab-bar-row button, .tab-bar-row button.tb-primary, .tab-bar-row button.tb-output, .tab-bar-row button.tb-danger{ background:none !important; border:0 !important; border-bottom:2px solid transparent !important; border-radius:0 !important; height:46px; padding:0 13px !important; font-size:13.5px; font-weight:500; color:var(--text-muted); display:inline-flex; align-items:center; gap:7px; white-space:nowrap; cursor:pointer; font-family:var(--font); flex:0 0 auto; }
 .tab-bar-row button svg{ width:16px; height:16px; flex:0 0 auto; }
-.tab-bar-row button:hover{ color:var(--text); }
+.tab-bar-row button:hover, .tab-bar-row button.tb-primary:hover, .tab-bar-row button.tb-output:hover, .tab-bar-row button.tb-danger:hover{ color:var(--text) !important; background:none !important; border-color:transparent !important; border-bottom:2px solid var(--accent) !important; }
+.tab-bar-row button#clr:hover, .tab-bar-row button.tb-danger:hover{ color:var(--danger) !important; border-bottom-color:var(--danger) !important; }
+.header-right button:hover, .header-right button.tb-output:hover, .header-right button.tb-primary:hover{ background:var(--muted-bg) !important; color:var(--text) !important; border-color:var(--border) !important; }
+/* Sign-off include/exclude toggle */
+.signoff-toggle{ margin-left:auto; font-size:12px; font-weight:600; color:var(--text-muted); display:inline-flex; align-items:center; gap:8px; cursor:pointer; }
+.signoff-toggle input{ width:16px; height:16px; accent-color:var(--accent); cursor:pointer; }
+#signoffSection.off #signoffBody{ display:none; }
+#signoffSection.off > h3::before{ background:var(--text-muted); }
+/* Per-image section/item link selector */
+.img-item .img-link-select{ width:100%; margin-top:6px; font-size:12px; font-family:var(--font); border:1px solid var(--border); border-radius:7px; padding:7px 8px; background:var(--input-bg); color:var(--text); cursor:pointer; min-height:38px; }
+.img-item .img-link-select:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(75,191,214,.15); }
 .tab-bar-row button:active, .tab-bar-row button.on{ color:var(--accent-dark); border-bottom-color:var(--accent) !important; }
 .tab-bar-row button#newInsp{ color:var(--accent-dark) !important; font-weight:700; }
 .tab-bar-row button#clr, .tab-bar-row button.tb-danger{ color:var(--text-muted); }
@@ -1859,21 +1869,23 @@ button.r3-ai:hover{ background:var(--muted-bg); }
         <div id="imgp" class="imgs"></div>
       </div>
 
-      <div class="section">
-        <h3>Sign Off</h3>
-        <div class="grid">
-          <div class="field">
-            <label>Manager/Supervisor</label>
-            <div class="rte" contenteditable="true" id="mgr" data-placeholder="Enter manager name"></div>
+      <div class="section" id="signoffSection">
+        <h3>Sign Off <label class="signoff-toggle" title="Include the sign-off page in the report"><input type="checkbox" id="signoffToggle" checked>Include in report</label></h3>
+        <div id="signoffBody">
+          <div class="grid">
+            <div class="field">
+              <label>Manager/Supervisor</label>
+              <div class="rte" contenteditable="true" id="mgr" data-placeholder="Enter manager name"></div>
+            </div>
+            <div class="field">
+              <label>Consultant</label>
+              <div class="rte" contenteditable="true" id="cslt" data-placeholder="Enter consultant name"></div>
+            </div>
           </div>
-          <div class="field">
-            <label>Consultant</label>
-            <div class="rte" contenteditable="true" id="cslt" data-placeholder="Enter consultant name"></div>
+          <div class="final-print-footer">
+            <strong>Produced by AHS Compliance Consulting Ltd</strong><br>
+            Confidential — Uncontrolled when printed<br>
           </div>
-        </div>
-        <div class="final-print-footer">
-          <strong>Produced by AHS</strong><br>
-          Confidential — Uncontrolled when printed<br>
         </div>
       </div>
     </div>
@@ -2062,6 +2074,22 @@ function saveFrontPageData() {
     }
     
     updateFrontPageDisplay(data);
+
+    // Populate the Project Information boxes from the front-page details so the
+    // same information doesn't have to be typed twice.
+    try {
+      const setBox = (id, val) => {
+        const el = document.getElementById(id);
+        if (el && val && String(val).trim()) el.textContent = String(val).trim();
+      };
+      setBox('site', data.client);              // Client (CDM)
+      setBox('proj', data.principalContractor); // Principal Contractor
+      setBox('con',  data.providedFor);         // Client (Contract)
+      const rd = document.getElementById('report-date');
+      if (rd && data.reportDate) rd.value = data.reportDate;
+      if (window.AHS_DRAFT && window.AHS_DRAFT.saveNow) window.AHS_DRAFT.saveNow();
+    } catch (e) { console.warn('Could not populate Project Information:', e); }
+
     closeFrontPageEditor();
     alert('✅ Front page information saved successfully!');
   } catch (e) {
@@ -2916,7 +2944,43 @@ async function renderImages() {
     });
 
     imgBox.appendChild(img);
-    imgBox.appendChild(caption);
+
+    // Section / item link — assign this photo to a section or item. Options are
+    // rebuilt each time the dropdown is opened, so a section added after the
+    // photo shows up straight away (handy while still on site).
+    if (window.AHS_PHOTO_LINK) {
+      const sel = document.createElement('select');
+      sel.className = 'img-link-select';
+      const fill = () => {
+        const cur = imgObj.link ? JSON.stringify(imgObj.link) : '';
+        sel.innerHTML = '';
+        window.AHS_PHOTO_LINK.options().forEach(o => {
+          const op = document.createElement('option');
+          op.value = o.value; op.textContent = o.label;
+          if (o.value === cur) op.selected = true;
+          sel.appendChild(op);
+        });
+      };
+      fill();
+      sel.addEventListener('mousedown', fill);   // refresh options on open
+      sel.addEventListener('focus', fill);
+      sel.addEventListener('change', () => {
+        imgObj.link = sel.value ? JSON.parse(sel.value) : null;
+        // Only auto-fill the caption if the user hasn't written their own
+        const auto = window.AHS_PHOTO_LINK.caption(imgObj.link, '');
+        const typed = caption.textContent.trim();
+        if (!typed || typed === (imgObj._autoCap || '')) {
+          caption.textContent = auto; imgObj.caption = auto; imgObj._autoCap = auto;
+        }
+        try { window.AHS_PHOTO_LINK.refresh(); } catch (e) {}
+        if (window.AHS_DRAFT && window.AHS_DRAFT.scheduleSave) window.AHS_DRAFT.scheduleSave();
+      });
+      imgBox.appendChild(caption);
+      imgBox.appendChild(sel);
+    } else {
+      imgBox.appendChild(caption);
+    }
+
     imgPreview.appendChild(imgBox);
   });
 
@@ -4858,20 +4922,32 @@ window.showPhraseModal = showPhraseModal;
     updateFrontPageDisplay(frontPageData);
   });
 
-  // Keyboard overlap mitigation: scroll focused field into view
+  // Keyboard overlap mitigation — ONLY on small touch screens where the
+  // on-screen keyboard can cover the field, and only when the field is
+  // actually low enough to be hidden. On desktop this used to yank the page
+  // around on every click (the "dizzy" jumping); it now does nothing there.
   document.addEventListener("focusin", (e) => {
     const el = e.target;
     if (!el) return;
+    const smallTouch = window.matchMedia("(max-width: 640px)").matches ||
+                       window.matchMedia("(pointer: coarse)").matches;
+    if (!smallTouch) return;
     const isEditable =
       el.matches("input, textarea, select") ||
       el.isContentEditable ||
-      el.closest && el.closest("[contenteditable='true']");
+      (el.closest && el.closest("[contenteditable='true']"));
     if (!isEditable) return;
 
-    // Small delay lets the keyboard start appearing first on mobile
     setTimeout(() => {
       try {
-        (el.scrollIntoView ? el : el.closest(".rte") || el).scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+        const t = (el.scrollIntoView ? el : (el.closest(".rte") || el));
+        const r = t.getBoundingClientRect();
+        // Only scroll if the field sits in (or below) the lower half of the
+        // viewport, i.e. where the keyboard would cover it. Fields already in
+        // comfortable view are left exactly where they are — no jump.
+        if (r.bottom > window.innerHeight * 0.5) {
+          t.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+        }
       } catch {}
     }, 250);
   }, true);
@@ -4979,6 +5055,19 @@ document.addEventListener('DOMContentLoaded', function() {
   if (savedLogo) {
     uploadedLogoData = savedLogo;
     updateLogoDisplay(savedLogo);
+  }
+
+  // Sign-off include/exclude toggle (persisted; also read by the PDF)
+  const soSec = document.getElementById('signoffSection');
+  const soTog = document.getElementById('signoffToggle');
+  if (soSec && soTog) {
+    const on = localStorage.getItem('AHS_SIGNOFF_ON') !== 'off';
+    soTog.checked = on;
+    soSec.classList.toggle('off', !on);
+    soTog.addEventListener('change', () => {
+      soSec.classList.toggle('off', !soTog.checked);
+      try { localStorage.setItem('AHS_SIGNOFF_ON', soTog.checked ? 'on' : 'off'); } catch (e) {}
+    });
   }
 });
 
@@ -5482,6 +5571,7 @@ async function generateClientReport() {
     const purposeRationale = getFormattedText('#purposeRationale');
     const siteSummary = getFormattedText('#siteSummary');
     const signoffSummary = getFormattedText('#signoffSummary');
+    const signoffOn = (localStorage.getItem('AHS_SIGNOFF_ON') !== 'off'); // sign-off toggle
     
     const manager = getFormattedText('#mgr');
     const consultant = getFormattedText('#cslt');
@@ -6354,11 +6444,12 @@ if (images.length > 0) {
   addPageFooter(doc, currentPage, '?');
 }
     // ========================================
-    // FINAL PAGE: SIGN-OFF
+    // FINAL PAGE: SIGN-OFF  (only when the sign-off toggle is on)
     // ========================================
+    if (signoffOn) {
     doc.addPage();
     currentPage++;
-    
+
     doc.setFontSize(22);
     doc.setFont(undefined, 'bold');
     doc.setTextColor(58, 58, 58);
@@ -6480,9 +6571,10 @@ if (images.length > 0) {
       doc.text('The findings and recommendations are based on observations made during', 22, y + 21);
       doc.text('the inspection period and represent the professional opinion of the inspector.', 22, y + 26);
     }
-    
+
     addPageFooter(doc, currentPage, '?');
-    
+    } // end sign-off page (signoffOn)
+
     // ========================================
     // UPDATE ALL PAGE NUMBERS
     // ========================================
@@ -7118,6 +7210,8 @@ function addPageFooter(doc, pageNum, totalPages) {
   .cap-tile .t{font-size:14px;font-weight:600;line-height:1.3}
   .cap-tile .p{font-size:12px;color:#5a6b7c;margin-top:auto}
   .cap-tile.done{border-color:#4A4F55;box-shadow:inset 3px 0 0 #4A4F55}
+  .cap-add{border:2px dashed #94a3b8 !important;color:#4A4F55;align-items:center;justify-content:center;text-align:center;font-weight:700;font-size:14px;box-shadow:none !important}
+  .cap-add:active{background:#eef2f5}
   .cap-item{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:10px}
   .cap-item .lbl{font-size:14.5px;font-weight:600;line-height:1.35;margin-bottom:9px}
   .cap-sts{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
@@ -7168,6 +7262,7 @@ function addPageFooter(doc, pageNum, totalPages) {
 
   // ── Bank: group SIMPLE_PHRASES by "(PC - Section N)" prefix ──
   var _bank = null, _topics = null;
+  function invalidate(){ _bank = null; _topics = null; }
   function bank(){
     if(_bank) return _bank;
     _bank = {};
@@ -7178,6 +7273,8 @@ function addPageFooter(doc, pageNum, totalPages) {
       var key = m[1] + m[2];
       (_bank[key] = _bank[key] || []).push({ id: p.id, check: m[3], text: p.text || '' });
     });
+    // Sections the user has added themselves
+    if(S.custom){ Object.keys(S.custom).forEach(function(k){ _bank[k] = (S.custom[k].items || []).slice(); }); }
     return _bank;
   }
   function topics(){
@@ -7187,14 +7284,18 @@ function addPageFooter(doc, pageNum, totalPages) {
       var m = re.exec(String(t.title).trim());
       if(!m) return null;
       return { topicId: t.id, key: m[1] + m[2], mode: m[1], num: +m[2], short: m[3].trim(), title: String(t.title).trim() };
-    }).filter(function(t){ return t && bank()[t.key]; })
-      .sort(function(a,b){ return a.num - b.num; });
+    }).filter(function(t){ return t && bank()[t.key]; });
+    // Custom sections — shown in both PC and Contractor modes, listed last
+    if(S.custom){ Object.keys(S.custom).forEach(function(k){ var cs = S.custom[k];
+      _topics.push({ topicId:'cust-'+k, key:k, mode:'ALL', num: cs.num || 900, short: cs.short || 'Custom section', title: cs.short || 'Custom section', custom:true }); }); }
+    _topics.sort(function(a,b){ return a.num - b.num; });
     return _topics;
   }
 
   // ── Capture state (persisted as draft state.capture) ──
-  // S = { mode:'PC'|'C', sections: { key: { instanceId:null|str, items: { phraseId: {st, note, photos:[]} } } } }
-  var S = { mode:'PC', sections:{} };
+  // S = { mode:'PC'|'C', sections:{ key:{ instanceId, items:{phraseId:{st,note,photos}} } },
+  //       custom:{ key:{ num, short, items:[{id,check,text}] } } }
+  var S = { mode:'PC', sections:{}, custom:{} };
   function item(key, pid){
     var sec = S.sections[key] = S.sections[key] || { instanceId:null, items:{} };
     return sec.items[pid] = sec.items[pid] || { st:'', note:'', photos:[] };
@@ -7216,6 +7317,8 @@ function addPageFooter(doc, pageNum, totalPages) {
       if(data && typeof data === 'object' && data.sections){ S = JSON.parse(JSON.stringify(data)); }
       if(!S.mode) S.mode = 'PC';
       if(!S.sections) S.sections = {};
+      if(!S.custom) S.custom = {};
+      invalidate();
     },
     getMode: function(){ return S.mode; },
     setMode: function(m){ if(m==='PC'||m==='C'){ S.mode=m; save(); } },
@@ -7245,7 +7348,7 @@ function addPageFooter(doc, pageNum, totalPages) {
   function renderHome(){
     back.style.display = 'none';
     title.textContent = 'Inspection criteria';
-    var ts = topics().filter(function(t){ return t.mode === S.mode; });
+    var ts = topics().filter(function(t){ return t.mode === S.mode || t.custom; });
     var total = 0; ts.forEach(function(t){ total += answered(t.key); });
     prog.textContent = total ? total + ' answered' : '';
     var htm = '<div class="cap-mode">' +
@@ -7255,24 +7358,36 @@ function addPageFooter(doc, pageNum, totalPages) {
     ts.forEach(function(t){
       var n = answered(t.key), tot = bank()[t.key].length;
       htm += '<div class="cap-tile' + (n?' done':'') + '" data-key="' + esc(t.key) + '">' +
-        '<span class="n">Section ' + t.num + '</span>' +
+        '<span class="n">' + (t.custom ? 'Custom' : 'Section ' + t.num) + '</span>' +
         '<span class="t">' + esc(t.short) + '</span>' +
         '<span class="p">' + n + ' of ' + tot + ' answered</span></div>';
     });
+    htm += '<div class="cap-tile cap-add" id="capAddSection">＋ Add your own section</div>';
     body.innerHTML = htm + '</div>';
     body.querySelectorAll('.cap-mode button').forEach(function(b){
       b.onclick = function(){ S.mode = b.getAttribute('data-mode'); save(); renderHome(); };
     });
     body.querySelectorAll('.cap-tile').forEach(function(tile){
+      if(tile.id === 'capAddSection') return;
       tile.onclick = function(){ view = { screen:'sec', key: tile.getAttribute('data-key') }; render(); };
     });
+    var addTile = body.querySelector('#capAddSection');
+    if(addTile){ addTile.onclick = function(){
+      var t = (prompt('Title for your new section (e.g. "Traffic management"):') || '').trim();
+      if(!t) return;
+      var k = 'CUST_' + Math.random().toString(36).slice(2,8);
+      var maxNum = 900; Object.keys(S.custom).forEach(function(kk){ if(S.custom[kk].num >= maxNum) maxNum = S.custom[kk].num + 1; });
+      S.custom[k] = { num: maxNum, short: t, items: [] };
+      invalidate(); save();
+      view = { screen:'sec', key:k }; render();
+    }; }
   }
 
   function renderSection(key){
     var t = topics().find(function(x){ return x.key === key; });
     if(!t){ view = {screen:'home', key:null}; return renderHome(); }
     back.style.display = '';
-    title.textContent = 'S' + t.num + ' — ' + t.short;
+    title.textContent = t.custom ? t.short : ('Section ' + t.num + ' — ' + t.short);
     prog.textContent = answered(key) + '/' + bank()[key].length;
     var htm = '';
     bank()[key].forEach(function(q){
@@ -7289,6 +7404,19 @@ function addPageFooter(doc, pageNum, totalPages) {
         '</div></div>';
     });
     body.innerHTML = htm;
+    // Custom sections: let the user add their own items on the fly
+    if(t.custom){
+      var addBtn = document.createElement('button');
+      addBtn.type = 'button'; addBtn.textContent = '＋ Add item to this section';
+      addBtn.style.cssText = 'width:100%;padding:11px;border:2px dashed #94a3b8;background:#fff;color:#4A4F55;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer;margin:2px 0 10px;';
+      addBtn.onclick = function(){
+        var txt = (prompt('New item / check for "' + t.short + '":') || '').trim();
+        if(!txt) return;
+        S.custom[key].items.push({ id: 'ci_' + Math.random().toString(36).slice(2,8), check: txt, text: txt });
+        invalidate(); save(); render();
+      };
+      body.appendChild(addBtn);
+    }
     body.querySelectorAll('.cap-item').forEach(function(node){
       var pid = node.getAttribute('data-pid');
       node.querySelectorAll('.cap-st').forEach(function(b){
@@ -7361,7 +7489,7 @@ function addPageFooter(doc, pageNum, totalPages) {
   async function build(opts){
     opts = opts || {};
     var built = 0, photosAdded = 0;
-    var ts = topics().filter(function(t){ return t.mode === S.mode; });
+    var ts = topics().filter(function(t){ return t.mode === S.mode || t.custom; });
     for(var i = 0; i < ts.length; i++){
       var t = ts[i], sec = S.sections[t.key];
       if(!sec) continue;
@@ -7393,13 +7521,13 @@ function addPageFooter(doc, pageNum, totalPages) {
             var d = await window.AHS_PHOTOS.get(pid2);
             if(d){
               allImages.push({ id: pid2, file: null, dataUrl: d,
-                caption: 'S' + t.num + ' — ' + (it.note || q.check) });
+                caption: (it.note || q.check) });
               photosAdded++;
             }
           }
           photoRefs.push('photo');
         }
-        var suffix = photoRefs.length ? ' (see images — S' + t.num + ')' : '';
+        var suffix = photoRefs.length ? ' (see images)' : '';
         if(it.st === 'compliant'){
           okLines.push('• ' + q.text + suffix);
         } else if(it.st === 'na' || !it.st){
@@ -8402,32 +8530,12 @@ function addPageFooter(doc, pageNum, totalPages) {
     return { system: system, user: user };
   }
 
-  async function callAI(pr){
-    var body = { system: pr.system, prompt: pr.user, maxTokens: 700, model: localStorage.getItem(AI_MODEL)||DEFAULT_MODEL };
-    // 1) the sync server (holds the API key) when the app is served over http(s)
-    if(/^https?:$/.test(location.protocol)){
-      try{
-        var r = await fetch('/api/ai/summary', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-        if(r.ok){ var j = await r.json(); if(j && j.text) return j.text; }
-        else if(r.status!==404) throw new Error('Server returned ' + r.status);
-      }catch(e){ if(!/404/.test(String(e.message))) console.warn('AI via server failed, trying local key:', e); }
-    }
-    // 2) a key saved on this device (local/offline use)
-    var key = localStorage.getItem(AI_KEY);
-    if(!key){
-      key = prompt('No AI endpoint available on this server.\n\nPaste an Anthropic API key to use on this device only (stored in this browser):');
-      if(!key) throw new Error('No API key');
-      localStorage.setItem(AI_KEY, key.trim()); key = key.trim();
-    }
-    var res = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json', 'x-api-key': key, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
-      body: JSON.stringify({ model: body.model, max_tokens: body.maxTokens, system: body.system, messages:[{ role:'user', content: body.prompt }] })
-    });
-    if(!res.ok){ var t = await res.text(); if(res.status===401){ localStorage.removeItem(AI_KEY); } throw new Error('AI request failed (' + res.status + '): ' + t.slice(0,200)); }
-    var data = await res.json();
-    return (data.content||[]).map(function(c){ return c.text||''; }).join('').trim();
-  }
+  // AI drafting removed — no API key, no external request, no cost. The
+  // summaries are now composed locally from what has been entered (see
+  // buildLocalSummary). This stub stays only so nothing that referenced it
+  // throws a ReferenceError.
+  async function callAI(){ throw new Error('AI drafting has been removed; use the local Compose buttons.'); }
+  try { localStorage.removeItem('AHS_AI_KEY'); } catch (e) {}
 
   function showPrompt(kind){
     var pr = buildPrompt(kind);
@@ -8446,16 +8554,69 @@ function addPageFooter(doc, pageNum, totalPages) {
     }catch(e){ alert('Could not draft the summary.\n\n' + e.message); }
     btn.disabled = false; btn.textContent = old;
   }
+  // ── Local summary composer (replaces the old AI drafting) ──
+  // Builds the Site Summary and the sign-off from what has already been typed:
+  // project info, the visit context and the findings. Entirely local.
+  function _fieldTxt(sel){ var e = document.querySelector(sel); return e ? (e.innerText || e.textContent || '').replace(/\s+/g,' ').trim() : ''; }
+  function _cap(s){ return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+  function _joinList(list){ if(!list.length) return ''; if(list.length===1) return list[0]; return list.slice(0,-1).join(', ') + ' and ' + list[list.length-1]; }
+  function buildLocalSummary(kind){
+    var v = CUR.visit || {};
+    var client = _fieldTxt('#site') || _fieldTxt('#con');
+    var inspector = _fieldTxt('#ins') || _fieldTxt('#cslt');
+    var met = v.site_contact_name ? (v.site_contact_name + (v.site_contact_role ? ' (' + v.site_contact_role + ')' : '')) : _fieldTxt('#site-contact');
+    var c = digest(collect()).counts;
+    var parts = [];
+    if(kind === 'site'){
+      parts.push('This inspection was undertaken' + (client ? ' on behalf of ' + client : '') + ' to provide an independent review of health, safety and welfare arrangements on site at the time of the visit.');
+      parts.push('On arrival, the inspector' + (met ? ' was met by ' + met : ' attended site') + '. The purpose of the inspection, the scope of the walk-around and the expected outputs were discussed and agreed prior to commencement.');
+      var ctx = '';
+      if(v.works_phase) ctx += 'At the time of the inspection the site was engaged in ' + v.works_phase + '. ';
+      var present = [];
+      if(v.operatives_on_site!=null && v.operatives_on_site!=='') present.push(v.operatives_on_site + ' operative' + (+v.operatives_on_site===1?'':'s'));
+      if(v.contractors_on_site!=null) present.push(v.contractors_on_site + ' contractor' + (+v.contractors_on_site===1?'':'s'));
+      if(present.length) ctx += _cap(_joinList(present)) + ' were present. ';
+      if(v.weather_conditions) ctx += 'Conditions on the day were ' + v.weather_conditions + '. ';
+      if(ctx.trim()) parts.push(ctx.trim());
+      if(v.focus_areas) parts.push('The inspection focused on ' + v.focus_areas + ', supported by a review of the site documentation.');
+      parts.push('The findings set out below reflect the conditions observed and the discussions held on the date of the inspection only.');
+    } else {
+      var secNames = [];
+      document.querySelectorAll('#secs .insp-section').forEach(function(sec){ var f=sec.querySelector(".field .rte[contenteditable='true']"); var n=f?strip(f.innerHTML):''; if(n) secNames.push(window.stripSectionTitle?window.stripSectionTitle(n):n); });
+      if(secNames.length) parts.push('During the inspection the following arrangements were reviewed: ' + _joinList(secNames) + '.');
+      var bits = [];
+      if(c.action) bits.push(c.action + ' item' + (c.action===1?'':'s') + ' requiring corrective action');
+      if(c.advisory) bits.push(c.advisory + ' advisory item' + (c.advisory===1?'':'s'));
+      if(c.observation) bits.push(c.observation + ' observation' + (c.observation===1?'':'s'));
+      if(bits.length) parts.push(_cap(_joinList(bits)) + ' ' + (bits.length===1 && c.action===1 ? 'was' : 'were') + ' identified and discussed with the site team, as detailed in the findings above.');
+      else if(c.total) parts.push('All ' + c.total + ' item' + (c.total===1?'':'s') + ' reviewed were found to be compliant at the time of the inspection.');
+      parts.push('Overall, the site was found to be managing health and safety to a ' + (c.action ? 'generally acceptable standard, with the corrective actions above to be addressed and closed out before the next visit' : 'good standard') + '.');
+      var mgr = _fieldTxt('#mgr'), cslt = _fieldTxt('#cslt') || inspector, so = [];
+      if(cslt) so.push('Prepared by ' + cslt);
+      if(mgr) so.push('discussed on site with ' + mgr);
+      if(so.length) parts.push(_cap(_joinList(so)) + '.');
+    }
+    return parts.filter(Boolean);
+  }
+  function composeInto(kind){
+    var target = document.querySelector(kind==='site' ? '#siteSummary' : '#signoffSummary');
+    if(!target) return;
+    if(strip(target.innerHTML) && !confirm('Replace the existing text with a version composed from the details you have entered?')) return;
+    var parts = buildLocalSummary(kind);
+    if(!parts.length){ alert('Add some details first — the visit context, project information and findings — then try again.'); return; }
+    target.innerHTML = parts.map(function(p){ return esc(p); }).join('<br><br>');
+    try{ save(); }catch(e){ if(window.AHS_DRAFT && window.AHS_DRAFT.saveNow) window.AHS_DRAFT.saveNow(); }
+  }
   function mountAI(){
     var h3 = Array.prototype.find.call(document.querySelectorAll('.section > h3'), function(h){ return /Site Summary/i.test(h.textContent); });
     var lbl = (function(){ var e=$('signoffSummary'); return e && e.parentElement.querySelector('label'); })();
-    [[h3,'site'],[lbl,'closing']].forEach(function(pair){
-      var host = pair[0], kind = pair[1]; if(!host) return;
-      var b = document.createElement('button'); b.type='button'; b.className='r3-ai'; b.textContent='✨ Draft with AI'; b.title='Draft this summary from the project details, visit context, findings and history';
-      b.onclick = function(){ draft(kind, b); };
-      var v = document.createElement('button'); v.type='button'; v.className='r3-ai'; v.textContent='View prompt'; v.style.marginLeft='4px';
-      v.onclick = function(){ showPrompt(kind); };
-      host.appendChild(b); host.appendChild(v);
+    [[h3,'site','Compose site summary'],[lbl,'closing','Auto-generate sign-off']].forEach(function(t){
+      var host = t[0], kind = t[1]; if(!host) return;
+      var b = document.createElement('button'); b.type='button'; b.textContent = t[2];
+      b.title = 'Build this locally from the details you have already entered (project info, visit context and findings). No internet, no cost.';
+      b.style.cssText = 'margin-left:10px;font:600 12px var(--font);border:1px solid var(--border);background:var(--surface);color:var(--accent-dark);border-radius:7px;padding:5px 11px;cursor:pointer;vertical-align:middle;';
+      b.onclick = function(){ composeInto(kind); };
+      host.appendChild(b);
     });
   }
 
@@ -8468,7 +8629,8 @@ function addPageFooter(doc, pageNum, totalPages) {
   }, true);
   function sectionLabel(sec){
     var f = sec.querySelector(".field .rte[contenteditable='true']"); var name = f ? strip(f.innerHTML) : '';
-    var m = /Section\s*(\d+)/i.exec(name); return { name: name || 'Section', short: m ? 'S' + m[1] : (name ? name.slice(0,40) : 'Section') };
+    if(window.stripSectionTitle) name = window.stripSectionTitle(name);
+    return { name: name || 'Section', short: name ? name.slice(0,40) : 'Section' };
   }
   function linkOptions(){
     var opts = [{ value:'', label:'General (not linked)' }];
@@ -8484,13 +8646,14 @@ function addPageFooter(doc, pageNum, totalPages) {
     return opts;
   }
   function captionFor(link, note){
+    // Just the title of whatever the photo relates to — the section name for a
+    // section link, or the item text for an item link. No "S36 —" prefix.
     if(!link) return note || '';
     var sec = document.querySelector('.insp-section[data-instance-id="' + link.instanceId + '"]'); if(!sec) return note||'';
     var sl = sectionLabel(sec);
-    if(link.row===null || link.row===undefined) return sl.short + ' — ' + (note || sl.name);
+    if(link.row===null || link.row===undefined) return note || sl.name;
     var row = sec.querySelectorAll('.item-row')[link.row]; var t = row ? strip(row.querySelector('.rte').innerHTML) : '';
-    var st = row && row.querySelector('select.status-select'); var sv = st && st.value;
-    return sl.short + (sv==='minor'?' ACTION':sv==='advisory'?' Advisory':'') + ' — ' + (t || 'item ' + (link.row+1));
+    return t || note || sl.name || ('item ' + (link.row+1));
   }
   var pending = null;
   function openSheet(dataUrl){
@@ -8529,6 +8692,9 @@ function addPageFooter(doc, pageNum, totalPages) {
       row.appendChild(b);
     });
   }
+  // Expose the section/item link helpers so the ordinary image grid can offer
+  // the same "assign this photo to a section/item" dropdown as the quick camera.
+  window.AHS_PHOTO_LINK = { options: linkOptions, caption: captionFor, refresh: refreshBadges };
   function mountCamera(){
     $('r3Cam').onclick = function(){ $('r3CamInput').click(); };
     $('r3CamInput').onchange = async function(){
