@@ -1692,21 +1692,9 @@ button.r3-ai:hover{ background:var(--muted-bg); }
          REPORT BODY
          ============================================================ -->
     <div class="container">
-      <div class="html-header-only" style="display:flex;justify-content:space-between;align-items:center;max-width:1300px;padding:1rem 1.25rem 0.75rem;">
-        <h1 contenteditable="true" style="padding-left:0.25rem;">Safety Inspection Report</h1>
-        <div style="text-align:right;font-size:0.9rem;padding-right:0.25rem;min-width:140px;">
-          <div>
-            <strong>Date:</strong>
-            <input type="date" id="report-date"
-                   style="display:inline-block;min-width:140px;padding:4px 8px;border-radius:6px;border:1.5px solid #d0d5dd;background:#f8fafb;font-family:'DM Mono','DM Sans',monospace;">
-          </div>
-          <div style="margin-top:4px;"><strong>Ref No:</strong>
-            <span contenteditable="true"
-                  style="display:inline-block;min-width:30px;max-width:90px;padding:3px 8px;border-radius:6px;border:1.5px solid #d0d5dd;background:#f8fafb;font-family:'DM Mono','DM Sans',monospace;">1</span>
-          </div>
-        </div>
-      </div>
-
+      <!-- Report title / date / Ref No removed: the date is set on the Front
+           Page (that's what the report uses) and the visit number lives in the
+           visit context; the on-screen title is the app header. -->
       <div id="visitCtx"></div>
 
       <!-- Print-only cover page -->
@@ -2428,14 +2416,12 @@ if (exportBtn) {
     }
     
     // ---------- Build dynamic filename ----------
-    // Title from header
-    const titleEl = document.querySelector('.html-header-only h1');
-    // Project name from front page display
+    // Project name + date come from the Front Page (the on-screen title/date
+    // header was removed); the report title is fixed.
     const projEl  = document.getElementById('fp-display-project-name');
-    // Date from header (or fall back to front page date if needed)
-    const dateEl  = document.getElementById('report-date') || document.getElementById('fp-display-report-date');
+    const dateEl  = document.getElementById('fp-display-report-date');
 
-    const rawTitle = titleEl ? titleEl.textContent.trim() : 'Report';
+    const rawTitle = 'Safety Inspection Report';
     const rawProj  = projEl ? projEl.textContent.trim() : 'Project';
     const rawDate  = dateEl ? dateEl.textContent.trim() : '';
 
@@ -4488,6 +4474,7 @@ window.showPhraseModal = showPhraseModal;
 // ===== AUTO-POPULATE REPORT DATE =====//
   window.addEventListener("DOMContentLoaded", function () {
     const dateSpan = document.getElementById("report-date");
+    if (!dateSpan) return; // header date/ref removed — nothing to auto-populate
 
     // If user hasn't typed anything already
     if (!dateSpan.textContent.trim()) {
@@ -6088,13 +6075,14 @@ if (y < 25) {
       doc.line(20, y, 50, y);
       y += 6;
 
-      // Body — re-assert font so a page-break footer can't leak its size in
+      // Body — rich text (bold / italic / underline / highlight preserved)
       doc.setFontSize(10);
       doc.setFont(undefined, 'normal');
       doc.setTextColor(55, 65, 81);
 
-      doc.text(purposeLines, 20, y);
-      y += purposeLines.length * 5.5 + 6;
+      y = renderRich(doc, getStyledRuns('#purposeRationale'), 20, y, 170, 10, 5.5, [55,65,81],
+        { maxY: 265, onBreak: function(){ addPageFooter(doc, currentPage, '?'); doc.addPage(); currentPage++; drawBrandBorders(doc); return 20; } });
+      y += 6;
     }
     
     if (siteSummary) {
@@ -6132,13 +6120,13 @@ if (y < 25) {
       doc.line(20, y, 50, y);
       y += 6;
 
-      // Body — re-assert font so a page-break footer can't leak its size in
+      // Body — rich text (bold / italic / underline / highlight preserved)
       doc.setFontSize(10);
       doc.setFont(undefined, 'normal');
       doc.setTextColor(55, 65, 81);
 
-      doc.text(summaryLines, 20, y);
-      y += summaryLines.length * 5.5;
+      y = renderRich(doc, getStyledRuns('#siteSummary'), 20, y, 170, 10, 5.5, [55,65,81],
+        { maxY: 265, onBreak: function(){ addPageFooter(doc, currentPage, '?'); doc.addPage(); currentPage++; drawBrandBorders(doc); return 20; } });
     }
     
     addPageFooter(doc, currentPage, '?');
@@ -6176,6 +6164,7 @@ if (inspectionSections.length > 0) {
     
     let sectionName = '';
     let sectionComments = '';
+    let sectionCommentsEl = null;
 
     fields.forEach(field => {
       const label = field.querySelector('label');
@@ -6188,6 +6177,7 @@ if (inspectionSections.length > 0) {
           sectionName = stripSectionTitle(getFormattedText(rte));
         } else if (labelText === 'Comments') {
           sectionComments = getFormattedText(rte);
+          sectionCommentsEl = rte;
         }
       }
     });
@@ -6230,10 +6220,19 @@ if (inspectionSections.length > 0) {
         doc.setTextColor(40, 40, 40);
       }
       
-      doc.text(commentLines, 20, y);
-      y += commentLines.length * 5 + 10;
+      y = renderRich(doc, getStyledRuns(sectionCommentsEl), 20, y, 170, 10, 5, [40,40,40], {
+        maxY: 260,
+        onBreak: function(){
+          addPageFooter(doc, currentPage, '?'); doc.addPage(); currentPage++; drawBrandBorders(doc);
+          doc.setFontSize(14); doc.setFont(undefined,'bold'); doc.setTextColor(58,58,58);
+          doc.text(sectionName + ' (continued)', 20, 20);
+          doc.setFontSize(10); doc.setFont(undefined,'normal'); doc.setTextColor(40,40,40);
+          return 30;
+        }
+      });
+      y += 10;
     }
-    
+
     // ITEMS WITH STATUS BADGES
     const itemRows = section.querySelectorAll('.item-row');
     
@@ -6501,9 +6500,9 @@ if (images.length > 0) {
       doc.setFontSize(10);
       doc.setFont(undefined, 'normal');
       doc.setTextColor(40, 40, 40);
-      const summaryLines = doc.splitTextToSize(signoffSummary, 170);
-      doc.text(summaryLines, 20, y);
-      y += summaryLines.length * 5.5 + 15;
+      y = renderRich(doc, getStyledRuns('#signoffSummary'), 20, y, 170, 10, 5.5, [40,40,40],
+        { maxY: 262, onBreak: function(){ addPageFooter(doc, currentPage, '?'); doc.addPage(); currentPage++; drawBrandBorders(doc); return 20; } });
+      y += 15;
     }
     
     if (manager) {
@@ -6751,6 +6750,81 @@ function drawTachographDial(doc, cx, cy, r, value, total, color, label) {
 /**
  * Get formatted text from contenteditable element - PLAIN TEXT ONLY
  */
+// ── Rich text for the PDF ──────────────────────────────────────────────
+// Render bold / italic / underline / highlight from a contenteditable field,
+// with word wrap and page breaks. Inter carries normal + bold; italic falls
+// back to Helvetica italic (no Inter italic embedded). Highlight paints a
+// colour rectangle behind the run.
+function _pdfColor(css){
+  if(!css) return null;
+  css = String(css).trim();
+  var m = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(css);
+  if(m){ var h=m[1]; if(h.length===3) h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+  var r = /rgba?\(\s*(\d+)[ ,]+(\d+)[ ,]+(\d+)/i.exec(css);
+  if(r) return [+r[1],+r[2],+r[3]];
+  var named = { yellow:[255,255,0], red:[255,0,0], lime:[0,255,0], green:[0,128,0], aqua:[0,255,255], cyan:[0,255,255], fuchsia:[255,0,255], magenta:[255,0,255], orange:[255,165,0], pink:[255,192,203] };
+  return named[css.toLowerCase()] || null;
+}
+function getStyledRuns(sel){
+  var el = typeof sel === 'string' ? document.querySelector(sel) : sel;
+  if(!el) return [];
+  var runs = [];
+  function push(text, st){ if(text) runs.push({ text: text.replace(/\s+/g,' '), b:st.b, i:st.i, u:st.u, hl:st.hl }); }
+  function walk(node, st){
+    for(var c=node.firstChild; c; c=c.nextSibling){
+      if(c.nodeType===3){ push(c.nodeValue, st); }
+      else if(c.nodeType===1){
+        var tag=c.tagName.toLowerCase();
+        if(tag==='br'){ runs.push({ text:'\n' }); continue; }
+        var ns={ b:st.b, i:st.i, u:st.u, hl:st.hl };
+        if(tag==='b'||tag==='strong') ns.b=true;
+        if(tag==='i'||tag==='em') ns.i=true;
+        if(tag==='u') ns.u=true;
+        var sy=(c.getAttribute&&c.getAttribute('style'))||'';
+        var bg=/background(?:-color)?\s*:\s*([^;]+)/i.exec(sy);
+        if(bg && !/transparent|inherit|initial|none|#fff(fff)?\b|rgb\(\s*255\s*,\s*255\s*,\s*255/i.test(bg[1])) ns.hl=bg[1].trim();
+        if(/font-weight\s*:\s*(bold|[6-9]00)/i.test(sy)) ns.b=true;
+        if(/font-style\s*:\s*italic/i.test(sy)) ns.i=true;
+        if(/text-decoration[^;]*underline/i.test(sy)) ns.u=true;
+        var block=(tag==='div'||tag==='p'||tag==='li'||tag==='ul'||tag==='ol'||tag==='h1'||tag==='h2'||tag==='h3');
+        if(tag==='li') push('•  ', ns);
+        walk(c, ns);
+        if(block) runs.push({ text:'\n' });
+      }
+    }
+  }
+  walk(el, { b:false, i:false, u:false, hl:null });
+  while(runs.length && runs[0].text==='\n') runs.shift();
+  while(runs.length && runs[runs.length-1].text==='\n') runs.pop();
+  return runs;
+}
+function renderRich(doc, runs, x, startY, maxW, fs, lh, color, opts){
+  opts = opts || {};
+  var maxY = opts.maxY || 265, onBreak = opts.onBreak;
+  color = color || [40,40,40];
+  var cx=x, cy=startY, fh = fs * 0.3528;
+  function nl(){ cx=x; cy+=lh; if(cy>maxY && onBreak){ cy=onBreak(); } }
+  (runs||[]).forEach(function(run){
+    if(run.text==='\n'){ nl(); return; }
+    run.text.split(/(\s+)/).forEach(function(tok){
+      if(!tok) return;
+      var ws = /^\s+$/.test(tok);
+      if(run.i) doc.setFont('helvetica', run.b?'bolditalic':'italic');
+      else doc.setFont('Inter', run.b?'bold':'normal');
+      doc.setFontSize(fs);
+      var w = doc.getTextWidth(tok);
+      if(ws){ if(cx===x) return; if(cx + w > x + maxW) nl(); else cx += w; return; }
+      if(cx>x && cx + w > x + maxW) nl();
+      if(run.hl){ var col=_pdfColor(run.hl); if(col){ doc.setFillColor(col[0],col[1],col[2]); doc.rect(cx-0.2, cy-fh*0.72, w+0.4, fh*0.92, 'F'); } }
+      doc.setTextColor(color[0],color[1],color[2]);
+      doc.text(tok, cx, cy);
+      if(run.u){ doc.setDrawColor(color[0],color[1],color[2]); doc.setLineWidth(0.3); doc.line(cx, cy+fh*0.12, cx+w, cy+fh*0.12); }
+      cx += w;
+    });
+  });
+  return cy;
+}
+
 function getFormattedText(selector) {
   const element = typeof selector === 'string' ? document.querySelector(selector) : selector;
   if (!element) return '';
