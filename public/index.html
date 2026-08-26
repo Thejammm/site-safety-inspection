@@ -7657,17 +7657,26 @@ function addPageFooter(doc, pageNum, totalPages) {
           photoRefs.push('photo');
         }
         var suffix = photoRefs.length ? ' (see images)' : '';
-        if(it.st === 'compliant'){
+        if(it.st === 'compliant' || !it.st){
+          // Ticked compliant, OR just switched into the report with no status yet:
+          // the criteria sentence appears as an observed item the moment you pick it.
           okLines.push('• ' + q.text + suffix);
-        } else if(it.st === 'na' || !it.st){
-          if(it.note) findLines.push('• Note — ' + it.note + suffix);
+        } else if(it.st === 'na'){
+          if(it.note) okLines.push('• ' + it.note + suffix);   // a plain note; N/A is not highlighted
         } else {
-          findLines.push('• ' + LBL[it.st] + ' — ' + (it.note || q.check) + suffix);
+          // Advisory / Action required / Observation: a finding — the item text is
+          // HIGHLIGHTED so it stands out for you to reword into the actual finding.
+          findLines.push('• ' + q.text + (it.note ? ' — ' + it.note : '') + suffix);
         }
         rows.push({ item: q.check, status: it.st || '', note: it.note || '' });
       }
-      var lines = ['At the time of the inspection the following was observed:'].concat(okLines, findLines);
-      var html = lines.map(function(l){ return _escapeHtml(l); }).join('<br>');
+      // Observed items render plain; findings are wrapped in a highlight span that
+      // both shows amber on screen and is picked up as a highlight in the PDF.
+      var _esc = _escapeHtml;
+      var parts = [_esc('At the time of the inspection the following was observed:')];
+      okLines.forEach(function(l){ parts.push(_esc(l)); });
+      findLines.forEach(function(l){ parts.push('<span style="background-color:#FFE58A">' + _esc(l) + '</span>'); });
+      var html = parts.join('<br>');
 
       // one instance per captured section, reused on rebuild. Match first by
       // the capture section's own id, then by topicId — so the same criteria
@@ -8485,7 +8494,10 @@ function addPageFooter(doc, pageNum, totalPages) {
     m.style.display = 'block';
     setTimeout(function(){ $('si-operatives').focus(); }, 50);
   }
-  function closeStart(){ $('startInspModal').style.display='none'; }
+  // Dismissing the start modal also disarms the gate: once you have chosen to
+  // skip it, typing in a content box must NOT slam the full-screen modal back
+  // over the report. You can still add visit context later from the panel.
+  function closeStart(){ $('startInspModal').style.display='none'; gateArmed = false; }
   function readModal(){
     var ops = $('si-operatives').value.trim();
     if(ops==='' || isNaN(+ops) || +ops<0){ $('si-err').textContent = 'Operatives on site is required (0 or more).'; $('si-operatives').focus(); return null; }
