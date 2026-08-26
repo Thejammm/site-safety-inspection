@@ -5065,6 +5065,36 @@ document.addEventListener('DOMContentLoaded', function() {
       try { localStorage.setItem('AHS_SIGNOFF_ON', soTog.checked ? 'on' : 'off'); } catch (e) {}
     });
   }
+
+  // Sign-off names follow the Project details: Inspector/Auditor -> Consultant,
+  // Site Contact -> Manager/Supervisor. Only fills while the sign-off field is
+  // blank or still holds the last auto-filled value, so a manual edit stands.
+  (function(){
+    function wire(srcId, dstId){
+      var src = document.getElementById(srcId), dst = document.getElementById(dstId);
+      if(!src || !dst) return;
+      var apply = function(){
+        var val = (src.innerText || '').trim(), cur = (dst.innerText || '').trim();
+        if(!cur || cur === (dst.dataset.autofill || '')){
+          if(dst.textContent !== val){ dst.textContent = val; }
+          dst.dataset.autofill = val;
+          if(window.AHS_DRAFT && window.AHS_DRAFT.scheduleSave) window.AHS_DRAFT.scheduleSave();
+        }
+      };
+      src.addEventListener('input', apply);
+      src.addEventListener('blur', apply);
+    }
+    function seed(srcId, dstId){
+      var src = document.getElementById(srcId), dst = document.getElementById(dstId);
+      if(!src || !dst) return;
+      var val = (src.innerText || '').trim(), cur = (dst.innerText || '').trim();
+      if(val && (!cur || cur === (dst.dataset.autofill || ''))){ dst.textContent = val; dst.dataset.autofill = val; }
+    }
+    wire('ins', 'cslt');
+    wire('site-contact', 'mgr');
+    // seed after the draft has restored (project details may load with values)
+    setTimeout(function(){ seed('ins', 'cslt'); seed('site-contact', 'mgr'); }, 1600);
+  })();
 });
 
 function handleLogoUpload(event) {
@@ -8564,40 +8594,48 @@ function addPageFooter(doc, pageNum, totalPages) {
   function _cap(s){ return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
   function _joinList(list){ if(!list.length) return ''; if(list.length===1) return list[0]; return list.slice(0,-1).join(', ') + ' and ' + list[list.length-1]; }
   function buildLocalSummary(kind){
+    // Built to the same detail as Simon's own "Opening Statement" / "Closing
+    // Summary" snippets: full paragraphs with [INSERT …] cues, and the cues
+    // pre-filled from the visit context, project info and findings wherever
+    // that data exists. [INSERT …] is left only where there is nothing to use.
     var v = CUR.visit || {};
     var client = _fieldTxt('#site') || _fieldTxt('#con');
-    var inspector = _fieldTxt('#ins') || _fieldTxt('#cslt');
     var met = v.site_contact_name ? (v.site_contact_name + (v.site_contact_role ? ' (' + v.site_contact_role + ')' : '')) : _fieldTxt('#site-contact');
-    var c = digest(collect()).counts;
+    var d = digest(collect());
     var parts = [];
     if(kind === 'site'){
-      parts.push('This inspection was undertaken' + (client ? ' on behalf of ' + client : '') + ' to provide an independent review of health, safety and welfare arrangements on site at the time of the visit.');
-      parts.push('On arrival, the inspector' + (met ? ' was met by ' + met : ' attended site') + '. The purpose of the inspection, the scope of the walk-around and the expected outputs were discussed and agreed prior to commencement.');
-      var ctx = '';
-      if(v.works_phase) ctx += 'At the time of the inspection the site was engaged in ' + v.works_phase + '. ';
+      parts.push('This inspection was undertaken on behalf of ' + (client || '[INSERT client / principal contractor]') + ' to provide an independent review of health, safety and welfare arrangements on site at the time of the visit.');
+      parts.push('On arrival, the inspector was met by ' + (met || '[INSERT name / role]') + ' and a site induction was [INSERT completed / not required as previously inducted]. The purpose of the inspection, the scope of the walk-around, and the expected outputs were discussed and agreed prior to commencement.');
+      parts.push('At the time of the inspection the site was engaged in ' + (v.works_phase || '[INSERT current activities, e.g. groundworks / steel erection / first-fix / internal finishes]') + '. Key forthcoming phases identified by the site team included [INSERT upcoming works, e.g. roofing / lift installation / external landscaping].');
       var present = [];
       if(v.operatives_on_site!=null && v.operatives_on_site!=='') present.push(v.operatives_on_site + ' operative' + (+v.operatives_on_site===1?'':'s'));
       if(v.contractors_on_site!=null) present.push(v.contractors_on_site + ' contractor' + (+v.contractors_on_site===1?'':'s'));
-      if(present.length) ctx += _cap(_joinList(present)) + ' were present. ';
-      if(v.weather_conditions) ctx += 'Conditions on the day were ' + v.weather_conditions + '. ';
-      if(ctx.trim()) parts.push(ctx.trim());
-      if(v.focus_areas) parts.push('The inspection focused on ' + v.focus_areas + ', supported by a review of the site documentation.');
+      if(present.length || v.weather_conditions){
+        parts.push((present.length ? _cap(_joinList(present)) + ' were on site' : 'The workforce present') + (v.weather_conditions ? ', working in ' + v.weather_conditions + ' conditions,' : '') + ' at the time of the visit.');
+      }
+      parts.push('Discussions were held with the Site Manager regarding the current arrangements for managing health, safety and welfare, with particular reference to ' + (v.focus_areas || '[INSERT e.g. RAMS / CPP / permit systems / access control]') + '. The inspection included a walk-around of [INSERT areas covered, e.g. site perimeter / working levels / welfare facilities / storage areas], supported by a review of the site documentation.');
       parts.push('The findings set out below reflect the conditions observed and the discussions held on the date of the inspection only.');
     } else {
+      parts.push('At the time of the inspection the site was found to be [INSERT e.g. generally well managed / compliant with legislation / progressing satisfactorily] and the management team demonstrated a [INSERT e.g. strong / developing / satisfactory] commitment to maintaining health and safety standards.');
       var secNames = [];
       document.querySelectorAll('#secs .insp-section').forEach(function(sec){ var f=sec.querySelector(".field .rte[contenteditable='true']"); var n=f?strip(f.innerHTML):''; if(n) secNames.push(window.stripSectionTitle?window.stripSectionTitle(n):n); });
-      if(secNames.length) parts.push('During the inspection the following arrangements were reviewed: ' + _joinList(secNames) + '.');
-      var bits = [];
-      if(c.action) bits.push(c.action + ' item' + (c.action===1?'':'s') + ' requiring corrective action');
-      if(c.advisory) bits.push(c.advisory + ' advisory item' + (c.advisory===1?'':'s'));
-      if(c.observation) bits.push(c.observation + ' observation' + (c.observation===1?'':'s'));
-      if(bits.length) parts.push(_cap(_joinList(bits)) + ' ' + (bits.length===1 && c.action===1 ? 'was' : 'were') + ' identified and discussed with the site team, as detailed in the findings above.');
-      else if(c.total) parts.push('All ' + c.total + ' item' + (c.total===1?'':'s') + ' reviewed were found to be compliant at the time of the inspection.');
-      parts.push('Overall, the site was found to be managing health and safety to a ' + (c.action ? 'generally acceptable standard, with the corrective actions above to be addressed and closed out before the next visit' : 'good standard') + '.');
-      var mgr = _fieldTxt('#mgr'), cslt = _fieldTxt('#cslt') || inspector, so = [];
+      parts.push('During the inspection the following arrangements were reviewed: ' + (secNames.length ? _joinList(secNames) : '[INSERT arrangements reviewed]') + '. Operatives were observed [INSERT e.g. working in accordance with site rules / adhering to task-specific RAMS / wearing correct PPE] and the site team was receptive to discussion during the visit.');
+      var actionItems = (d.actions||[]).map(function(a){ return a.item; }).filter(Boolean);
+      var advisoryItems = (d.advisories||[]).map(function(a){ return a.item; }).filter(Boolean);
+      if(actionItems.length){
+        parts.push((actionItems.length===1 ? 'One item was identified as requiring corrective action and was discussed with the Site Manager, who confirmed that corrective actions would be taken and monitored to completion:' : 'The following ' + actionItems.length + ' items were identified as requiring corrective action and were discussed with the Site Manager, who confirmed that corrective actions would be taken and monitored to completion:') + '\n' + actionItems.map(function(t){ return '• ' + t; }).join('\n'));
+      } else {
+        parts.push('No items requiring corrective action were identified at the time of the inspection.');
+      }
+      if(advisoryItems.length){
+        parts.push((advisoryItems.length===1 ? 'One advisory item was noted for the site team to consider' : advisoryItems.length + ' advisory items were noted for the site team to consider') + ':\n' + advisoryItems.map(function(t){ return '• ' + t; }).join('\n'));
+      }
+      parts.push('As the project progresses into [INSERT upcoming phase, e.g. roofing / internal fit-out / external landscaping], continued emphasis on [INSERT e.g. supervision / planning / competence checks] will support the ongoing management of risk.');
+      parts.push('Overall, the inspector considers the site to be ' + (d.counts.action ? '[INSERT e.g. operating to an acceptable standard, with the actions above to be closed out / requiring minor improvement]' : '[INSERT e.g. operating to a good standard / an acceptable standard]') + ' at the time of the visit.');
+      var mgr = _fieldTxt('#mgr'), cslt = _fieldTxt('#cslt'), so = [];
       if(cslt) so.push('Prepared by ' + cslt);
-      if(mgr) so.push('discussed on site with ' + mgr);
-      if(so.length) parts.push(_cap(_joinList(so)) + '.');
+      if(mgr) so.push('and discussed on site with ' + mgr);
+      if(so.length) parts.push(so.join(' ') + '.');
     }
     return parts.filter(Boolean);
   }
@@ -8607,7 +8645,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     if(strip(target.innerHTML) && !confirm('Replace the existing text with a version composed from the details you have entered?')) return;
     var parts = buildLocalSummary(kind);
     if(!parts.length){ alert('Add some details first — the visit context, project information and findings — then try again.'); return; }
-    target.innerHTML = parts.map(function(p){ return esc(p); }).join('<br><br>');
+    target.innerHTML = parts.map(function(p){ return esc(p).replace(/\n/g,'<br>'); }).join('<br><br>');
     try{ save(); }catch(e){ if(window.AHS_DRAFT && window.AHS_DRAFT.saveNow) window.AHS_DRAFT.saveNow(); }
   }
   function mountAI(){
@@ -8734,7 +8772,7 @@ function addPageFooter(doc, pageNum, totalPages) {
         // blanks so nothing already typed is lost.
         var sc = document.querySelector('#site-contact');
         var contactTxt = v.site_contact_name ? (v.site_contact_name + (v.site_contact_role ? ' (' + v.site_contact_role + ')' : '')) : '';
-        if(sc && contactTxt && (modalMode==='edit' || !strip(sc.innerHTML))) sc.textContent = contactTxt;
+        if(sc && contactTxt && (modalMode==='edit' || !strip(sc.innerHTML))){ sc.textContent = contactTxt; sc.dispatchEvent(new Event('input', { bubbles:true })); }
         var ref = document.querySelector('.html-header-only span[contenteditable]');
         if(ref && v.visit_number && (modalMode==='edit' || !strip(ref.innerHTML))) ref.textContent = String(v.visit_number||'');
         gateArmed = false; renderPanel(); saveNow();
