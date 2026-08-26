@@ -2625,7 +2625,24 @@ function updateScoreDashboard() {
   updateStatusSelectColors();
 }
 document.addEventListener('change', function(e) {
-  if (e.target.classList.contains('status-select')) updateScoreDashboard();
+  if (e.target.classList.contains('status-select')){
+    updateScoreDashboard();
+    // Mirror a status set directly in the report back into the criteria builder,
+    // so leaving and re-entering the builder (which rebuilds the rows) can't wipe it.
+    var row = e.target.closest && e.target.closest('.item-row');
+    if(row && row.dataset && row.dataset.capKey && window.AHS_CAPTURE && window.AHS_CAPTURE.syncItem){
+      window.AHS_CAPTURE.syncItem(row.dataset.capKey, row.dataset.capPid, { st: e.target.value });
+    }
+  }
+});
+// Same protection for a comment typed directly into a criteria-built row.
+document.addEventListener('input', function(e) {
+  var t = e.target;
+  if(!(t && t.classList && t.classList.contains('rte'))) return;
+  var row = t.closest && t.closest('.item-row');
+  if(!(row && row.dataset && row.dataset.capKey && window.AHS_CAPTURE && window.AHS_CAPTURE.syncItem)) return;
+  var rtes = row.querySelectorAll(".rte[contenteditable='true']");
+  if(rtes[1] === t){ window.AHS_CAPTURE.syncItem(row.dataset.capKey, row.dataset.capPid, { note: t.textContent }); }
 });
 updateScoreDashboard();
 updateStatusSelectColors();
@@ -7433,6 +7450,16 @@ function addPageFooter(doc, pageNum, totalPages) {
         Object.keys(its).forEach(function(p){ (its[p].photos||[]).forEach(function(id){ ids.push(id); }); });
       });
       return ids;
+    },
+    // A report row can be edited directly (status dropdown, comments). Mirror
+    // that back into the capture state so the rebuild that fires when you leave
+    // the builder doesn't revert it. Only touches items the builder owns.
+    syncItem: function(key, pid, patch){
+      if(!key || !pid || !patch) return;
+      var sec = S.sections[key]; if(!sec || !sec.items || !sec.items[pid]) return;
+      if('st' in patch) sec.items[pid].st = patch.st || '';
+      if('note' in patch) sec.items[pid].note = patch.note || '';
+      save();
     }
   };
 
@@ -7668,7 +7695,7 @@ function addPageFooter(doc, pageNum, totalPages) {
           // HIGHLIGHTED so it stands out for you to reword into the actual finding.
           findLines.push('• ' + q.text + (it.note ? ' — ' + it.note : '') + suffix);
         }
-        rows.push({ item: q.check, status: it.st || '', note: it.note || '' });
+        rows.push({ item: q.check, status: it.st || '', note: it.note || '', capKey: t.key, capPid: q.id });
       }
       // Observed items render plain; findings are wrapped in a highlight span that
       // both shows amber on screen and is picked up as a highlight in the PDF.
@@ -7701,6 +7728,10 @@ function addPageFooter(doc, pageNum, totalPages) {
           rows.forEach(function(r){
             addItemRow(list);
             var row = list.lastElementChild;
+            // Tag the row back to its capture item so edits made directly in the
+            // report (status dropdown / comments) can be mirrored into the builder
+            // state and survive the next rebuild.
+            if(r.capKey && r.capPid){ row.dataset.capKey = r.capKey; row.dataset.capPid = r.capPid; }
             var rtes = row.querySelectorAll(".rte[contenteditable='true']");
             if(rtes[0]) rtes[0].textContent = r.item;
             var sel = row.querySelector('select.status-select');
@@ -8724,7 +8755,11 @@ function addPageFooter(doc, pageNum, totalPages) {
       if(present.length || v.weather_conditions){
         parts.push((present.length ? _cap(_joinList(present)) + ' were on site' : 'The workforce present') + (v.weather_conditions ? ', working in ' + v.weather_conditions + ' conditions,' : '') + ' at the time of the visit.');
       }
-      parts.push('Discussions were held with the Site Manager regarding the current arrangements for managing health, safety and welfare, with particular reference to ' + (v.focus_areas || '[INSERT e.g. RAMS / CPP / permit systems / access control]') + '. The inspection included a walk-around of [INSERT areas covered, e.g. site perimeter / working levels / welfare facilities / storage areas], supported by a review of the site documentation.');
+      // Areas covered: read the sections currently in the report, so re-running
+      // the composer after adding sections picks the new ones up.
+      var areaNames = [];
+      document.querySelectorAll('#secs .insp-section').forEach(function(sec){ var f=sec.querySelector(".field .rte[contenteditable='true']"); var n=f?strip(f.innerHTML):''; if(n) areaNames.push(window.stripSectionTitle?window.stripSectionTitle(n):n); });
+      parts.push('Discussions were held with the Site Manager regarding the current arrangements for managing health, safety and welfare, with particular reference to ' + (v.focus_areas || '[INSERT e.g. RAMS / CPP / permit systems / access control]') + '. The inspection included a walk-around covering ' + (areaNames.length ? _joinList(areaNames) : '[INSERT areas covered, e.g. site perimeter / working levels / welfare facilities / storage areas]') + ', supported by a review of the site documentation.');
       parts.push('The findings set out below reflect the conditions observed and the discussions held on the date of the inspection only.');
     } else {
       parts.push('At the time of the inspection the site was found to be [INSERT e.g. generally well managed / compliant with legislation / progressing satisfactorily] and the management team demonstrated a [INSERT e.g. strong / developing / satisfactory] commitment to maintaining health and safety standards.');
