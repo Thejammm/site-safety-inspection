@@ -2168,12 +2168,14 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
-// Handle click outside modal to close
-document.getElementById('frontpageModal').addEventListener('click', function(e) {
-  if (e.target === this) {
-    closeFrontPageEditor();
-  }
-});
+// Handle click outside modal to close — but ONLY when the press STARTED on the
+// backdrop. Selecting text inside the modal and releasing on the backdrop used
+// to close it (the "disappearing modal" bug).
+(function(){
+  var fm = document.getElementById('frontpageModal'), downSelf = false;
+  fm.addEventListener('mousedown', function(e){ downSelf = (e.target === fm); });
+  fm.addEventListener('click', function(e){ if (e.target === fm && downSelf) closeFrontPageEditor(); downSelf = false; });
+})();
 
 // Initialize front page data on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -8726,15 +8728,26 @@ function addPageFooter(doc, pageNum, totalPages) {
         // context yet (a fresh or pre-rev3 report) so it becomes the visit,
         // keeping whatever is already typed rather than archiving a stub.
         CUR.visit = v; CUR.id = CUR.id || uid(); CUR.project = projectKey();
-        var sc=document.querySelector('#site-contact'); if(sc && !strip(sc.innerHTML) && v.site_contact_name) sc.textContent = v.site_contact_name + (v.site_contact_role?' ('+v.site_contact_role+')':'');
-        if(modalMode==='adopt'){ var ref = document.querySelector('.html-header-only span[contenteditable]'); if(ref && !strip(ref.innerHTML)) ref.textContent = String(v.visit_number||''); }
+        // Push the visit details into Project Information. On an explicit EDIT
+        // this overwrites (so edits actually show); on adopt it only fills
+        // blanks so nothing already typed is lost.
+        var sc = document.querySelector('#site-contact');
+        var contactTxt = v.site_contact_name ? (v.site_contact_name + (v.site_contact_role ? ' (' + v.site_contact_role + ')' : '')) : '';
+        if(sc && contactTxt && (modalMode==='edit' || !strip(sc.innerHTML))) sc.textContent = contactTxt;
+        var ref = document.querySelector('.html-header-only span[contenteditable]');
+        if(ref && v.visit_number && (modalMode==='edit' || !strip(ref.innerHTML))) ref.textContent = String(v.visit_number||'');
         gateArmed = false; renderPanel(); saveNow();
       }
       else startNew(v);
     };
     $('si-cancel').onclick = closeStart;
-    $('startInspModal').addEventListener('click', function(e){ if(e.target===this) closeStart(); });
-    $('r3Dialog').addEventListener('click', function(e){ if(e.target===this) closeDialog(); });
+    // Backdrop close, but ONLY when the press STARTED on the backdrop — dragging
+    // to select text and releasing on the backdrop must not close the modal.
+    var _bdClose = function(el, fn){ if(!el) return; var d=false;
+      el.addEventListener('mousedown', function(e){ d = (e.target === el); });
+      el.addEventListener('click', function(e){ if(e.target === el && d) fn(); d = false; }); };
+    _bdClose($('startInspModal'), closeStart);
+    _bdClose($('r3Dialog'), closeDialog);
     document.addEventListener('keydown', function(e){ if(e.key==='Escape'){ closeStart(); closeDialog(); } });
   }
 
