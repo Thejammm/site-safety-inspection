@@ -7077,6 +7077,37 @@ function addPageFooter(doc, pageNum, totalPages) {
       finally{ _pulling=false; setStatus(_user?'saved':'off'); }
     }
 
+    // Is there an actual report loaded on this device right now?
+    function _hasLocalReport(){
+      try{
+        if(localStorage.getItem('FRONTPAGE_DATA_V1')) return true;
+        if(localStorage.getItem('AHS_INSPECTIONS_V1')) return true;
+        for(var i=0;i<localStorage.length;i++){
+          var k=localStorage.key(i);
+          if(k && k.indexOf('AHS_REPORT_DRAFT_V1:')===0){ var v=localStorage.getItem(k); if(v && v.length>20) return true; }
+        }
+      }catch(_){}
+      return false;
+    }
+
+    // After sign-in: if this device is blank (e.g. a new/wiped device) but the
+    // account HAS inspections saved in the cloud, surface the picker straight
+    // away so saved work can never sit hidden behind a button and look "lost".
+    // pull() has already restored the current project if it had anything, so we
+    // only reach here when the current project came back empty.
+    async function _autoRecover(){
+      try{
+        if(!_user) return;
+        if(sessionStorage.getItem('ahsSyncHydrated')) return;   // pull already restored + reloaded
+        if(_hasLocalReport()) return;                            // a report is already on screen
+        var projs;
+        try{ projs = await listProjects(); }
+        catch(_){ return; }                                      // couldn't reach server — leave it; nothing destructive
+        if(!projs.length) return;                                // genuinely nothing saved for this account
+        openProjects();                                          // show the populated picker: "tap to open"
+      }catch(_){}
+    }
+
     // ── Project management (DRM-style): list / open / save-as / rename / delete ──
     function _esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
     function _clearSyncedKeys(){
@@ -7091,12 +7122,13 @@ function addPageFooter(doc, pageNum, totalPages) {
       }catch(_){}
     }
     async function listProjects(){
-      try{
-        var r = await api('/api/state/projects?tenantId='+encodeURIComponent(TENANT));
-        var list = (r && r.projects) ? r.projects.slice() : [];
-        list.sort(function(a,b){ return String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')); });
-        return list;
-      }catch(e){ return []; }
+      // No silent catch here — a network/sign-in failure must NOT look like
+      // "you have no saved projects" (that reads as lost data). Let it throw so
+      // the caller can tell a real empty list apart from a failed request.
+      var r = await api('/api/state/projects?tenantId='+encodeURIComponent(TENANT));
+      var list = (r && r.projects) ? r.projects.slice() : [];
+      list.sort(function(a,b){ return String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')); });
+      return list;
     }
     function _fmtWhen(s){
       if(!s) return '';
@@ -7144,8 +7176,10 @@ function addPageFooter(doc, pageNum, totalPages) {
     }
     async function _paintProjList(listEl, ov){
       listEl.innerHTML='Loading…';
-      var projs=await listProjects();
-      if(!projs.length){ listEl.innerHTML='<div style="padding:12px;color:#888;">No saved projects yet. Do an inspection and use "Save current inspection as" to create one.</div>'; return; }
+      var projs;
+      try{ projs = await listProjects(); }
+      catch(e){ listEl.innerHTML='<div style="padding:12px;color:#b91c1c;line-height:1.5;">Couldn’t load your saved projects — this is a connection or sign-in problem, <strong>not</strong> lost data. Check the top bar shows your email (signed in) and that you’re online, then reopen Projects.</div>'; return; }
+      if(!projs.length){ listEl.innerHTML='<div style="padding:12px;color:#888;">No saved projects found for this account yet. Once you save an inspection to the cloud it appears here.</div>'; return; }
       listEl.innerHTML='';
       projs.forEach(function(p){
         var cur = p.project===project();
@@ -7244,7 +7278,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       box.querySelector('#ahsGo').onclick=async function(){
         var em=box.querySelector('#ahsE').value.trim(), pw=box.querySelector('#ahsP').value, pj=box.querySelector('#ahsJ').value.trim();
         if(pj) setProject(pj);
-        try{ var r=await api('/api/auth/login',{method:'POST',body:JSON.stringify({email:em,password:pw})}); _user=r.user; ov.remove(); bar._refresh(); await pull(); }
+        try{ var r=await api('/api/auth/login',{method:'POST',body:JSON.stringify({email:em,password:pw})}); _user=r.user; ov.remove(); bar._refresh(); await pull(); await _autoRecover(); }
         catch(e){ box.querySelector('#ahsErr').textContent = (e.status===401?'Invalid email or password':'Sign-in failed — try again'); }
       };
     }
@@ -7252,7 +7286,7 @@ function addPageFooter(doc, pageNum, totalPages) {
 
     async function init(){
       buildBar();
-      try{ var r=await api('/api/auth/me'); if(r&&r.user){ _user=r.user; bar._refresh(); await pull(); } }catch(_){ /* signed out */ }
+      try{ var r=await api('/api/auth/me'); if(r&&r.user){ _user=r.user; bar._refresh(); await pull(); await _autoRecover(); } }catch(_){ /* signed out */ }
     }
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
   })();
