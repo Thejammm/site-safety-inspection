@@ -750,6 +750,18 @@ body {
   box-sizing: border-box !important;
 }
 
+/* Item rows: the Item and Comments text boxes must always WRAP their text —
+   never scroll sideways or clip — whatever the width, however long the words
+   (pasted refs/URLs included), on screen and in print. */
+.item-row > * { min-width: 0 !important; }
+.item-row .rte{
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  overflow-x: hidden !important;
+  height: auto !important;
+}
+
 /* Status select colors PRESERVED (legacy pass/fail shorthand) */
 .item select.pass {
   border-color: #10b981;

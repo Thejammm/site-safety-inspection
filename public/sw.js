@@ -12,7 +12,7 @@
 //   - /api/ requests: never cached (always network) — sync handles retries.
 //   - Everything else: network first, cache fallback.
 // Still bump CACHE when you ship a build so old cached entries are dropped.
-const CACHE = 'ahs-ssi-rev4-16';
+const CACHE = 'ahs-ssi-rev4-17';
 const SHELL = ['./index.html'];
 const LIBS = [
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
