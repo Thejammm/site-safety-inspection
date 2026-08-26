@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AHS — Site Inspection Report</title>
+    <title>REV 4 — AHS — Site Inspection Report</title>
 
     <!-- AHS brand fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 
     <style>
 /* ============================================================
@@ -1084,7 +1084,7 @@ body {
 
 @media print {
   html, body {
-    font-family: 'DM Sans', system-ui, -apple-system, sans-serif !important;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
     font-size: 10px !important;
     line-height: 1.2 !important;
     color: #222 !important;
@@ -1366,6 +1366,177 @@ body {
 </style>
 
     <!-- PDF Export Libraries -->
+<style id="r4Skin">
+/* ============================================================
+   REV 4 SKIN — AHS Pattern Kit (as used by Compass / InSight)
+   with AHS tenant branding: --primary = logo grey, --accent = logo teal.
+   Screen only. Print / PDF rules below are untouched except the typeface.
+   ============================================================ */
+:root {
+  --bg:#F8FAFC; --surface:#FFFFFF;
+  --primary:#4A4F55; --primary-light:#757575;
+  --accent:#4BBFD6; --accent-light:#E8F7FA; --accent-dark:#2F9FB8;
+  --text:#111827; --text-muted:#6B7280; --border:#E5E7EB;
+  --input-bg:#F9FAFB; --muted-bg:#F3F4F6;
+  --success:#10B981; --success-bg:#ECFDF5; --success-brd:#A7F3D0;
+  --warning:#F59E0B; --warning-bg:#FFFBEB; --warning-brd:#FDE68A;
+  --danger:#DC2626;  --danger-bg:#FEF2F2;  --danger-brd:#FECACA;
+  --info:#2563EB;    --info-bg:#EFF6FF;    --info-brd:#BFDBFE;
+  --shadow-sm:0 1px 3px rgba(16,24,40,.06),0 1px 2px rgba(16,24,40,.04);
+  --shadow:0 1px 3px rgba(16,24,40,.06),0 1px 2px rgba(16,24,40,.04);
+  --shadow-md:0 4px 12px rgba(16,24,40,.06);
+  --s1:4px; --s2:8px; --s3:16px; --s4:24px; --s5:32px; --s6:48px;
+  --radius:8px; --radius-lg:12px;
+  --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+html{ -webkit-font-smoothing:antialiased; }
+body, .toolbar, .toolbar button, .rte, .btn, .snippet-dialog, .frontpage-dialog, .r3-sheet, #capOverlay, #psOverlay, input, select, textarea, button{ font-family:var(--font) !important; }
+body{ font-size:14px; line-height:1.6; color:var(--text); background:var(--bg); }
+
+/* ── Header / toolbar → 60px app header + a quiet tool row ── */
+.toolbar{ background:var(--surface); border-bottom:1px solid var(--border); box-shadow:none; padding:0 24px; gap:4px 6px; min-height:60px; align-items:center; }
+.toolbar .tb-group{ background:transparent; border:0; padding:0; gap:4px; }
+.toolbar .tb-group:first-child{ margin-right:8px; }
+.toolbar .tb-group:first-child > div > div:first-child{ width:36px; height:36px; border-radius:9px; background:var(--primary) !important; }
+.toolbar .tb-group:first-child svg{ stroke:#fff !important; }
+.toolbar .tb-group:first-child span:first-child{ font-size:15px !important; font-weight:600 !important; color:var(--text) !important; letter-spacing:-.01em; }
+.toolbar .tb-group:first-child span:last-child{ font-size:12px !important; color:var(--text-muted) !important; }
+.toolbar .tb-group:first-child span span{ background:var(--accent-light) !important; color:var(--accent-dark) !important; border:1px solid var(--accent); font-size:10px !important; padding:1px 7px !important; }
+.toolbar .tb-sep{ height:26px; }
+.toolbar button{ font-size:12.5px; font-weight:600; height:36px; padding:0 12px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); }
+.toolbar button:hover{ background:var(--muted-bg); border-color:var(--border); color:var(--text); }
+.toolbar button:active{ background:var(--accent-light); transform:none; }
+.toolbar button[data-cmd], .toolbar button[data-action="highlight"]{ border-color:transparent; background:transparent; color:var(--text-muted); min-width:34px; padding:0 9px; }
+.toolbar button[data-cmd]:hover, .toolbar button[data-action="highlight"]:hover{ background:var(--muted-bg); color:var(--text); }
+.toolbar input[type="color"]{ width:28px; height:28px; border-radius:6px; border:1px solid var(--border); background:var(--surface); padding:2px; }
+.toolbar button.ms-accent-snippet, .toolbar button.ms-accent-phrase{ background:var(--surface); color:var(--text); border-color:var(--border); }
+.toolbar button.ms-accent-snippet:hover, .toolbar button.ms-accent-phrase:hover{ background:var(--muted-bg); }
+.toolbar button.tb-primary{ background:var(--accent); border-color:var(--accent); color:var(--primary); }
+.toolbar button.tb-primary:hover{ background:var(--accent-dark); border-color:var(--accent-dark); color:#fff; }
+.toolbar button.tb-output{ background:var(--surface); color:var(--text); border-color:var(--border); }
+.toolbar button.tb-output:hover{ background:var(--muted-bg); }
+.toolbar button#capOpen, .toolbar button#psOpen{ background:var(--primary) !important; border-color:var(--primary) !important; color:#fff !important; }
+.toolbar button#capOpen:hover, .toolbar button#psOpen:hover{ background:#2E3238 !important; border-color:#2E3238 !important; }
+.toolbar button.tb-danger{ background:transparent; border-color:var(--danger-brd); color:var(--danger); }
+.toolbar button.tb-danger:hover{ background:var(--danger-bg); }
+#ahsAuthSlot button{ height:36px !important; border-radius:8px !important; font-family:var(--font) !important; font-size:12.5px !important; font-weight:600 !important; }
+#ahsAuthSlot span{ font-size:12px !important; color:var(--text-muted) !important; font-family:var(--font) !important; }
+
+/* ── Page title strip ── */
+.html-header-only{ padding:24px 24px 8px !important; }
+.html-header-only h1{ font-size:19px; font-weight:600; color:var(--text); letter-spacing:-.01em; }
+.html-header-only strong{ font-size:12px; color:var(--text-muted); font-weight:600; }
+.html-header-only input[type="date"], .html-header-only span[contenteditable]{ font-family:var(--font) !important; border:1px solid var(--border) !important; background:var(--input-bg) !important; border-radius:8px !important; font-size:13px; }
+
+/* ── Sections → cards ── */
+.container{ max-width:1200px; }
+.section{ padding:0; margin:0 24px 24px; border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); overflow:hidden; }
+.section > h3{ margin:0; padding:16px 24px; font-size:15px; font-weight:600; color:var(--text); border-bottom:1px solid var(--border); letter-spacing:0; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.section > h3::before{ content:''; width:8px; height:8px; border-radius:50%; background:var(--accent); flex-shrink:0; }
+.section > :not(h3){ margin-left:24px; margin-right:24px; }
+.section > :nth-child(2){ margin-top:20px; }
+.section > :last-child{ margin-bottom:20px; }
+.section .score{ background:transparent; border:0; }
+#visitCtx{ padding:0 24px; margin-bottom:24px; }
+.vc-panel{ border-radius:12px; padding:14px 20px; box-shadow:var(--shadow); }
+.vc-panel .vc-title{ font-size:13px; font-weight:600; }
+.vc-panel .vc-chip{ font-size:12px; border-radius:8px; padding:4px 11px; background:var(--surface); }
+.vc-panel .vc-edit{ border-radius:8px; height:32px; }
+
+/* ── Forms ── */
+.field label{ font-size:13px; color:var(--text-muted); font-weight:500; margin-bottom:6px; }
+.field input, .field select, .rte, input[type="text"], input[type="number"], input[type="date"], select, textarea, .frontpage-field input, .frontpage-field textarea, .cap-note, .r3-sheet select, .r3-sheet input{
+  border:1px solid var(--border) !important; border-radius:8px !important; background:var(--input-bg); font-size:14px; color:var(--text); min-height:40px;
+}
+.rte{ padding:9px 12px; }
+.rte:focus, .field input:focus, .field select:focus, input:focus, select:focus, textarea:focus, .frontpage-field input:focus, .frontpage-field textarea:focus{ outline:none; border-color:var(--accent) !important; box-shadow:0 0 0 3px rgba(75,191,214,.15); background:var(--surface); }
+.insp-section .rte[style]{ border:1px solid var(--border) !important; border-radius:8px !important; }
+.items-header{ font-size:12px; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
+.items-header b{ font-weight:600; }
+.item-row select.status-select{ border:1px solid var(--border) !important; border-radius:8px !important; min-height:40px; font-family:var(--font); font-size:13px; font-weight:600; }
+.insp-section{ border:1px dashed var(--border); border-radius:12px; padding:16px; background:var(--surface); }
+
+/* ── Buttons ── */
+.btn{ display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; border-radius:8px; padding:0 16px; min-height:42px; border:1px solid transparent; }
+.btn-primary{ background:var(--accent); border-color:var(--accent); color:var(--primary); }
+.btn-primary:hover{ background:var(--accent-dark); border-color:var(--accent-dark); color:#fff; }
+.btn-secondary{ background:transparent; border-color:var(--border); color:var(--text); }
+.btn-secondary:hover{ background:var(--muted-bg); border-color:var(--border); }
+.btn-danger{ background:transparent; border-color:var(--danger-brd); color:var(--danger); }
+.btn-danger:hover{ background:var(--danger-bg); border-color:var(--danger-brd); }
+.btn-small{ min-height:36px; padding:0 12px; font-size:12px; }
+.btn-remove-row-btn{ background:transparent !important; border-color:var(--danger-brd) !important; color:var(--danger) !important; }
+.frontpage-btn{ border-radius:8px; min-height:42px; font-size:13px; font-weight:700; }
+.frontpage-btn-save{ background:var(--accent); color:var(--primary); }
+.frontpage-btn-save:hover{ background:var(--accent-dark); color:#fff; }
+.frontpage-btn-cancel{ border:1px solid var(--border); }
+.frontpage-dialog h3, .snippet-dialog h3, .r3-sheet h3{ font-size:16px; font-weight:600; color:var(--text); border-bottom:1px solid var(--border); padding-bottom:12px; }
+.frontpage-field label{ color:var(--text-muted); font-weight:500; }
+label.btn{ display:inline-flex !important; align-items:center; line-height:1; }
+button.r3-ai{ border-radius:8px; height:32px; font-weight:600; background:var(--surface); border:1px solid var(--border); color:var(--text); }
+button.r3-ai:hover{ background:var(--muted-bg); }
+
+/* ── Score dashboard → metric tiles ── */
+.score h3{ font-size:15px; font-weight:600; color:var(--text); }
+.gauge-label{ font-size:12px; font-weight:600; color:var(--text-muted); letter-spacing:.02em; }
+.gauge-points{ font-size:11px; color:var(--text-muted); }
+.gauge-text{ font-family:var(--font); font-weight:600; color:var(--text); }
+.score-total-val, .score-percent-val{ font-family:var(--font); font-weight:600; color:var(--text); }
+
+/* ── H&S arrangement pills ── */
+.arr-item{ border:1px solid var(--border); border-radius:8px; background:var(--surface); }
+.arr-item .pill-label{ font-size:13px; }
+
+/* ── Images ── */
+.img-item{ border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); overflow:hidden; }
+.img-item [contenteditable]{ font-size:13px; color:var(--text-muted); }
+.img-remove-x{ border-radius:8px; }
+
+/* ── Inspection criteria builder + pre-site overlays ── */
+.cap-head, #psOverlay .ps-head{ background:var(--primary); }
+.cap-head h2{ font-size:16px; font-weight:600; }
+.cap-head button, .cap-back{ border-radius:8px; font-weight:600; }
+.cap-mode button{ border-color:var(--primary); color:var(--primary); border-radius:8px; font-weight:600; }
+.cap-mode button.on{ background:var(--primary); color:#fff; }
+.cap-tile{ border-radius:12px; box-shadow:var(--shadow); }
+#capOverlay .cap-tile .n{ color:var(--accent-dark); }
+#capOverlay .cap-tile.done{ border-color:var(--accent); box-shadow:inset 3px 0 0 var(--accent); }
+.cap-item{ border-radius:12px; box-shadow:var(--shadow); }
+.cap-item .lbl{ font-size:14px; font-weight:600; }
+.cap-st{ border-radius:8px; font-weight:600; }
+#capOverlay .cap-build{ background:var(--accent); color:var(--primary); }
+#capOverlay .cap-build:hover{ background:var(--accent-dark); color:#fff; }
+.cap-close{ border-radius:10px; }
+#capOverlay .cap-inc[data-on="1"] .sw{ background:var(--accent-dark); }
+.cap-progress{ color:rgba(255,255,255,.75); }
+#capOverlay{ background:var(--bg); }
+.r3-fab{ box-shadow:var(--shadow-md), 0 0 0 1px rgba(16,24,40,.06); }
+#r3Builder{ background:var(--primary); }
+#r3Cam{ background:var(--accent); color:var(--primary); }
+.r3-badge{ border-radius:8px; }
+
+/* ── Snippet / phrase pickers ── */
+.snip{ border-radius:8px; border:1px solid var(--border); }
+.snip:hover{ border-color:var(--accent); background:var(--accent-light); }
+.snippet-search{ border-radius:8px; }
+
+/* ── Sync layer (inline-styled) ── */
+#ahsAuthSlot button[style]{ background:var(--accent) !important; color:var(--primary) !important; border:1px solid var(--accent) !important; }
+
+/* ── Motion ── */
+@keyframes r4fadeUp{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+.section{ animation:r4fadeUp .3s ease both; }
+@media (prefers-reduced-motion: reduce){ .section{ animation:none; } }
+
+/* ── Tablet ── */
+@media (max-width:1180px){
+  .toolbar{ padding:6px 14px; }
+  .toolbar button{ height:34px; font-size:12px; padding:0 10px; }
+  .section{ margin:0 14px 16px; }
+  #visitCtx{ padding:0 14px; }
+}
+</style>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   </head>
@@ -1384,7 +1555,7 @@ body {
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#757575" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 12l2 2 4-4"/><path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z"/></svg>
           </div>
           <div style="display:flex;flex-direction:column;line-height:1.1;">
-            <span style="font-size:13px;font-weight:700;color:#757575;letter-spacing:-0.01em;">AHS Site Inspection</span>
+            <span style="font-size:13px;font-weight:700;color:#757575;letter-spacing:-0.01em;">AHS Site Inspection <span style="background:#4A4F55;color:#fff;border-radius:6px;padding:1px 7px;font-size:11px;font-weight:700;vertical-align:middle;letter-spacing:.5px">REV 4</span></span>
             <span style="font-size:10px;color:#787878;">Archer Health &amp; Safety</span>
           </div>
         </div>
@@ -1429,6 +1600,8 @@ body {
         <button data-action="print" class="tb-output" title="Print or save as PDF">🖨 Print / PDF</button>
         <button data-action="client-report" id="btnClientReport" class="tb-output" title="Generate client-ready PDF">📄 Client Report</button>
         <button data-action="export" id="exphtml" class="tb-output" title="Export full HTML report">⬇ Export HTML</button>
+        <button type="button" id="capOpen" class="tb-output" title="Inspection criteria: tap through the checks and switch items into the report" style="background:#4A4F55;color:#fff;border-color:#4A4F55;">📝 Inspection criteria</button>
+        <button type="button" id="psOpen" class="tb-output" title="Load the training matrix and RAMS before the visit" style="background:#2E3238;color:#fff;border-color:#2E3238;">📋 Pre-site</button>
       </div>
 
       <!-- Danger zone -->
@@ -1458,6 +1631,8 @@ body {
           </div>
         </div>
       </div>
+
+      <div id="visitCtx"></div>
 
       <!-- Print-only cover page -->
       <div class="logo-container">
@@ -1707,6 +1882,30 @@ body {
           <input type="date" id="fp-report-date">
         </div>
 
+        <div style="font-size:12px;font-weight:700;color:var(--primary);margin:6px 0 10px;padding-top:10px;border-top:1px solid var(--border);">Project record (feeds the AI summaries)</div>
+        <div class="fp-row">
+          <div class="frontpage-field">
+            <label for="fp-client">Client:</label>
+            <input type="text" id="fp-client" placeholder="Client organisation">
+          </div>
+          <div class="frontpage-field">
+            <label for="fp-pc">Principal Contractor:</label>
+            <input type="text" id="fp-pc" placeholder="Principal contractor">
+          </div>
+        </div>
+        <div class="frontpage-field">
+          <label for="fp-description">Project description:</label>
+          <textarea id="fp-description" placeholder="What is being built, scale, programme"></textarea>
+        </div>
+        <div class="frontpage-field">
+          <label for="fp-hazards">Known hazards:</label>
+          <textarea id="fp-hazards" placeholder="e.g. live services, deep excavations, public interface"></textarea>
+        </div>
+        <div class="frontpage-field">
+          <label for="fp-notes">Notes / context:</label>
+          <textarea id="fp-notes" placeholder="Anything the summaries should know about this project"></textarea>
+        </div>
+
         <div class="frontpage-buttons">
           <button class="frontpage-btn frontpage-btn-save" onclick="saveFrontPageData()">💾 Save</button>
           <button class="frontpage-btn frontpage-btn-cancel" onclick="closeFrontPageEditor()">✕ Cancel</button>
@@ -1761,7 +1960,12 @@ function loadFrontPageData() {
     address2: '', 
     address3: '',
    providedFor: '',
-    reportDate: ''
+    reportDate: '',
+    client: '',
+    principalContractor: '',
+    description: '',
+    hazards: '',
+    notes: ''
   };
 }
 
@@ -1774,7 +1978,12 @@ function saveFrontPageData() {
     address2: document.getElementById('fp-address2').value,
     address3: document.getElementById('fp-address3').value,
     providedFor: document.getElementById('fp-provided-for').value,
-    reportDate: document.getElementById('fp-report-date').value
+    reportDate: document.getElementById('fp-report-date').value,
+    client: document.getElementById('fp-client').value,
+    principalContractor: document.getElementById('fp-pc').value,
+    description: document.getElementById('fp-description').value,
+    hazards: document.getElementById('fp-hazards').value,
+    notes: document.getElementById('fp-notes').value
   };
   
   try {
@@ -1817,6 +2026,11 @@ function openFrontPageEditor() {
   document.getElementById('fp-address2').value = data.address2;
   document.getElementById('fp-address3').value = data.address3;
   document.getElementById('fp-provided-for').value = data.providedFor;
+  document.getElementById('fp-client').value = data.client || '';
+  document.getElementById('fp-pc').value = data.principalContractor || '';
+  document.getElementById('fp-description').value = data.description || '';
+  document.getElementById('fp-hazards').value = data.hazards || '';
+  document.getElementById('fp-notes').value = data.notes || '';
   
   // Handle date field - convert from display format if needed
   if (data.reportDate && data.reportDate !== 'xx/xx/xxxx') {
@@ -2088,10 +2302,10 @@ if (toolbar) {
 let lastSectionEditable = null;
 document.addEventListener('focusin', function(e) {
   let node = e.target;
-  while (node && !node.classList.contains('section') && !node.classList.contains('insp-section')) {
+  while (node && node.classList && !node.classList.contains('section') && !node.classList.contains('insp-section')) {
     node = node.parentNode;
   }
-  if (node && (node.classList.contains('section') || node.classList.contains('insp-section'))) {
+  if (node && node.classList && (node.classList.contains('section') || node.classList.contains('insp-section'))) {
     lastSectionEditable = node;
   }
 });
@@ -4248,15 +4462,23 @@ window.showPhraseModal = showPhraseModal;
       inspections: [],
       images: []
     };
+    // rev3: every inspection record carries an id and the visit context
+    // (all fields nullable; migrated in AHS_VISIT so v1 drafts open unchanged)
+    state.v = 2;
+    state.inspectionId = window.AHS_VISIT ? window.AHS_VISIT.id() : null;
+    state.visit = window.AHS_VISIT ? window.AHS_VISIT.serialize() : null;
 
     // IMAGES: ids and captions only. The photo data lives in the IndexedDB
     // store — writing it in here is exactly what used to blow the ~5MB
     // localStorage ceiling and silently lose a day's photos.
     if (typeof allImages !== 'undefined' && Array.isArray(allImages)) {
       state.photoStore = 'idb';
+      if (window.AHS_CAPTURE) { try { state.capture = window.AHS_CAPTURE.serialize(); } catch (e) {} }
+      if (window.AHS_PRESITE) { try { state.presite = window.AHS_PRESITE.serialize(); } catch (e) {} }
       state.images = allImages.map(img => ({
         id: img.id,
-        caption: img.caption || ''
+        caption: img.caption || '',
+        link: img.link || null
       }));
     }
 
@@ -4298,6 +4520,7 @@ window.showPhraseModal = showPhraseModal;
 
   async function applyState(state) {
     if (!state || typeof state !== "object") return;
+    if (window.AHS_VISIT) { try { window.AHS_VISIT.load(state); } catch (e) { console.warn('visit load failed', e); } }
 
     // Header date input
     const reportDate = qs("#report-date");
@@ -4369,6 +4592,10 @@ window.showPhraseModal = showPhraseModal;
       if (typeof window.updateScoreDashboard === "function") window.updateScoreDashboard();
     }
 
+    // REV 2: capture answers + the pre-site pack ride inside the draft
+    if (state.capture && window.AHS_CAPTURE) { try { window.AHS_CAPTURE.load(state.capture); } catch (e) {} }
+    if (state.presite && window.AHS_PRESITE) { try { window.AHS_PRESITE.load(state.presite); } catch (e) {} }
+
     // IMAGES: Restore images from saved state
     if (Array.isArray(state.images) && typeof allImages !== 'undefined') {
       try {
@@ -4412,7 +4639,7 @@ window.showPhraseModal = showPhraseModal;
           }
 
           if (dataUrl) {
-            allImages.push({ id, file: null, dataUrl, caption: imgData.caption || '' });
+            allImages.push({ id, file: null, dataUrl, caption: imgData.caption || '', link: imgData.link || null });
           } else {
             missing++;
           }
@@ -4430,6 +4657,7 @@ window.showPhraseModal = showPhraseModal;
         if (typeof renderImages === 'function') {
           await renderImages();
         }
+        if (window.AHS_VISIT) { try { window.AHS_VISIT.refreshBadges(); } catch (e) {} }
       } catch (e) {
         console.warn("Failed to restore images:", e);
       }
@@ -4593,7 +4821,8 @@ window.showPhraseModal = showPhraseModal;
   // scheduleSave is on here because the image-remove handler calls it — it was
   // not exported before, so deleting a photo never actually triggered a save.
   window.AHS_DRAFT = {
-    saveNow, scheduleSave, restoreIfPresent, clearDraft, key: AHS_DRAFT.KEY
+    saveNow, scheduleSave, restoreIfPresent, clearDraft, key: AHS_DRAFT.KEY,
+    collect: collectState, apply: applyState
   };
 
 })();
@@ -5576,6 +5805,8 @@ if (y < 25) {
       { label: 'Inspector/Auditor', value: inspector },
       { label: 'Site Contact', value: siteContact }
     ];
+    // rev3: visit context from the Start Inspection form
+    if (window.AHS_VISIT) { try { window.AHS_VISIT.pdfRows().forEach(r => projectInfo.push(r)); } catch (e) {} }
     
     projectInfo.forEach(item => {
       if (item.value) {
@@ -6387,9 +6618,15 @@ function addPageFooter(doc, pageNum, totalPages) {
     "use strict";
     // Only run when SERVED over http(s). Opened from disk (file://) => pure local.
     if(!/^https?:$/.test(location.protocol)) return;
+    // rev3: cache the app shell so it opens with no signal (needs sw.js next to index.html)
+    if('serviceWorker' in navigator){
+      window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(e){ console.warn('service worker not registered:', e.message); }); });
+    }
+    // rev3: when signal comes back, push straight away instead of waiting for the next edit
+    window.addEventListener('online', function(){ try{ scheduleSave(); }catch(_){} });
 
     var TENANT        = 'archer';
-    var SYNC_KEYS     = ['FRONTPAGE_DATA_V1','clientLogo'];
+    var SYNC_KEYS     = ['FRONTPAGE_DATA_V1','clientLogo','AHS_INSPECTIONS_V1'];
     var SYNC_PREFIXES = ['AHS_REPORT_DRAFT_V1:'];
     var _user=null, _project=null, _saveTimer=null, _pulling=false, bar=null, statusEl=null;
 
@@ -6441,7 +6678,15 @@ function addPageFooter(doc, pageNum, totalPages) {
         Object.keys(blob).forEach(function(k){
           if(SYNC_PREFIXES.some(function(p){ return k.indexOf(p)===0; })){
             try{
-              (JSON.parse(blob[k]).images||[]).forEach(function(im){ if(im && im.id) wanted[im.id]=true; });
+              var d=JSON.parse(blob[k]);
+              (d.images||[]).forEach(function(im){ if(im && im.id) wanted[im.id]=true; });
+              // REV 2: photos taken during capture but not yet built into the report
+              if(d.capture && d.capture.sections){
+                Object.keys(d.capture.sections).forEach(function(sk){
+                  var its=d.capture.sections[sk].items||{};
+                  Object.keys(its).forEach(function(pk){ (its[pk].photos||[]).forEach(function(id){ wanted[id]=true; }); });
+                });
+              }
             }catch(_){}
           }
         });
@@ -6649,6 +6894,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     function setStatus(s){
       if(!statusEl) return;
       if(!_user){ statusEl.textContent='Local only'; return; }
+      if(s==='error' && navigator.onLine===false){ statusEl.textContent='Offline — saved on this device, will upload when signal returns'; return; }
       statusEl.textContent = ({saving:'Saving…',saved:'Saved to cloud ✓',error:'Save error — retrying on next change',off:'Signed in'})[s] || ('Cloud: '+(_user.email||'on'));
     }
     function el(tag,attrs,html){ var e=document.createElement(tag); if(attrs)Object.keys(attrs).forEach(function(a){e.setAttribute(a,attrs[a]);}); if(html!=null)e.innerHTML=html; return e; }
@@ -6698,6 +6944,1534 @@ function addPageFooter(doc, pageNum, totalPages) {
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
   })();
   </script>
+
+<!-- ═══════════════ REV 2: WALK-ROUND CAPTURE ═══════════════ -->
+<style id="capCss">
+  #capOverlay{position:fixed;inset:0;z-index:99990;background:#f4f6f8;display:none;flex-direction:column;font-family:inherit}
+  #capOverlay.open{display:flex}
+  .cap-head{background:#4A4F55;color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px;flex:0 0 auto}
+  .cap-head h2{margin:0;font-size:17px;font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cap-head button{background:rgba(255,255,255,.16);border:0;color:#fff;border-radius:8px;padding:9px 14px;font-size:15px;font-weight:600;cursor:pointer;-webkit-appearance:none}
+  .cap-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px}
+  .cap-foot{flex:0 0 auto;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #e2e8f0;display:flex;gap:10px}
+  .cap-foot button{flex:1;padding:14px;border:0;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;-webkit-appearance:none}
+  .cap-build{background:#4A4F55;color:#fff}
+  .cap-close{background:#fff;color:#1c2530;border:1px solid #c9d2da !important}
+  .cap-mode{display:flex;gap:8px;margin-bottom:14px}
+  .cap-mode button{flex:1;padding:12px;border:2px solid #4A4F55;border-radius:10px;background:#fff;color:#4A4F55;font-size:15px;font-weight:700;cursor:pointer;-webkit-appearance:none}
+  .cap-mode button.on{background:#4A4F55;color:#fff}
+  .cap-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+  .cap-tile{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:6px;min-height:74px}
+  .cap-tile:active{background:#e6f4f3}
+  .cap-tile .n{font-size:12px;font-weight:700;color:#4A4F55}
+  .cap-tile .t{font-size:14px;font-weight:600;line-height:1.3}
+  .cap-tile .p{font-size:12px;color:#5a6b7c;margin-top:auto}
+  .cap-tile.done{border-color:#4A4F55;box-shadow:inset 3px 0 0 #4A4F55}
+  .cap-item{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:10px}
+  .cap-item .lbl{font-size:14.5px;font-weight:600;line-height:1.35;margin-bottom:9px}
+  .cap-sts{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .cap-st{flex:1;min-width:56px;padding:9px 4px;border-radius:8px;border:2px solid #e2e8f0;background:#fff;font-size:12.5px;font-weight:700;cursor:pointer;text-align:center;-webkit-appearance:none;color:#475569}
+  .cap-st[data-on="1"]{color:#fff}
+  .cap-st.c[data-on="1"]{background:#059669;border-color:#059669}
+  .cap-st.a[data-on="1"]{background:#d97706;border-color:#d97706}
+  .cap-st.m[data-on="1"]{background:#dc2626;border-color:#dc2626}
+  .cap-st.o[data-on="1"]{background:#0284c7;border-color:#0284c7}
+  .cap-st.x[data-on="1"]{background:#64748b;border-color:#64748b}
+  .cap-note{width:100%;padding:9px;border:1px solid #c9d2da;border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:8px}
+  .cap-photos{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .cap-photos img{width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid #cbd5e1}
+  .cap-ph{position:relative}
+  .cap-ph button{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;border:0;background:#dc2626;color:#fff;font-size:13px;line-height:1;cursor:pointer;-webkit-appearance:none}
+  .cap-cam{width:56px;height:56px;border-radius:8px;border:2px dashed #94a3b8;background:#fff;font-size:22px;cursor:pointer;-webkit-appearance:none}
+  .cap-back{background:rgba(255,255,255,.16);border:0;color:#fff;border-radius:8px;padding:9px 12px;font-size:15px;cursor:pointer;-webkit-appearance:none}
+  .cap-progress{font-size:13px;color:#d1fae5;font-weight:600;white-space:nowrap}
+</style>
+<div id="capOverlay" role="dialog" aria-label="Inspection criteria">
+  <div class="cap-head">
+    <button type="button" id="capBack" class="cap-back" style="display:none">‹ Sections</button>
+    <h2 id="capTitle">Inspection criteria</h2>
+    <span id="capProg" class="cap-progress"></span>
+    <button type="button" id="capHide">Close</button>
+  </div>
+  <div class="cap-body" id="capBody"></div>
+  <div class="cap-foot">
+    <button type="button" class="cap-close" id="capClose2">Close (keeps answers)</button>
+    <button type="button" class="cap-build" id="capBuild">Apply to report ➜</button>
+  </div>
+</div>
+<script>
+// ═══════════════ REV 2: WALK-ROUND CAPTURE MODULE ═══════════════
+// Checks come from Simon's own SIMPLE_PHRASES bank; nothing is invented here.
+// Capture state persists inside the ordinary draft (state.capture), so it
+// survives app switches, reloads and server sync like everything else.
+(function(){
+  'use strict';
+  var STS = [
+    { k:'compliant',   cls:'c', chip:'Compliant' },
+    { k:'advisory',    cls:'a', chip:'Advisory' },
+    { k:'minor',       cls:'m', chip:'Action' },
+    { k:'observation', cls:'o', chip:'Observe' },
+    { k:'na',          cls:'x', chip:'N/A' }
+  ];
+  var LBL = { compliant:'Compliant', advisory:'Advisory', minor:'Action required', observation:'Observation', na:'Not applicable' };
+
+  // ── Bank: group SIMPLE_PHRASES by "(PC - Section N)" prefix ──
+  var _bank = null, _topics = null;
+  function bank(){
+    if(_bank) return _bank;
+    _bank = {};
+    var re = /^\(\s*(PC|C)\s*-\s*Section\s*(\d+)\s*\)\s*(.*)$/;
+    (typeof SIMPLE_PHRASES !== 'undefined' ? SIMPLE_PHRASES : []).forEach(function(p){
+      var m = re.exec(p.label || '');
+      if(!m) return;
+      var key = m[1] + m[2];
+      (_bank[key] = _bank[key] || []).push({ id: p.id, check: m[3], text: p.text || '' });
+    });
+    return _bank;
+  }
+  function topics(){
+    if(_topics) return _topics;
+    var re = /(PC|C)\s*-\s*Section\s*(\d+)\s*[–-]\s*(.*)$/;
+    _topics = (typeof TOPICS !== 'undefined' ? TOPICS : []).map(function(t){
+      var m = re.exec(String(t.title).trim());
+      if(!m) return null;
+      return { topicId: t.id, key: m[1] + m[2], mode: m[1], num: +m[2], short: m[3].trim(), title: String(t.title).trim() };
+    }).filter(function(t){ return t && bank()[t.key]; })
+      .sort(function(a,b){ return a.num - b.num; });
+    return _topics;
+  }
+
+  // ── Capture state (persisted as draft state.capture) ──
+  // S = { mode:'PC'|'C', sections: { key: { instanceId:null|str, items: { phraseId: {st, note, photos:[]} } } } }
+  var S = { mode:'PC', sections:{} };
+  function item(key, pid){
+    var sec = S.sections[key] = S.sections[key] || { instanceId:null, items:{} };
+    return sec.items[pid] = sec.items[pid] || { st:'', note:'', photos:[] };
+  }
+  function answered(key){
+    var sec = S.sections[key]; if(!sec) return 0;
+    return Object.keys(sec.items).filter(function(pid){ var it=sec.items[pid]; return it.st || it.note || (it.photos||[]).length; }).length;
+  }
+  function answeredItem(it){ return !!(it && (it.st || it.note || (it.photos||[]).length)); }
+  function included(it){ if(!it) return false; if(it.inc === true) return true; if(it.inc === false) return false; return answeredItem(it); }
+  var _liveT = null;
+  function liveApply(){ clearTimeout(_liveT); _liveT = setTimeout(function(){ build({ silent:true }).catch(function(e){ console.warn('live apply failed', e); }); }, 700); }
+  function save(){
+    if(window.AHS_DRAFT && window.AHS_DRAFT.scheduleSave) window.AHS_DRAFT.scheduleSave();
+  }
+  window.AHS_CAPTURE = {
+    serialize: function(){ return JSON.parse(JSON.stringify(S)); },
+    load: function(data){
+      if(data && typeof data === 'object' && data.sections){ S = JSON.parse(JSON.stringify(data)); }
+      if(!S.mode) S.mode = 'PC';
+      if(!S.sections) S.sections = {};
+    },
+    getMode: function(){ return S.mode; },
+    setMode: function(m){ if(m==='PC'||m==='C'){ S.mode=m; save(); } },
+    photoIds: function(){
+      var ids = [];
+      Object.keys(S.sections).forEach(function(k){
+        var its = S.sections[k].items || {};
+        Object.keys(its).forEach(function(p){ (its[p].photos||[]).forEach(function(id){ ids.push(id); }); });
+      });
+      return ids;
+    }
+  };
+
+  // ── Overlay plumbing ──
+  var ov, body, title, prog, back;
+  var view = { screen:'home', key:null };
+  function el(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+  function open(){ ov.classList.add('open'); render(); }
+  function hide(){ ov.classList.remove('open'); }
+
+  function render(){
+    if(view.screen === 'home') renderHome(); else renderSection(view.key);
+  }
+
+  function renderHome(){
+    back.style.display = 'none';
+    title.textContent = 'Inspection criteria';
+    var ts = topics().filter(function(t){ return t.mode === S.mode; });
+    var total = 0; ts.forEach(function(t){ total += answered(t.key); });
+    prog.textContent = total ? total + ' answered' : '';
+    var htm = '<div class="cap-mode">' +
+      '<button type="button" data-mode="PC"' + (S.mode==='PC'?' class="on"':'') + '>PC visit (Sections 4–18)</button>' +
+      '<button type="button" data-mode="C"' + (S.mode==='C'?' class="on"':'') + '>Contractor visit (21–37)</button>' +
+      '</div><div class="cap-tiles">';
+    ts.forEach(function(t){
+      var n = answered(t.key), tot = bank()[t.key].length;
+      htm += '<div class="cap-tile' + (n?' done':'') + '" data-key="' + esc(t.key) + '">' +
+        '<span class="n">Section ' + t.num + '</span>' +
+        '<span class="t">' + esc(t.short) + '</span>' +
+        '<span class="p">' + n + ' of ' + tot + ' answered</span></div>';
+    });
+    body.innerHTML = htm + '</div>';
+    body.querySelectorAll('.cap-mode button').forEach(function(b){
+      b.onclick = function(){ S.mode = b.getAttribute('data-mode'); save(); renderHome(); };
+    });
+    body.querySelectorAll('.cap-tile').forEach(function(tile){
+      tile.onclick = function(){ view = { screen:'sec', key: tile.getAttribute('data-key') }; render(); };
+    });
+  }
+
+  function renderSection(key){
+    var t = topics().find(function(x){ return x.key === key; });
+    if(!t){ view = {screen:'home', key:null}; return renderHome(); }
+    back.style.display = '';
+    title.textContent = 'S' + t.num + ' — ' + t.short;
+    prog.textContent = answered(key) + '/' + bank()[key].length;
+    var htm = '';
+    bank()[key].forEach(function(q){
+      var it = (S.sections[key] && S.sections[key].items[q.id]) || { st:'', note:'', photos:[] };
+      htm += '<div class="cap-item" data-pid="' + esc(q.id) + '">' +
+        '<label class="cap-inc" data-on="' + (included(it)?1:0) + '" title="Switch this item into or out of the report"><span>In report</span><span class="sw"></span></label>' +
+        '<div class="lbl">' + esc(q.check) + '</div>' +
+        '<div class="cap-sts">' + STS.map(function(s){
+          return '<button type="button" class="cap-st ' + s.cls + '" data-st="' + s.k + '" data-on="' + (it.st===s.k?1:0) + '">' + s.chip + '</button>';
+        }).join('') + '</div>' +
+        '<input class="cap-note" type="text" placeholder="Note (used in the report for findings)" value="' + esc(it.note) + '">' +
+        '<div class="cap-photos"><button type="button" class="cap-cam" title="Add photo">📷</button>' +
+        '<input type="file" accept="image/*" capture="environment" style="display:none">' +
+        '</div></div>';
+    });
+    body.innerHTML = htm;
+    body.querySelectorAll('.cap-item').forEach(function(node){
+      var pid = node.getAttribute('data-pid');
+      node.querySelectorAll('.cap-st').forEach(function(b){
+        b.onclick = function(){
+          var it = item(key, pid);
+          it.st = (it.st === b.getAttribute('data-st')) ? '' : b.getAttribute('data-st');
+          node.querySelectorAll('.cap-st').forEach(function(x){ x.setAttribute('data-on', x.getAttribute('data-st')===it.st ? '1':'0'); });
+          prog.textContent = answered(key) + '/' + bank()[key].length;
+          if(node._syncInc) node._syncInc();
+          save(); liveApply();
+        };
+      });
+      var note = node.querySelector('.cap-note');
+      note.oninput = function(){ item(key, pid).note = note.value; if(node._syncInc) node._syncInc(); save(); liveApply(); };
+      // rev3: In-report toggle. Turning an item on puts it in the report straight
+      // away (debounced rebuild of that section); off removes it.
+      var inc = node.querySelector('.cap-inc');
+      inc.onclick = function(ev){
+        ev.preventDefault();
+        var it = item(key, pid);
+        var now = !included(it);
+        it.inc = now;
+        inc.setAttribute('data-on', now ? '1' : '0');
+        save(); liveApply();
+      };
+      node._syncInc = function(){ inc.setAttribute('data-on', included(item(key, pid)) ? '1' : '0'); };
+      var cam = node.querySelector('.cap-cam');
+      var file = node.querySelector('input[type="file"]');
+      cam.onclick = function(){ file.click(); };
+      file.onchange = async function(){
+        var f = file.files && file.files[0]; if(!f) return;
+        cam.disabled = true; cam.textContent = '⏳';
+        try {
+          var dataUrl = await fileToDataUrl(f);   // existing 1600px/0.82 downscale
+          var id = 'img-cap-' + Date.now() + '-' + Math.random().toString(36).substr(2,9);
+          await window.AHS_PHOTOS.put(id, dataUrl);
+          window.AHS_SAVE_STATUS.ok('photos');
+          item(key, pid).photos.push(id);
+          addThumb(node, key, pid, id, dataUrl);
+          save();
+        } catch(e){
+          window.AHS_SAVE_STATUS.fail('photos', 'a photo could not be stored', e);
+        }
+        cam.disabled = false; cam.textContent = '📷'; file.value = '';
+      };
+      // existing photos
+      var it = (S.sections[key] && S.sections[key].items[pid]);
+      if(it) (it.photos||[]).forEach(function(id){
+        window.AHS_PHOTOS.get(id).then(function(d){ if(d) addThumb(node, key, pid, id, d); });
+      });
+    });
+  }
+
+  function addThumb(node, key, pid, id, dataUrl){
+    var wrap = document.createElement('span');
+    wrap.className = 'cap-ph';
+    var img = document.createElement('img'); img.src = dataUrl;
+    var x = document.createElement('button'); x.type='button'; x.textContent = '×';
+    x.onclick = function(){
+      var it = item(key, pid);
+      it.photos = it.photos.filter(function(p){ return p !== id; });
+      window.AHS_PHOTOS.del(id).catch(function(){});
+      wrap.remove(); save();
+    };
+    wrap.appendChild(img); wrap.appendChild(x);
+    node.querySelector('.cap-photos').appendChild(wrap);
+  }
+
+  // ── Build: write ordinary sections + item rows + photos ──
+  async function build(opts){
+    opts = opts || {};
+    var built = 0, photosAdded = 0;
+    var ts = topics().filter(function(t){ return t.mode === S.mode; });
+    for(var i = 0; i < ts.length; i++){
+      var t = ts[i], sec = S.sections[t.key];
+      if(!sec) continue;
+      var qs = bank()[t.key];
+      var anyIn = qs.some(function(q){ return included(sec.items[q.id]); });
+      if(!anyIn){
+        // everything switched off (or nothing answered): empty the section this
+        // builder owns, if it already exists in the report
+        if(sec.instanceId){
+          var gone = instances.find(function(x){ return x.instanceId === sec.instanceId; });
+          if(gone){ gone.content = ''; renderInstances();
+            var gn = document.querySelector('.insp-section[data-instance-id="' + gone.instanceId + '"]');
+            if(gn){ var gf = gn.querySelectorAll(".field .rte[contenteditable='true']"); if(gf[1]) gf[1].innerHTML=''; var gl = gn.querySelector('.items-list'); if(gl) gl.innerHTML=''; }
+          }
+        }
+        continue;
+      }
+
+      // narrative in Simon's structure: intro line, compliant bullets first, then findings
+      var okLines = [], findLines = [];
+      var rows = [];
+      for(var j = 0; j < qs.length; j++){
+        var q = qs[j], it = sec.items[q.id];
+        if(!included(it)) continue;
+        var photoRefs = [];
+        for(var p = 0; p < (it.photos||[]).length; p++){
+          var pid2 = it.photos[p];
+          if(!allImages.some(function(im){ return im.id === pid2; })){
+            var d = await window.AHS_PHOTOS.get(pid2);
+            if(d){
+              allImages.push({ id: pid2, file: null, dataUrl: d,
+                caption: 'S' + t.num + ' — ' + (it.note || q.check) });
+              photosAdded++;
+            }
+          }
+          photoRefs.push('photo');
+        }
+        var suffix = photoRefs.length ? ' (see images — S' + t.num + ')' : '';
+        if(it.st === 'compliant'){
+          okLines.push('• ' + q.text + suffix);
+        } else if(it.st === 'na' || !it.st){
+          if(it.note) findLines.push('• Note — ' + it.note + suffix);
+        } else {
+          findLines.push('• ' + LBL[it.st] + ' — ' + (it.note || q.check) + suffix);
+        }
+        rows.push({ item: q.check, status: it.st || '', note: it.note || '' });
+      }
+      var lines = ['At the time of the inspection the following was observed:'].concat(okLines, findLines);
+      var html = lines.map(function(l){ return _escapeHtml(l); }).join('<br>');
+
+      // one instance per captured section, reused on rebuild
+      var inst = sec.instanceId ? instances.find(function(x){ return x.instanceId === sec.instanceId; }) : null;
+      if(!inst){
+        inst = { instanceId: _uid(), topicId: t.topicId, title: t.title, content: html };
+        instances.push(inst);
+        sec.instanceId = inst.instanceId;
+      } else {
+        inst.content = html;
+      }
+      renderInstances();
+      var node = document.querySelector('.insp-section[data-instance-id="' + inst.instanceId + '"]');
+      if(node){
+        var fields = node.querySelectorAll(".field .rte[contenteditable='true']");
+        if(fields[1]) fields[1].innerHTML = html;
+        var list = node.querySelector('.items-list');
+        if(list){
+          list.innerHTML = '';
+          rows.forEach(function(r){
+            addItemRow(list);
+            var row = list.lastElementChild;
+            var rtes = row.querySelectorAll(".rte[contenteditable='true']");
+            if(rtes[0]) rtes[0].textContent = r.item;
+            var sel = row.querySelector('select.status-select');
+            if(sel) sel.value = r.status;
+            if(rtes[1]) rtes[1].textContent = r.note;
+          });
+        }
+      }
+      built++;
+    }
+    if(photosAdded && typeof renderImages === 'function') await renderImages();
+    if(typeof updateStatusSelectColors === 'function') updateStatusSelectColors();
+    if(typeof updateScoreDashboard === 'function') updateScoreDashboard();
+    if(window.AHS_DRAFT && window.AHS_DRAFT.saveNow) window.AHS_DRAFT.saveNow();
+    if(window.AHS_VISIT) window.AHS_VISIT.refreshBadges();
+    if(opts.silent) return;
+    hide();
+    alert(built
+      ? '✅ Applied to report: ' + built + ' section' + (built===1?'':'s') + (photosAdded ? ', ' + photosAdded + ' photo' + (photosAdded===1?'':'s') + ' placed' : '') + '. Review and edit as normal — rebuilding updates these sections without touching your edits elsewhere.'
+      : 'Nothing switched on yet — answer an item or flick its "In report" switch first.');
+  }
+
+  // ── Wire up ──
+  function init(){
+    ov = el('capOverlay'); body = el('capBody'); title = el('capTitle'); prog = el('capProg'); back = el('capBack');
+    var btn = el('capOpen');
+    if(btn) btn.onclick = open;
+    el('capHide').onclick = function(){ hide(); build({silent:true}).catch(function(){}); };
+    el('capClose2').onclick = function(){ hide(); build({silent:true}).catch(function(){}); };
+    back.onclick = function(){ view = { screen:'home', key:null }; render(); };
+    el('capBuild').onclick = function(){ build().catch(function(e){ alert('Build failed: ' + e.message); }); };
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+
+<!-- ═══════════════ REV 2: PRE-SITE PACK ═══════════════ -->
+<style id="psCss">
+  #psOverlay{position:fixed;inset:0;z-index:99989;background:#f4f6f8;display:none;flex-direction:column;font-family:inherit}
+  #psOverlay.open{display:flex}
+  .ps-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:14px}
+  .ps-card h3{margin:0 0 4px;font-size:16px}
+  .ps-sub{font-size:13px;color:#5a6b7c;margin:0 0 10px}
+  .ps-up{display:inline-block;padding:11px 16px;background:#4A4F55;color:#fff;border-radius:9px;border:0;font-size:14.5px;font-weight:700;cursor:pointer;-webkit-appearance:none}
+  .ps-tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;max-height:340px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px}
+  .ps-table{border-collapse:collapse;font-size:12.5px;min-width:100%}
+  .ps-table th,.ps-table td{border-bottom:1px solid #eef2f6;padding:6px 8px;text-align:left;white-space:nowrap}
+  .ps-table th{position:sticky;top:0;background:#f1f5f9;font-weight:700}
+  .ps-exp{background:#fee2e2;color:#991b1b;font-weight:700;border-radius:4px}
+  .ps-soon{background:#fef3c7;color:#92400e;font-weight:700;border-radius:4px}
+  .ps-sum{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .ps-chip{padding:6px 10px;border-radius:8px;font-size:13px;font-weight:700}
+  .ps-chip.r{background:#fee2e2;color:#991b1b}
+  .ps-chip.a{background:#fef3c7;color:#92400e}
+  .ps-chip.g{background:#d1fae5;color:#065f46}
+  .ps-doc{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #eef2f6;flex-wrap:wrap}
+  .ps-doc .nm{flex:1;min-width:150px;font-size:14px;font-weight:600;word-break:break-word;white-space:normal}
+  .ps-doc select{padding:7px;border:1px solid #c9d2da;border-radius:7px;font-size:13px}
+  .ps-doc input{flex:1;min-width:140px;padding:7px;border:1px solid #c9d2da;border-radius:7px;font-size:13px}
+  .ps-doc .op{padding:7px 10px;border:1px solid #4A4F55;background:#fff;color:#4A4F55;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;-webkit-appearance:none}
+  .ps-doc .rm{padding:7px 10px;border:0;background:#fee2e2;color:#991b1b;border-radius:7px;font-size:13px;cursor:pointer;-webkit-appearance:none}
+  .ps-none{color:#94a3b8;font-size:13px;padding:8px 0}
+  .ps-err{color:#b91c1c;font-size:13px;margin-top:8px;min-height:16px}
+</style>
+<div id="psOverlay" role="dialog" aria-label="Pre-site pack">
+  <div class="cap-head">
+    <h2>Pre-site pack</h2>
+    <span id="psMode" class="cap-progress"></span>
+    <button type="button" id="psHide">Close</button>
+  </div>
+  <div class="cap-body" id="psBody">
+    <div class="cap-mode">
+      <button type="button" data-mode="PC">PC visit</button>
+      <button type="button" data-mode="C">Contractor visit</button>
+    </div>
+    <div class="ps-card">
+      <h3>Training / competence matrix</h3>
+      <p class="ps-sub">Upload the contractor's matrix (.xlsx or .csv). Expiry-type columns are checked automatically — red = expired, amber = within 30 days.</p>
+      <button type="button" class="ps-up" id="psMxBtn">⬆ Upload matrix</button>
+      <input type="file" id="psMxFile" accept=".xlsx,.csv" style="display:none">
+      <div class="ps-err" id="psMxErr"></div>
+      <div id="psMxView"></div>
+    </div>
+    <div class="ps-card">
+      <h3>Project RAMS</h3>
+      <p class="ps-sub">Upload the RAMS PDFs, review each and set its status. Documents stay on this device — the report text carries your findings.</p>
+      <button type="button" class="ps-up" id="psRamsBtn">⬆ Add RAMS PDF(s)</button>
+      <input type="file" id="psRamsFile" accept="application/pdf,.pdf" multiple style="display:none">
+      <div class="ps-err" id="psRamsErr"></div>
+      <div id="psRamsList"></div>
+    </div>
+  </div>
+  <div class="cap-foot">
+    <button type="button" class="cap-close" id="psClose2">Close (keeps everything)</button>
+    <button type="button" class="cap-build" id="psApply">Apply to report ➜</button>
+  </div>
+</div>
+<script>
+// ═══════════════ REV 2: PRE-SITE PACK MODULE ═══════════════
+// Training matrix (.xlsx read natively via DecompressionStream — no library)
+// and RAMS PDFs (stored in their own IndexedDB, 'ahs-inspection-files', so
+// the shared photo store's schema version is never touched).
+(function(){
+  'use strict';
+
+  // ── File store (separate DB from photos, deliberately) ──
+  var FILES = (function(){
+    var DB='ahs-inspection-files', ST='files', _db=null;
+    function open(){
+      if(_db) return Promise.resolve(_db);
+      return new Promise(function(res,rej){
+        var q=indexedDB.open(DB,1);
+        q.onupgradeneeded=function(){ if(!q.result.objectStoreNames.contains(ST)) q.result.createObjectStore(ST,{keyPath:'id'}); };
+        q.onsuccess=function(){ _db=q.result; res(_db); };
+        q.onerror=function(){ rej(q.error||new Error('file store unavailable')); };
+      });
+    }
+    function rw(fn){ return open().then(function(db){ return new Promise(function(res,rej){
+      var t=db.transaction(ST,'readwrite'); try{ fn(t.objectStore(ST)); }catch(e){ rej(e); return; }
+      t.oncomplete=function(){ res(true); }; t.onerror=function(){ rej(t.error); }; t.onabort=function(){ rej(t.error); };
+    });});}
+    function ro(fn){ return open().then(function(db){ return new Promise(function(res,rej){
+      var q=fn(db.transaction(ST,'readonly').objectStore(ST));
+      q.onsuccess=function(){ res(q.result); }; q.onerror=function(){ rej(q.error); };
+    });});}
+    return {
+      put:function(rec){ return rw(function(s){ s.put(rec); }); },
+      get:function(id){ return ro(function(s){ return s.get(id); }); },
+      del:function(id){ return rw(function(s){ s.delete(id); }); }
+    };
+  })();
+
+  // ── Minimal .xlsx reader: zip walk + DecompressionStream + XML ──
+  async function unzipEntries(buf){
+    var dv=new DataView(buf), u8=new Uint8Array(buf);
+    var eocd=-1;
+    for(var i=buf.byteLength-22;i>=0 && i>buf.byteLength-70000;i--){
+      if(dv.getUint32(i,true)===0x06054b50){ eocd=i; break; }
+    }
+    if(eocd<0) throw new Error('not a valid .xlsx (zip) file');
+    var count=dv.getUint16(eocd+10,true), cdOff=dv.getUint32(eocd+16,true);
+    var out={}, p=cdOff;
+    for(var e=0;e<count;e++){
+      if(dv.getUint32(p,true)!==0x02014b50) break;
+      var method=dv.getUint16(p+10,true), csize=dv.getUint32(p+20,true);
+      var nlen=dv.getUint16(p+28,true), xlen=dv.getUint16(p+30,true), clen=dv.getUint16(p+32,true);
+      var lho=dv.getUint32(p+42,true);
+      var name=new TextDecoder().decode(u8.subarray(p+46,p+46+nlen)).replace(/\\/g,'/');
+      out[name]={method:method,csize:csize,lho:lho};
+      p+=46+nlen+xlen+clen;
+    }
+    async function read(name){
+      var ent=out[name]; if(!ent) return null;
+      var q=ent.lho;
+      if(dv.getUint32(q,true)!==0x04034b50) throw new Error('zip local header mismatch');
+      var nl=dv.getUint16(q+26,true), xl=dv.getUint16(q+28,true);
+      var data=u8.subarray(q+30+nl+xl, q+30+nl+xl+ent.csize);
+      if(ent.method===0) return new TextDecoder().decode(data);
+      if(ent.method===8){
+        var ds=new DecompressionStream('deflate-raw');
+        var ab=await new Response(new Blob([data]).stream().pipeThrough(ds)).arrayBuffer();
+        return new TextDecoder().decode(ab);
+      }
+      throw new Error('unsupported zip compression method '+ent.method);
+    }
+    return { names:Object.keys(out), read:read };
+  }
+  function colIndex(ref){
+    var m=/^([A-Z]+)/.exec(ref||''); if(!m) return 0;
+    var n=0; for(var i=0;i<m[1].length;i++) n=n*26+(m[1].charCodeAt(i)-64);
+    return n-1;
+  }
+  async function parseXlsx(buf){
+    var z=await unzipEntries(buf);
+    var shared=[];
+    var ssXml=await z.read('xl/sharedStrings.xml');
+    if(ssXml){
+      var sdoc=new DOMParser().parseFromString(ssXml,'application/xml');
+      Array.prototype.forEach.call(sdoc.getElementsByTagName('si'),function(si){
+        var t=''; Array.prototype.forEach.call(si.getElementsByTagName('t'),function(tn){ t+=tn.textContent; });
+        shared.push(t);
+      });
+    }
+    var sheetName=z.names.find(function(n){ return n==='xl/worksheets/sheet1.xml'; }) ||
+                  z.names.filter(function(n){ return /^xl\/worksheets\/sheet\d+\.xml$/.test(n); }).sort()[0];
+    if(!sheetName) throw new Error('no worksheet found in the file');
+    var xml=await z.read(sheetName);
+    var doc=new DOMParser().parseFromString(xml,'application/xml');
+    var rows=[];
+    Array.prototype.forEach.call(doc.getElementsByTagName('row'),function(rowEl){
+      var row=[];
+      Array.prototype.forEach.call(rowEl.getElementsByTagName('c'),function(c){
+        var idx=colIndex(c.getAttribute('r')||'');
+        var t=c.getAttribute('t')||'';
+        var v='';
+        if(t==='inlineStr'){
+          var isEl=c.getElementsByTagName('is')[0];
+          v=isEl?isEl.textContent:'';
+        } else {
+          var vEl=c.getElementsByTagName('v')[0];
+          if(vEl){
+            v=vEl.textContent;
+            if(t==='s'){ v=shared[+v]!==undefined?shared[+v]:''; }
+            else if(t==='b'){ v=(+v)?'Yes':'No'; }
+            else if(t!=='str'){ var num=+v; if(isFinite(num)) v=num; }
+          }
+        }
+        row[idx]=v;
+      });
+      rows.push(row);
+    });
+    while(rows.length && rows[0].every(function(c){ return c===undefined||c===''; })) rows.shift();
+    return rows;
+  }
+  function parseCsv(text){
+    var rows=[], row=[], cur='', inQ=false;
+    for(var i=0;i<text.length;i++){
+      var ch=text[i];
+      if(inQ){
+        if(ch==='"'){ if(text[i+1]==='"'){ cur+='"'; i++; } else inQ=false; }
+        else cur+=ch;
+      } else if(ch==='"') inQ=true;
+      else if(ch===','){ row.push(cur); cur=''; }
+      else if(ch==='\n'||ch==='\r'){ if(cur!==''||row.length){ row.push(cur); rows.push(row); row=[]; cur=''; } if(ch==='\r'&&text[i+1]==='\n') i++; }
+      else cur+=ch;
+    }
+    if(cur!==''||row.length){ row.push(cur); rows.push(row); }
+    return rows;
+  }
+
+  // ── Dates: Excel serials + UK d/m/y strings ──
+  var DATE_HDR=/date|expir|valid|renew|due|review|refresher/i;
+  function cellDate(v){
+    if(typeof v==='number' && v>20000 && v<60000) return Math.round((v-25569)*86400000);
+    if(typeof v==='string'){
+      var m=/^\s*(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})\s*$/.exec(v);
+      if(m){ var y=+m[3]; if(y<100) y+=2000; var d=new Date(y,+m[2]-1,+m[1]); if(!isNaN(d)) return d.getTime(); }
+    }
+    return null;
+  }
+  function fmtDate(ms){ return new Date(ms).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }
+  function classify(ms){
+    var now=Date.now();
+    if(ms<now) return 'exp';
+    if(ms<=now+30*86400000) return 'soon';
+    return 'ok';
+  }
+
+  // ── State (persisted as draft state.presite) ──
+  var P={ matrix:null, rams:[], inst:{} };
+  window.AHS_PRESITE={
+    serialize:function(){ return JSON.parse(JSON.stringify(P)); },
+    load:function(d){ if(d&&typeof d==='object'){ P=JSON.parse(JSON.stringify(d)); } if(!P.rams) P.rams=[]; if(!P.inst) P.inst={}; }
+  };
+  function save(){ if(window.AHS_DRAFT&&window.AHS_DRAFT.scheduleSave) window.AHS_DRAFT.scheduleSave(); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function el(id){ return document.getElementById(id); }
+
+  // ── Matrix analysis + render ──
+  function analyse(){
+    var out={ people:0, exp:[], soon:[] };
+    if(!P.matrix) return out;
+    var heads=P.matrix.headers, rows=P.matrix.rows;
+    out.people=rows.length;
+    rows.forEach(function(r){
+      var who=String(r[0]==null?'':r[0]).trim()||'(unnamed)';
+      heads.forEach(function(hd,ci){
+        if(!DATE_HDR.test(String(hd||''))) return;
+        var ms=cellDate(r[ci]); if(ms==null) return;
+        var c=classify(ms);
+        if(c==='exp') out.exp.push(who+' — '+hd+' ('+fmtDate(ms)+')');
+        else if(c==='soon') out.soon.push(who+' — '+hd+' ('+fmtDate(ms)+')');
+      });
+    });
+    return out;
+  }
+  function renderMatrix(){
+    var v=el('psMxView');
+    if(!P.matrix){ v.innerHTML='<div class="ps-none">No matrix loaded yet.</div>'; return; }
+    var a=analyse();
+    var htm='<div class="ps-sum">'+
+      '<span class="ps-chip g">'+a.people+' people</span>'+
+      '<span class="ps-chip r">'+a.exp.length+' expired</span>'+
+      '<span class="ps-chip a">'+a.soon.length+' expiring ≤30 days</span>'+
+      '<span class="ps-chip" style="background:#eef2f6;color:#334155">'+esc(P.matrix.name)+'</span></div>';
+    htm+='<div class="ps-tablewrap"><table class="ps-table"><tr>';
+    P.matrix.headers.forEach(function(h){ htm+='<th>'+esc(h)+'</th>'; });
+    htm+='</tr>';
+    P.matrix.rows.forEach(function(r){
+      htm+='<tr>';
+      P.matrix.headers.forEach(function(h,ci){
+        var val=r[ci], cls='';
+        if(DATE_HDR.test(String(h||''))){
+          var ms=cellDate(val);
+          if(ms!=null){ var c=classify(ms); if(c==='exp') cls=' class="ps-exp"'; else if(c==='soon') cls=' class="ps-soon"'; val=fmtDate(ms); }
+        }
+        htm+='<td'+cls+'>'+esc(val===undefined?'':val)+'</td>';
+      });
+      htm+='</tr>';
+    });
+    v.innerHTML=htm+'</table></div>';
+  }
+
+  // ── RAMS render ──
+  var RSTATUS=[['',''],['sat','Satisfactory'],['comments','Comments'],['not','Not reviewed']];
+  function renderRams(){
+    var v=el('psRamsList');
+    if(!P.rams.length){ v.innerHTML='<div class="ps-none">No RAMS loaded yet.</div>'; return; }
+    v.innerHTML='';
+    P.rams.forEach(function(doc){
+      var row=document.createElement('div'); row.className='ps-doc';
+      var nm=document.createElement('span'); nm.className='nm';
+      nm.textContent=doc.name+' ('+(doc.size/1048576).toFixed(1)+' MB)';
+      var sel=document.createElement('select');
+      RSTATUS.forEach(function(s){ var o=document.createElement('option'); o.value=s[0]; o.textContent=s[1]||'— status —'; if(doc.status===s[0]) o.selected=true; sel.appendChild(o); });
+      sel.onchange=function(){ doc.status=sel.value; save(); };
+      var note=document.createElement('input'); note.type='text'; note.placeholder='Comment (used in the report)'; note.value=doc.note||'';
+      note.oninput=function(){ doc.note=note.value; save(); };
+      var op=document.createElement('button'); op.type='button'; op.className='op'; op.textContent='Open';
+      op.onclick=async function(){
+        try{
+          var rec=await FILES.get(doc.id);
+          if(!rec||!rec.dataUrl){ alert('This PDF is not stored on this device — re-upload it here.'); return; }
+          var blob=await (await fetch(rec.dataUrl)).blob();
+          window.open(URL.createObjectURL(blob),'_blank');
+        }catch(e){ alert('Could not open: '+e.message); }
+      };
+      var rm=document.createElement('button'); rm.type='button'; rm.className='rm'; rm.textContent='✕';
+      rm.onclick=function(){
+        if(!confirm('Remove "'+doc.name+'" from the pack?')) return;
+        P.rams=P.rams.filter(function(d){ return d.id!==doc.id; });
+        FILES.del(doc.id).catch(function(){});
+        renderRams(); save();
+      };
+      row.appendChild(nm); row.appendChild(sel); row.appendChild(note); row.appendChild(op); row.appendChild(rm);
+      v.appendChild(row);
+    });
+  }
+
+  // ── Apply to report ──
+  function topicFor(num){
+    var re=new RegExp('Section\\s*'+num+'\\b');
+    return (typeof TOPICS!=='undefined'?TOPICS:[]).find(function(t){ return re.test(t.title); });
+  }
+  function writeSection(topic, html, rows, slot){
+    var inst=P.inst[slot] ? instances.find(function(x){ return x.instanceId===P.inst[slot]; }) : null;
+    if(!inst){
+      inst={ instanceId:_uid(), topicId:topic.id, title:String(topic.title).trim(), content:html };
+      instances.push(inst); P.inst[slot]=inst.instanceId;
+    } else inst.content=html;
+    renderInstances();
+    var node=document.querySelector('.insp-section[data-instance-id="'+inst.instanceId+'"]');
+    if(node){
+      var fields=node.querySelectorAll(".field .rte[contenteditable='true']");
+      if(fields[1]) fields[1].innerHTML=html;
+      var list=node.querySelector('.items-list');
+      if(list){
+        list.innerHTML='';
+        rows.forEach(function(r){
+          addItemRow(list);
+          var rowEl=list.lastElementChild;
+          var rtes=rowEl.querySelectorAll(".rte[contenteditable='true']");
+          if(rtes[0]) rtes[0].textContent=r.item;
+          var s=rowEl.querySelector('select.status-select'); if(s) s.value=r.status;
+          if(rtes[1]) rtes[1].textContent=r.note;
+        });
+      }
+    }
+  }
+  function bull(lines){ return lines.map(function(l){ return _escapeHtml(l); }).join('<br>'); }
+  function apply(){
+    var mode=window.AHS_CAPTURE?window.AHS_CAPTURE.getMode():'PC';
+    var wrote=[];
+    if(P.matrix){
+      var a=analyse();
+      var lines=['A training and competence matrix ("'+P.matrix.name+'") was provided and reviewed prior to the visit, covering '+a.people+' personnel.'];
+      a.exp.forEach(function(x){ lines.push('• Action required — expired: '+x); });
+      a.soon.forEach(function(x){ lines.push('• Advisory — expiring within 30 days: '+x); });
+      if(!a.exp.length&&!a.soon.length) lines.push('• All recorded training and certification was in date at the time of review.');
+      var st=a.exp.length?'minor':(a.soon.length?'advisory':'compliant');
+      var trRows=[{ item:'Training / competence matrix reviewed', status:st,
+        note:a.exp.length+' expired, '+a.soon.length+' expiring ≤30 days ('+a.people+' personnel)' }];
+      var tTopic=topicFor(mode==='PC'?3:24);
+      if(tTopic){ writeSection(tTopic, bull(lines), trRows, 'training-'+mode); wrote.push(tTopic.title.trim()); }
+    }
+    if(P.rams.length){
+      var rLines=['The following RAMS were provided and reviewed prior to the visit:'];
+      var rRows=[];
+      P.rams.forEach(function(d){
+        var s=d.status==='sat'?'Satisfactory':(d.status==='comments'?'Comments':(d.status==='not'?'Not yet reviewed':'Not yet reviewed'));
+        rLines.push('• '+d.name+' — '+s+(d.note?': '+d.note:''));
+        rRows.push({ item:'RAMS: '+d.name,
+          status:d.status==='sat'?'compliant':(d.status==='comments'?'advisory':'observation'),
+          note:d.note||'' });
+      });
+      var rTopic=topicFor(mode==='PC'?3:23);
+      if(rTopic){
+        if(mode==='PC'&&P.matrix){
+          // PC: Documentation section carries both — rebuild it combined
+          var a2=analyse();
+          var both=['A training and competence matrix ("'+P.matrix.name+'") was provided and reviewed prior to the visit, covering '+a2.people+' personnel.'];
+          a2.exp.forEach(function(x){ both.push('• Action required — expired: '+x); });
+          a2.soon.forEach(function(x){ both.push('• Advisory — expiring within 30 days: '+x); });
+          if(!a2.exp.length&&!a2.soon.length) both.push('• All recorded training and certification was in date at the time of review.');
+          both.push('');
+          both=both.concat(rLines);
+          var st2=a2.exp.length?'minor':(a2.soon.length?'advisory':'compliant');
+          var allRows=[{ item:'Training / competence matrix reviewed', status:st2,
+            note:a2.exp.length+' expired, '+a2.soon.length+' expiring ≤30 days ('+a2.people+' personnel)' }].concat(rRows);
+          writeSection(rTopic, bull(both), allRows, 'training-PC');
+          if(wrote.indexOf(rTopic.title.trim())<0) wrote.push(rTopic.title.trim());
+        } else {
+          writeSection(rTopic, bull(rLines), rRows, 'rams-'+mode);
+          wrote.push(rTopic.title.trim());
+        }
+      }
+    }
+    if(!wrote.length){ alert('Nothing to apply yet — load a matrix or some RAMS first.'); return; }
+    if(typeof updateStatusSelectColors==='function') updateStatusSelectColors();
+    if(typeof updateScoreDashboard==='function') updateScoreDashboard();
+    if(window.AHS_DRAFT&&window.AHS_DRAFT.saveNow) window.AHS_DRAFT.saveNow();
+    el('psOverlay').classList.remove('open');
+    alert('✅ Applied to the report: '+wrote.join('; ')+'. Edit as normal — applying again updates the same sections.');
+  }
+
+  // ── Uploads ──
+  async function loadMatrixFile(f){
+    el('psMxErr').textContent='';
+    try{
+      var rows;
+      if(/\.csv$/i.test(f.name)) rows=parseCsv(await f.text());
+      else rows=await parseXlsx(await f.arrayBuffer());
+      if(!rows||rows.length<2) throw new Error('no data rows found');
+      var headers=rows[0].map(function(h){ return String(h===undefined?'':h); });
+      var body=rows.slice(1).filter(function(r){ return r.some(function(c){ return c!==undefined&&String(c).trim()!==''; }); });
+      P.matrix={ name:f.name, headers:headers, rows:body, loadedAt:Date.now() };
+      // keep the original so it can be re-opened later
+      var fr=new FileReader();
+      fr.onload=function(){ FILES.put({ id:'matrix-original', name:f.name, type:f.type, size:f.size, dataUrl:fr.result }).catch(function(){}); };
+      fr.readAsDataURL(f);
+      renderMatrix(); save();
+    }catch(e){
+      el('psMxErr').textContent='Could not read "'+f.name+'": '+e.message+'. If it is an unusual export, save it as .csv and upload that.';
+    }
+  }
+  function loadRamsFiles(files){
+    el('psRamsErr').textContent='';
+    Array.prototype.forEach.call(files,function(f){
+      if(f.size>25*1048576){ el('psRamsErr').textContent='"'+f.name+'" is over 25MB — compress it or split it.'; return; }
+      var fr=new FileReader();
+      fr.onload=async function(){
+        var id='rams-'+Date.now()+'-'+Math.random().toString(36).substr(2,9);
+        try{
+          await FILES.put({ id:id, name:f.name, type:'application/pdf', size:f.size, dataUrl:fr.result });
+          P.rams.push({ id:id, name:f.name, size:f.size, status:'', note:'' });
+          renderRams(); save();
+        }catch(e){ el('psRamsErr').textContent='Could not store "'+f.name+'": '+e.message; }
+      };
+      fr.readAsDataURL(f);
+    });
+  }
+
+  // ── Wire up ──
+  function syncModeButtons(){
+    var mode=window.AHS_CAPTURE?window.AHS_CAPTURE.getMode():'PC';
+    document.querySelectorAll('#psBody .cap-mode button').forEach(function(b){
+      b.classList.toggle('on', b.getAttribute('data-mode')===mode);
+    });
+    el('psMode').textContent=mode==='PC'?'PC visit':'Contractor visit';
+  }
+  function init(){
+    var open=el('psOpen');
+    if(open) open.onclick=function(){ el('psOverlay').classList.add('open'); syncModeButtons(); renderMatrix(); renderRams(); };
+    el('psHide').onclick=function(){ el('psOverlay').classList.remove('open'); };
+    el('psClose2').onclick=function(){ el('psOverlay').classList.remove('open'); };
+    el('psApply').onclick=function(){ try{ apply(); }catch(e){ alert('Apply failed: '+e.message); } };
+    document.querySelectorAll('#psBody .cap-mode button').forEach(function(b){
+      b.onclick=function(){ if(window.AHS_CAPTURE) window.AHS_CAPTURE.setMode(b.getAttribute('data-mode')); syncModeButtons(); };
+    });
+    el('psMxBtn').onclick=function(){ el('psMxFile').click(); };
+    el('psMxFile').onchange=function(){ if(this.files[0]) loadMatrixFile(this.files[0]); this.value=''; };
+    el('psRamsBtn').onclick=function(){ el('psRamsFile').click(); };
+    el('psRamsFile').onchange=function(){ if(this.files.length) loadRamsFiles(this.files); this.value=''; };
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+
+
+<!-- ═══════════════ REV 3: VISIT CONTEXT · HISTORY · AI SUMMARIES · QUICK PHOTO ═══════════════ -->
+<style id="r3Css">
+  /* Visit context panel (top of the inspection form) */
+  #visitCtx{margin:0 auto 0.5rem;max-width:1300px;padding:0 1.25rem}
+  .vc-panel{background:var(--accent-light,#eef8fa);border:1.5px solid var(--accent,#4BBFD6);border-radius:var(--radius-lg,12px);padding:10px 14px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px}
+  .vc-panel .vc-title{font-weight:700;color:var(--primary,#1c2530);margin-right:4px}
+  .vc-panel .vc-chip{background:#fff;border:1px solid var(--border,#d0d5dd);border-radius:999px;padding:3px 10px;white-space:nowrap}
+  .vc-panel .vc-chip b{color:var(--primary,#1c2530)}
+  .vc-panel .vc-edit{margin-left:auto;border:1px solid var(--border,#d0d5dd);background:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;font:inherit;font-size:12px}
+  .vc-panel.vc-empty{border-style:dashed;background:#fffbeb;border-color:#f59e0b}
+  /* Start-inspection modal reuses the front-page modal look exactly */
+  .frontpage-field textarea{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:14px;background:var(--input-bg);font-family:inherit;color:var(--text);box-sizing:border-box;min-height:64px;resize:vertical}
+  .frontpage-field textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(75,191,214,.18)}
+  .fp-row{display:flex;gap:10px}
+  .fp-row .frontpage-field{flex:1;min-width:0}
+  .fp-hint{font-size:12px;color:#6b7280;margin-top:4px}
+  .fp-err{color:#b91c1c;font-size:13px;min-height:18px;margin-top:6px}
+  .fp-req{color:#b91c1c}
+  /* Floating buttons */
+  .r3-fab{position:fixed;z-index:9990;width:54px;height:54px;border-radius:50%;border:0;box-shadow:0 6px 18px rgba(0,0,0,.25);font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-appearance:none;color:#fff}
+  #r3Cam{right:16px;bottom:calc(16px + env(safe-area-inset-bottom));background:var(--accent,#4BBFD6)}
+  #r3Builder{left:16px;bottom:calc(16px + env(safe-area-inset-bottom));background:#4A4F55;font-size:20px}
+  #r3Builder span{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:10px;color:#4A4F55;font-weight:700;white-space:nowrap}
+  /* Photo link sheet */
+  #r3Sheet{position:fixed;inset:0;z-index:10002;background:rgba(20,30,40,.45);display:none;align-items:flex-end;justify-content:center}
+  #r3Sheet.show{display:flex}
+  .r3-sheet{background:var(--surface,#fff);border-radius:16px 16px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));width:100%;max-width:640px;max-height:85vh;overflow:auto;box-shadow:0 -10px 40px rgba(0,0,0,.25);font-family:'DM Sans',sans-serif}
+  .r3-sheet h3{margin:0 0 12px;font-size:17px;color:var(--primary,#1c2530);border-bottom:2px solid var(--accent,#4BBFD6);padding-bottom:8px}
+  .r3-sheet img{width:100%;max-height:220px;object-fit:contain;border-radius:8px;background:#f1f5f9;margin-bottom:10px}
+  .r3-sheet select,.r3-sheet input{width:100%;padding:9px 12px;border:1.5px solid var(--border,#d0d5dd);border-radius:8px;font:inherit;font-size:14px;box-sizing:border-box;margin-bottom:10px;background:var(--input-bg,#fff)}
+  /* Linked-photo badge on item rows */
+  .r3-badge{grid-column:1 / -1;font-size:11.5px;color:#0b6b7f;background:#eef6f8;border:1px solid #bfe3ec;border-radius:999px;padding:2px 9px;justify-self:start;cursor:pointer;user-select:none}
+  /* AI buttons */
+  .r3-ai{border:1px solid #c4b5fd;background:#f5f3ff;color:#5b21b6;border-radius:6px;padding:5px 11px;cursor:pointer;font:inherit;font-size:12.5px;font-weight:600;margin-left:10px;vertical-align:middle}
+  .r3-ai:disabled{opacity:.6;cursor:wait}
+  .r3-pre{white-space:pre-wrap;font:12px/1.45 'DM Mono',ui-monospace,monospace;background:#f8fafb;border:1px solid var(--border,#d0d5dd);border-radius:8px;padding:12px;max-height:50vh;overflow:auto}
+  /* History list */
+  .r3-hist{border:1px solid var(--border,#d0d5dd);border-radius:8px;max-height:300px;overflow:auto}
+  .r3-hist .row{display:flex;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid #eef1f4}
+  .r3-hist .row:last-child{border-bottom:0}
+  .r3-hist .row .meta{flex:1;min-width:0;font-size:13px}
+  .r3-hist .row .meta small{display:block;color:#6b7280}
+  /* Builder include toggle */
+  .cap-item{position:relative}
+  .cap-inc{position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#475569;cursor:pointer;user-select:none}
+  .cap-inc .sw{width:36px;height:20px;border-radius:999px;background:#cbd5e1;position:relative;transition:background .15s}
+  .cap-inc .sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
+  .cap-inc[data-on="1"] .sw{background:#4A4F55}
+  .cap-inc[data-on="1"] .sw::after{left:18px}
+  .cap-item .lbl{padding-right:96px}
+  @media print{
+    .r3-fab,#r3Sheet,.r3-ai,.vc-edit,.r3-badge{display:none !important}
+    #visitCtx{padding:0}
+    .vc-panel{break-inside:avoid}
+  }
+</style>
+
+<!-- Start inspection modal (same classes as the Front Page editor) -->
+<div id="startInspModal" class="frontpage-modal" role="dialog" aria-label="Start inspection">
+  <div class="frontpage-dialog" style="max-width:560px">
+    <h3 id="siTitle">🆕 Start inspection</h3>
+    <div class="frontpage-field">
+      <label for="si-operatives">Operatives on site <span class="fp-req">*</span></label>
+      <input type="number" id="si-operatives" min="0" step="1" inputmode="numeric" placeholder="e.g. 14">
+    </div>
+    <div class="frontpage-field">
+      <label for="si-contractors">Contractors / subcontractors on site</label>
+      <input type="number" id="si-contractors" min="0" step="1" inputmode="numeric" placeholder="e.g. 3">
+    </div>
+    <div class="fp-row">
+      <div class="frontpage-field">
+        <label for="si-contact-name">Site contact name</label>
+        <input type="text" id="si-contact-name" placeholder="e.g. J Smith">
+      </div>
+      <div class="frontpage-field">
+        <label for="si-contact-role">Role</label>
+        <input type="text" id="si-contact-role" placeholder="e.g. Site Manager">
+      </div>
+    </div>
+    <div class="frontpage-field">
+      <label for="si-weather">Weather and site conditions</label>
+      <input type="text" id="si-weather" placeholder="e.g. Dry, overcast, 14°C, ground firm">
+    </div>
+    <div class="frontpage-field">
+      <label for="si-phase">Current phase of works</label>
+      <input type="text" id="si-phase" placeholder="e.g. Groundworks and drainage">
+    </div>
+    <div class="frontpage-field">
+      <label for="si-focus">Focus areas for today</label>
+      <input type="text" id="si-focus" placeholder="e.g. Excavations, plant movements, welfare">
+    </div>
+    <div class="frontpage-field">
+      <label for="si-visit">Visit number</label>
+      <input type="number" id="si-visit" min="1" step="1" inputmode="numeric">
+      <div class="fp-hint" id="si-visit-hint"></div>
+    </div>
+    <div class="fp-err" id="si-err"></div>
+    <div class="frontpage-buttons">
+      <button type="button" class="frontpage-btn frontpage-btn-save" id="si-start">Start inspection</button>
+      <button type="button" class="frontpage-btn frontpage-btn-cancel" id="si-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Visit history / AI prompt preview: generic dialog -->
+<div id="r3Dialog" class="frontpage-modal" role="dialog">
+  <div class="frontpage-dialog" style="max-width:640px">
+    <h3 id="r3DlgTitle"></h3>
+    <div id="r3DlgBody"></div>
+    <div class="frontpage-buttons" id="r3DlgBtns"></div>
+  </div>
+</div>
+
+<!-- Quick photo: sticky button + link sheet -->
+<button type="button" id="r3Cam" class="r3-fab" title="Take a photo and link it to a section or item">📷</button>
+<input type="file" id="r3CamInput" accept="image/*" capture="environment" style="display:none">
+<button type="button" id="r3Builder" class="r3-fab" title="Back to the inspection criteria builder">📝</button>
+<div id="r3Sheet">
+  <div class="r3-sheet">
+    <h3>Link this photo</h3>
+    <img id="r3SheetImg" alt="Photo preview">
+    <label style="font-size:13px;font-weight:600;color:var(--primary,#1c2530)">Link to</label>
+    <select id="r3SheetLink"></select>
+    <label style="font-size:13px;font-weight:600;color:var(--primary,#1c2530)">Caption (auto-filled, edit if you like)</label>
+    <input type="text" id="r3SheetCap">
+    <div class="frontpage-buttons" style="margin-top:6px">
+      <button type="button" class="frontpage-btn frontpage-btn-save" id="r3SheetSave">Save photo</button>
+      <button type="button" class="frontpage-btn frontpage-btn-cancel" id="r3SheetDiscard">Discard</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════ REV 3 MODULE ═══════════════
+// Adds: per-inspection visit context (the "Start inspection" modal), an
+// inspection history per project (AHS_INSPECTIONS_V1) so visits are numbered
+// and previous findings can be quoted, AI-drafted summaries built from
+// project + visit + history data, a sticky camera that links photos to a
+// section/item, and include-toggles in the criteria builder.
+(function(){
+  'use strict';
+  var HIST_KEY = 'AHS_INSPECTIONS_V1';
+  var AI_KEY   = 'AHS_AI_KEY';
+  var AI_MODEL = 'AHS_AI_MODEL';
+  var DEFAULT_MODEL = 'claude-sonnet-4-5';
+  var VISIT_FIELDS = ['operatives_on_site','contractors_on_site','site_contact_name','site_contact_role','weather_conditions','works_phase','focus_areas','visit_number'];
+
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function strip(html){ var d=document.createElement('div'); d.innerHTML=html||''; return (d.textContent||'').replace(/\s+/g,' ').trim(); }
+  function uid(){ return 'insp-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8); }
+  function save(){ if(window.AHS_DRAFT && window.AHS_DRAFT.scheduleSave) window.AHS_DRAFT.scheduleSave(); }
+  function saveNow(){ if(window.AHS_DRAFT && window.AHS_DRAFT.saveNow) window.AHS_DRAFT.saveNow(); }
+  function fmtDate(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d)) return String(iso); return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }
+
+  // ── Migration: every inspection record carries these keys (nullable) ──
+  // v1 drafts have no `visit`/`inspectionId`; this adds them without touching
+  // anything else, so an old draft opens exactly as it did.
+  function migrateVisit(v){
+    var out = {};
+    VISIT_FIELDS.forEach(function(k){
+      var val = (v && v[k] !== undefined) ? v[k] : null;
+      if(/_on_site$|^visit_number$/.test(k)){ val = (val===null||val===''||isNaN(+val)) ? null : Math.round(+val); }
+      else { val = (val===null) ? null : String(val); }
+      out[k] = val;
+    });
+    return out;
+  }
+  function hasVisit(v){ return !!(v && v.operatives_on_site !== null && v.operatives_on_site !== undefined); }
+
+  // ── Current inspection identity + visit context ──
+  var CUR = { id: null, visit: null, project: null };
+
+  // ── History (previous inspections for this project) ──
+  function historyAll(){
+    try{ var a = JSON.parse(localStorage.getItem(HIST_KEY)||'[]'); return Array.isArray(a)?a:[]; }catch(_){ return []; }
+  }
+  // The project a record belongs to: the Front Page project name (or the
+  // report's project field). Opened from disk the device holds several
+  // sites' inspections, so numbering and history are scoped by this key.
+  function projectKey(){
+    var fp = (typeof loadFrontPageData==='function') ? loadFrontPageData() : {};
+    var e = document.querySelector('#proj');
+    return String(fp.projectName || (e ? strip(e.innerHTML) : '') || '').trim().toLowerCase();
+  }
+  function history(){
+    var k = projectKey();
+    // entries with no project name (pre-scoping, or archived before the Front
+    // Page was filled in) belong to whatever project is open
+    return historyAll().filter(function(h){ return !h.project || h.project === k; });
+  }
+  function writeHistory(arr){
+    try{ localStorage.setItem(HIST_KEY, JSON.stringify(arr)); }
+    catch(e){ if(window.AHS_SAVE_STATUS) window.AHS_SAVE_STATUS.fail('draft','inspection history could not be saved', e); }
+  }
+  function nextVisitNumber(){
+    // previous inspections on record, plus the current one if it is a real
+    // inspection (it gets archived when a new one starts)
+    var n = history().filter(function(h){ return !h.archived; }).length;
+    if(hasVisit(CUR.visit) || reportHasContent(collect())) n++;
+    return n + 1;
+  }
+
+  // Headline data pulled out of a saved state (or the live page)
+  function digest(state){
+    var rows = [];
+    (state.inspections||[]).forEach(function(sec){
+      var name = strip(sec.sectionNameHtml);
+      (sec.rows||[]).forEach(function(r){
+        var t = strip(r.itemHtml); if(!t) return;
+        rows.push({ section:name, item:t, status:r.status||'', note:strip(r.commentsHtml) });
+      });
+    });
+    var st = function(s){ return rows.filter(function(r){ return r.status===s; }); };
+    return {
+      id: state.inspectionId || null,
+      date: (state.header && state.header.reportDate) || '',
+      visit: migrateVisit(state.visit),
+      counts: { compliant: st('compliant').length, advisory: st('advisory').length, action: st('minor').length, observation: st('observation').length, total: rows.length },
+      actions: st('minor'), advisories: st('advisory'), observations: st('observation'),
+      compliant: st('compliant'),
+      siteSummary: strip(state.fixed && state.fixed.siteSummary),
+      closing: strip(state.fixed && state.fixed.signoffSummary),
+      rows: rows
+    };
+  }
+  function reportHasContent(state){
+    var d = digest(state);
+    return d.rows.length>0 || (state.instances||[]).length>0 || (state.images||[]).length>0 || !!d.siteSummary || !!d.closing;
+  }
+
+  // Actions from previous visits still open: no later visit has the same
+  // item marked compliant (matched on item text, case-insensitive).
+  function openActions(){
+    var hist = history().filter(function(h){ return !h.archived; });
+    var later = [];
+    var out = [];
+    var cur = digest(collect());
+    hist.forEach(function(h, i){
+      var d = digest(h.state);
+      var after = hist.slice(i+1).map(function(x){ return digest(x.state); }).concat([cur]);
+      d.actions.forEach(function(a){
+        var closed = after.some(function(x){ return x.compliant.some(function(c){ return c.item.toLowerCase()===a.item.toLowerCase(); }); });
+        if(!closed) out.push({ visit: d.visit.visit_number || (i+1), date: d.date, item: a.item, note: a.note, section: a.section });
+      });
+    });
+    return out;
+  }
+
+  function collect(){ return (window.AHS_DRAFT && window.AHS_DRAFT.collect) ? window.AHS_DRAFT.collect() : {}; }
+
+  // ── Visit context panel ──
+  function renderPanel(){
+    var host = $('visitCtx'); if(!host) return;
+    var v = CUR.visit;
+    if(!hasVisit(v)){
+      host.innerHTML = '<div class="vc-panel vc-empty"><span class="vc-title">Visit context</span>' +
+        '<span>No visit context recorded for this inspection.</span>' +
+        '<button type="button" class="vc-edit" id="vcAdd">Add visit context</button></div>';
+      $('vcAdd').onclick = function(){ openStart({ edit:true }); };
+      return;
+    }
+    var chips = [];
+    chips.push('<span class="vc-chip"><b>Visit ' + esc(v.visit_number||'?') + '</b></span>');
+    chips.push('<span class="vc-chip">Operatives: <b>' + esc(v.operatives_on_site) + '</b></span>');
+    if(v.contractors_on_site!==null) chips.push('<span class="vc-chip">Contractors: <b>' + esc(v.contractors_on_site) + '</b></span>');
+    if(v.site_contact_name) chips.push('<span class="vc-chip">Met: <b>' + esc(v.site_contact_name) + (v.site_contact_role?' ('+esc(v.site_contact_role)+')':'') + '</b></span>');
+    if(v.weather_conditions) chips.push('<span class="vc-chip">Conditions: <b>' + esc(v.weather_conditions) + '</b></span>');
+    if(v.works_phase) chips.push('<span class="vc-chip">Phase: <b>' + esc(v.works_phase) + '</b></span>');
+    if(v.focus_areas) chips.push('<span class="vc-chip">Focus: <b>' + esc(v.focus_areas) + '</b></span>');
+    host.innerHTML = '<div class="vc-panel"><span class="vc-title">Visit context</span>' + chips.join('') +
+      '<button type="button" class="vc-edit" id="vcEdit">Edit</button></div>';
+    $('vcEdit').onclick = function(){ openStart({ edit:true }); };
+  }
+
+  // ── Start inspection modal ──
+  var modalMode = null;
+  function openStart(opts){
+    opts = opts || {};
+    modalMode = opts.edit ? 'edit' : (opts.adopt ? 'adopt' : 'new');
+    var m = $('startInspModal');
+    $('siTitle').textContent = opts.edit ? '✏️ Visit context' : '🆕 Start inspection';
+    $('si-start').textContent = opts.edit ? 'Save' : 'Start inspection';
+    var v = (opts.edit && CUR.visit) ? CUR.visit : migrateVisit(null);
+    // edit: keep the number. adopt: this record becomes the visit, so it is
+    // history + 1. new: the current record will be archived first, so +1 more.
+    var n = (opts.edit && v.visit_number) ? v.visit_number
+          : opts.adopt ? history().filter(function(h){ return !h.archived; }).length + 1
+          : nextVisitNumber();
+    $('si-operatives').value = v.operatives_on_site===null?'':v.operatives_on_site;
+    $('si-contractors').value = v.contractors_on_site===null?'':v.contractors_on_site;
+    $('si-contact-name').value = v.site_contact_name||'';
+    $('si-contact-role').value = v.site_contact_role||'';
+    $('si-weather').value = v.weather_conditions||'';
+    $('si-phase').value = v.works_phase||'';
+    $('si-focus').value = v.focus_areas||'';
+    $('si-visit').value = n;
+    var prev = n - 1;
+    var fpn = ((typeof loadFrontPageData==='function') ? (loadFrontPageData().projectName||'') : '').trim();
+    $('si-visit-hint').textContent = 'Visit ' + n + ' for ' + (fpn ? fpn : 'this project') + (opts.edit ? '' : ' (' + prev + ' previous inspection' + (prev===1?'':'s') + ' on record)');
+    $('si-err').textContent = '';
+    m.style.display = 'block';
+    setTimeout(function(){ $('si-operatives').focus(); }, 50);
+  }
+  function closeStart(){ $('startInspModal').style.display='none'; }
+  function readModal(){
+    var ops = $('si-operatives').value.trim();
+    if(ops==='' || isNaN(+ops) || +ops<0){ $('si-err').textContent = 'Operatives on site is required (0 or more).'; $('si-operatives').focus(); return null; }
+    var vn = $('si-visit').value.trim();
+    if(vn==='' || isNaN(+vn) || +vn<1){ $('si-err').textContent = 'Visit number must be 1 or more.'; $('si-visit').focus(); return null; }
+    var c = $('si-contractors').value.trim();
+    return migrateVisit({
+      operatives_on_site: +ops,
+      contractors_on_site: c===''?null:+c,
+      site_contact_name: $('si-contact-name').value.trim()||null,
+      site_contact_role: $('si-contact-role').value.trim()||null,
+      weather_conditions: $('si-weather').value.trim()||null,
+      works_phase: $('si-phase').value.trim()||null,
+      focus_areas: $('si-focus').value.trim()||null,
+      visit_number: +vn
+    });
+  }
+
+  // Reset the report body for a fresh visit. Project-level fields (client,
+  // PC, inspector, purpose, front page, logo) stay; per-visit content goes.
+  // Photos are NOT deleted from the store: the archived inspection owns them.
+  function resetForNewVisit(v){
+    ['#siteSummary','#signoffSummary'].forEach(function(s){ var e=document.querySelector(s); if(e) e.innerHTML=''; });
+    var sc = document.querySelector('#site-contact');
+    if(sc) sc.textContent = v.site_contact_name ? (v.site_contact_name + (v.site_contact_role?' ('+v.site_contact_role+')':'')) : '';
+    var rd = document.querySelector('#report-date'); if(rd) rd.value = new Date().toISOString().slice(0,10);
+    var ref = document.querySelector('.html-header-only span[contenteditable]'); if(ref) ref.textContent = String(v.visit_number||'');
+    // H&S arrangements
+    var hsg = $('hsg'); if(hsg) hsg.innerHTML='';
+    // sections
+    if(typeof instances !== 'undefined'){ instances.length = 0; }
+    if(typeof renderInstances === 'function') renderInstances();
+    var secs = $('secs'); if(secs){ secs.querySelectorAll('.insp-section').forEach(function(s, i){ if(i>0) s.remove(); else { var l=s.querySelector('.items-list'); if(l) l.innerHTML=''; s.querySelectorAll(".rte[contenteditable='true']").forEach(function(r){ r.innerHTML=''; }); } }); }
+    // images (list only)
+    if(typeof allImages !== 'undefined'){ allImages = []; if(typeof renderImages==='function') renderImages(); }
+    // criteria answers
+    if(window.AHS_CAPTURE) window.AHS_CAPTURE.load({ mode: window.AHS_CAPTURE.getMode(), sections:{} });
+    if(typeof updateScoreDashboard==='function') updateScoreDashboard();
+    if(typeof updateStatusSelectColors==='function') updateStatusSelectColors();
+  }
+
+  function archiveCurrent(){
+    var st = collect();
+    if(!reportHasContent(st) && !hasVisit(st.visit)) return false;
+    st.inspectionId = st.inspectionId || CUR.id || uid();
+    var all = historyAll().filter(function(h){ return h.id !== st.inspectionId; });
+    all.push({ id: st.inspectionId, project: (CUR.project===null ? projectKey() : CUR.project), archivedAt: new Date().toISOString(), date: (st.header&&st.header.reportDate)||'', visit: migrateVisit(st.visit), state: st });
+    writeHistory(all);
+    return true;
+  }
+
+  function startNew(v){
+    archiveCurrent();
+    CUR.id = uid(); CUR.visit = v; CUR.project = projectKey();
+    resetForNewVisit(v);
+    renderPanel();
+    saveNow();
+  }
+
+  // Open a previous inspection: park the current one in history, load the chosen one.
+  async function openInspection(id){
+    var rec = historyAll().find(function(h){ return h.id===id; }); if(!rec) return;
+    archiveCurrent();
+    writeHistory(historyAll().filter(function(h){ return h.id!==id; }));
+    CUR.id = rec.id; CUR.visit = migrateVisit(rec.state.visit); CUR.project = (rec.project===undefined ? projectKey() : rec.project);
+    if(window.AHS_DRAFT && window.AHS_DRAFT.apply){ await window.AHS_DRAFT.apply(rec.state); }
+    renderPanel(); refreshBadges(); saveNow();
+  }
+
+  // ── Visit history dialog ──
+  function dialog(title, bodyHtml, buttons){
+    $('r3DlgTitle').innerHTML = title; $('r3DlgBody').innerHTML = bodyHtml;
+    var bt = $('r3DlgBtns'); bt.innerHTML='';
+    (buttons||[]).forEach(function(b){
+      var el = document.createElement('button'); el.type='button';
+      el.className = 'frontpage-btn ' + (b.primary?'frontpage-btn-save':'frontpage-btn-cancel');
+      el.textContent = b.label; el.onclick = function(){ if(b.onClick) b.onClick(); if(!b.keep) closeDialog(); };
+      bt.appendChild(el);
+    });
+    $('r3Dialog').style.display='block';
+  }
+  function closeDialog(){ $('r3Dialog').style.display='none'; }
+  function openHistory(){
+    var hist = history().filter(function(h){ return !h.archived; }).slice().sort(function(a,b){ return (b.visit.visit_number||0)-(a.visit.visit_number||0); });
+    var cur = digest(collect());
+    var html = '<div style="font-size:13px;color:#6b7280;margin-bottom:8px">Current: <b>Visit ' + esc(CUR.visit&&CUR.visit.visit_number||'?') + '</b> · ' + esc(fmtDate(cur.date)||'no date') + ' · ' + cur.counts.action + ' action' + (cur.counts.action===1?'':'s') + '</div>';
+    if(!hist.length) html += '<div style="padding:12px;color:#888;font-size:13px">No previous inspections on this device for this project.</div>';
+    else {
+      html += '<div class="r3-hist">' + hist.map(function(h){
+        var d = digest(h.state);
+        return '<div class="row"><div class="meta"><b>Visit ' + esc(h.visit.visit_number||'?') + '</b> · ' + esc(fmtDate(d.date)||'no date') +
+          '<small>' + d.counts.action + ' action' + (d.counts.action===1?'':'s') + ', ' + d.counts.advisory + ' advisory, ' + d.counts.compliant + ' compliant' +
+          (h.visit.site_contact_name ? ' · met ' + esc(h.visit.site_contact_name) : '') + '</small></div>' +
+          '<button type="button" class="frontpage-btn frontpage-btn-cancel" data-open="' + esc(h.id) + '" style="padding:6px 10px;font-size:12px">Open</button></div>';
+      }).join('') + '</div>';
+    }
+    html += '<div style="margin-top:14px;font-size:12px;color:#6b7280">Opening a previous visit parks the current one in this list. Wipe removes every report, photo and history entry on this device (cloud copies are untouched).</div>';
+    dialog('📚 Inspection history', html, [
+      { label:'Close' },
+      { label:'Wipe this device', onClick: wipeDevice }
+    ]);
+    $('r3DlgBody').querySelectorAll('[data-open]').forEach(function(b){ b.onclick = function(){ closeDialog(); openInspection(b.getAttribute('data-open')); }; });
+  }
+  function wipeDevice(){
+    if(!confirm('Wipe ALL inspection data on this device?\n\nThis removes the current report, every previous visit in the history, all photos and the front page details. Cloud copies are not touched.')) return;
+    try{
+      Object.keys(localStorage).forEach(function(k){ if(/^AHS_|^FRONTPAGE_|^clientLogo$/.test(k)) localStorage.removeItem(k); });
+      if(window.AHS_PHOTOS && window.AHS_PHOTOS.clear) window.AHS_PHOTOS.clear();
+    }catch(_){}
+    window.AHS_SYNC_RELOADING = true; location.reload();
+  }
+
+  // ── AI summaries ──
+  function projectDetails(){
+    var fp = (typeof loadFrontPageData==='function') ? loadFrontPageData() : {};
+    var g = function(sel){ var e=document.querySelector(sel); return e ? strip(e.innerHTML) : ''; };
+    return {
+      project_name: fp.projectName||g('#proj')||'',
+      inspection_type: fp.inspectionType||'',
+      address: [fp.address1,fp.address2,fp.address3].filter(Boolean).join(', '),
+      client: fp.client || g('#site') || g('#con') || fp.providedFor || '',
+      provided_for: fp.providedFor||'',
+      principal_contractor: fp.principalContractor || g('#proj') || '',
+      contractor: g('#cli'),
+      inspector: g('#ins'),
+      description: fp.description||'',
+      hazards: fp.hazards||'',
+      notes: fp.notes||''
+    };
+  }
+  function line(label, val){ return (val===null||val===undefined||val==='') ? label + ': not recorded' : label + ': ' + val; }
+  function listRows(rows, max){
+    if(!rows.length) return '  (none)';
+    return rows.slice(0, max||12).map(function(r){ return '  - ' + (r.section?'['+r.section+'] ':'') + r.item + (r.note?' — '+r.note:''); }).join('\n') + (rows.length>(max||12) ? '\n  - …and ' + (rows.length-(max||12)) + ' more' : '');
+  }
+  function buildPrompt(kind){
+    var p = projectDetails(), v = migrateVisit(CUR.visit), cur = digest(collect());
+    var hist = history().filter(function(h){ return !h.archived; }).slice().sort(function(a,b){ return (b.visit.visit_number||0)-(a.visit.visit_number||0); }).slice(0,3);
+    var open = openActions();
+    var proj = [
+      line('Project name', p.project_name), line('Client', p.client), line('Provided for', p.provided_for), line('Address', p.address),
+      line('Principal contractor', p.principal_contractor), line('Contractor', p.contractor), line('Inspection type', p.inspection_type),
+      line('Inspector', p.inspector), line('Project description', p.description), line('Known hazards', p.hazards), line('Project notes', p.notes)
+    ].join('\n');
+    var visit = [
+      line('Visit number', v.visit_number), line('Date of inspection', fmtDate(cur.date)||cur.date), line('Operatives on site', v.operatives_on_site),
+      line('Contractors / subcontractors on site', v.contractors_on_site),
+      line('Site contact met', v.site_contact_name ? v.site_contact_name + (v.site_contact_role?' ('+v.site_contact_role+')':'') : null),
+      line('Weather and site conditions', v.weather_conditions), line('Current phase of works', v.works_phase), line('Focus areas for this visit', v.focus_areas)
+    ].join('\n');
+    var findings = 'Counts: ' + cur.counts.compliant + ' compliant, ' + cur.counts.advisory + ' advisory, ' + cur.counts.action + ' action required, ' + cur.counts.observation + ' observations (' + cur.counts.total + ' items checked)\n' +
+      'Action required:\n' + listRows(cur.actions) + '\nAdvisory:\n' + listRows(cur.advisories) + '\nObservations:\n' + listRows(cur.observations, 6) + '\nCompliant (sample):\n' + listRows(cur.compliant, 8);
+    var histTxt = hist.length ? hist.map(function(h){
+      var d = digest(h.state);
+      return 'Visit ' + (h.visit.visit_number||'?') + ' — ' + (fmtDate(d.date)||'date not recorded') + (h.visit.site_contact_name?' — met '+h.visit.site_contact_name:'') + (h.visit.works_phase?' — phase: '+h.visit.works_phase:'') + '\n' +
+        '  Counts: ' + d.counts.compliant + ' compliant, ' + d.counts.advisory + ' advisory, ' + d.counts.action + ' action required\n' +
+        '  Headline findings:\n' + listRows(d.actions.concat(d.advisories), 6).replace(/^/gm,'  ');
+    }).join('\n') : '  (no previous inspections on record for this project)';
+    var openTxt = open.length ? open.map(function(a){ return '  - From visit ' + a.visit + (a.date?' ('+fmtDate(a.date)+')':'') + ': ' + a.item + (a.note?' — '+a.note:''); }).join('\n') : '  (none)';
+
+    var task = kind==='site'
+      ? 'Write the "Site Summary and works being undertaken at the time of inspection" paragraph(s): what the site was doing on the day, who was met, the conditions, the workforce present and the focus of the visit. One or two paragraphs, 80 to 150 words in total.'
+      : 'Write the Closing Summary: overall standard found, how operatives and the site team were performing, the areas needing attention (draw on the action and advisory items), progress or regression against previous visits where the data supports it, the outlook for the next phase, and the inspector\'s overall view. Five short paragraphs, 180 to 260 words in total, matching the length of the existing Closing Summary template.';
+
+    var system = 'You are drafting part of a construction health and safety inspection report for an independent H&S consultant in the UK. ' +
+      'Write in British English, in the first person as the inspector ("I"). Professional, plain and factual; no headings, bullet points or markdown; plain paragraphs only. ' +
+      'Use ONLY the data provided below. Do not invent names, numbers, conditions, findings, dates or previous visits that are not in the data. If something is marked "not recorded", do not mention it at all. ' +
+      'Where the data allows, reference the visit number, who was met on site, the conditions on the day, and progress or regression against the previous visits listed. ' +
+      'Return the paragraphs only, with no preamble.';
+
+    var user = '=== PROJECT DETAILS ===\n' + proj + '\n\n=== THIS VISIT (from the Start Inspection form) ===\n' + visit +
+      '\n\n=== THIS VISIT: FINDINGS ===\n' + findings + '\n\n=== HISTORY: PREVIOUS INSPECTIONS ON THIS PROJECT (most recent first, up to three) ===\n' + histTxt +
+      '\n\n=== ACTIONS FROM PREVIOUS VISITS STILL OPEN ===\n' + openTxt + '\n\n=== TASK ===\n' + task;
+    return { system: system, user: user };
+  }
+
+  async function callAI(pr){
+    var body = { system: pr.system, prompt: pr.user, maxTokens: 700, model: localStorage.getItem(AI_MODEL)||DEFAULT_MODEL };
+    // 1) the sync server (holds the API key) when the app is served over http(s)
+    if(/^https?:$/.test(location.protocol)){
+      try{
+        var r = await fetch('/api/ai/summary', { method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        if(r.ok){ var j = await r.json(); if(j && j.text) return j.text; }
+        else if(r.status!==404) throw new Error('Server returned ' + r.status);
+      }catch(e){ if(!/404/.test(String(e.message))) console.warn('AI via server failed, trying local key:', e); }
+    }
+    // 2) a key saved on this device (local/offline use)
+    var key = localStorage.getItem(AI_KEY);
+    if(!key){
+      key = prompt('No AI endpoint available on this server.\n\nPaste an Anthropic API key to use on this device only (stored in this browser):');
+      if(!key) throw new Error('No API key');
+      localStorage.setItem(AI_KEY, key.trim()); key = key.trim();
+    }
+    var res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'x-api-key': key, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({ model: body.model, max_tokens: body.maxTokens, system: body.system, messages:[{ role:'user', content: body.prompt }] })
+    });
+    if(!res.ok){ var t = await res.text(); if(res.status===401){ localStorage.removeItem(AI_KEY); } throw new Error('AI request failed (' + res.status + '): ' + t.slice(0,200)); }
+    var data = await res.json();
+    return (data.content||[]).map(function(c){ return c.text||''; }).join('').trim();
+  }
+
+  function showPrompt(kind){
+    var pr = buildPrompt(kind);
+    dialog('🔍 Prompt that will be sent', '<div style="font-size:12px;color:#6b7280;margin-bottom:6px">System</div><div class="r3-pre">' + esc(pr.system) + '</div><div style="font-size:12px;color:#6b7280;margin:10px 0 6px">User</div><div class="r3-pre">' + esc(pr.user) + '</div>', [{label:'Close'}]);
+  }
+  async function draft(kind, btn){
+    if(!hasVisit(CUR.visit)){ if(!confirm('No visit context has been recorded for this inspection, so the summary will be less specific. Continue anyway?')) return; }
+    var target = document.querySelector(kind==='site' ? '#siteSummary' : '#signoffSummary');
+    if(target && strip(target.innerHTML) && !confirm('Replace the existing text in this field with an AI draft?')) return;
+    var old = btn.textContent; btn.disabled = true; btn.textContent = '⏳ Drafting…';
+    try{
+      var text = await callAI(buildPrompt(kind));
+      if(!text) throw new Error('Empty response');
+      target.innerHTML = text.split(/\n{2,}/).map(function(p){ return esc(p.replace(/\n/g,' ').trim()); }).filter(Boolean).join('<br><br>');
+      save();
+    }catch(e){ alert('Could not draft the summary.\n\n' + e.message); }
+    btn.disabled = false; btn.textContent = old;
+  }
+  function mountAI(){
+    var h3 = Array.prototype.find.call(document.querySelectorAll('.section > h3'), function(h){ return /Site Summary/i.test(h.textContent); });
+    var lbl = (function(){ var e=$('signoffSummary'); return e && e.parentElement.querySelector('label'); })();
+    [[h3,'site'],[lbl,'closing']].forEach(function(pair){
+      var host = pair[0], kind = pair[1]; if(!host) return;
+      var b = document.createElement('button'); b.type='button'; b.className='r3-ai'; b.textContent='✨ Draft with AI'; b.title='Draft this summary from the project details, visit context, findings and history';
+      b.onclick = function(){ draft(kind, b); };
+      var v = document.createElement('button'); v.type='button'; v.className='r3-ai'; v.textContent='View prompt'; v.style.marginLeft='4px';
+      v.onclick = function(){ showPrompt(kind); };
+      host.appendChild(b); host.appendChild(v);
+    });
+  }
+
+  // ── Quick photo (sticky camera) with section/item linking ──
+  var lastFocus = { instanceId:null, row:null };
+  document.addEventListener('focusin', function(e){
+    var sec = e.target && e.target.closest && e.target.closest('.insp-section'); if(!sec) return;
+    var row = e.target.closest('.item-row');
+    lastFocus = { instanceId: sec.getAttribute('data-instance-id'), row: row ? Array.prototype.indexOf.call(sec.querySelectorAll('.item-row'), row) : null };
+  }, true);
+  function sectionLabel(sec){
+    var f = sec.querySelector(".field .rte[contenteditable='true']"); var name = f ? strip(f.innerHTML) : '';
+    var m = /Section\s*(\d+)/i.exec(name); return { name: name || 'Section', short: m ? 'S' + m[1] : (name ? name.slice(0,40) : 'Section') };
+  }
+  function linkOptions(){
+    var opts = [{ value:'', label:'General (not linked)' }];
+    document.querySelectorAll('#secs .insp-section').forEach(function(sec, si){
+      var id = sec.getAttribute('data-instance-id') || ('sec-'+si); var sl = sectionLabel(sec);
+      opts.push({ value: JSON.stringify({ instanceId:id, row:null }), label: sl.name || ('Section ' + (si+1)) });
+      sec.querySelectorAll('.item-row').forEach(function(row, ri){
+        var t = strip(row.querySelector('.rte').innerHTML) || ('Item ' + (ri+1));
+        var st = row.querySelector('select.status-select'); var sv = st && st.value;
+        opts.push({ value: JSON.stringify({ instanceId:id, row:ri }), label: '   ↳ ' + (sv==='minor'?'ACTION: ':sv==='advisory'?'Advisory: ':'') + t.slice(0,70) });
+      });
+    });
+    return opts;
+  }
+  function captionFor(link, note){
+    if(!link) return note || '';
+    var sec = document.querySelector('.insp-section[data-instance-id="' + link.instanceId + '"]'); if(!sec) return note||'';
+    var sl = sectionLabel(sec);
+    if(link.row===null || link.row===undefined) return sl.short + ' — ' + (note || sl.name);
+    var row = sec.querySelectorAll('.item-row')[link.row]; var t = row ? strip(row.querySelector('.rte').innerHTML) : '';
+    var st = row && row.querySelector('select.status-select'); var sv = st && st.value;
+    return sl.short + (sv==='minor'?' ACTION':sv==='advisory'?' Advisory':'') + ' — ' + (t || 'item ' + (link.row+1));
+  }
+  var pending = null;
+  function openSheet(dataUrl){
+    pending = { dataUrl: dataUrl };
+    $('r3SheetImg').src = dataUrl;
+    var sel = $('r3SheetLink'); sel.innerHTML = '';
+    var pre = lastFocus.instanceId ? JSON.stringify({ instanceId:lastFocus.instanceId, row:lastFocus.row }) : '';
+    linkOptions().forEach(function(o){ var op=document.createElement('option'); op.value=o.value; op.textContent=o.label; if(o.value===pre) op.selected=true; sel.appendChild(op); });
+    var upd = function(){ var l = sel.value ? JSON.parse(sel.value) : null; $('r3SheetCap').value = captionFor(l, ''); };
+    sel.onchange = upd; upd();
+    $('r3Sheet').classList.add('show');
+  }
+  async function saveSheet(){
+    if(!pending) return;
+    var link = $('r3SheetLink').value ? JSON.parse($('r3SheetLink').value) : null;
+    var cap = $('r3SheetCap').value.trim();
+    var id = 'img-quick-' + Date.now() + '-' + Math.random().toString(36).slice(2,9);
+    try{
+      await window.AHS_PHOTOS.put(id, pending.dataUrl);
+      if(window.AHS_SAVE_STATUS) window.AHS_SAVE_STATUS.ok('photos');
+      allImages.push({ id:id, file:null, dataUrl: pending.dataUrl, caption: cap, link: link });
+      await renderImages(); refreshBadges(); save();
+    }catch(e){ if(window.AHS_SAVE_STATUS) window.AHS_SAVE_STATUS.fail('photos','a photo could not be stored', e); else alert('Photo could not be stored: ' + e.message); }
+    pending = null; $('r3Sheet').classList.remove('show');
+  }
+  function refreshBadges(){
+    document.querySelectorAll('.r3-badge').forEach(function(b){ b.remove(); });
+    if(typeof allImages === 'undefined') return;
+    var byKey = {};
+    allImages.forEach(function(im){ if(im.link && im.link.row!==null && im.link.row!==undefined){ var k = im.link.instanceId + '#' + im.link.row; (byKey[k]=byKey[k]||[]).push(im.id); } });
+    Object.keys(byKey).forEach(function(k){
+      var parts = k.split('#'); var sec = document.querySelector('.insp-section[data-instance-id="' + parts[0] + '"]'); if(!sec) return;
+      var row = sec.querySelectorAll('.item-row')[+parts[1]]; if(!row) return;
+      var b = document.createElement('span'); b.className='r3-badge'; b.contentEditable='false'; b.textContent = '📷 ' + byKey[k].length + ' linked photo' + (byKey[k].length===1?'':'s');
+      b.onclick = function(){ var t = document.querySelector('.img-item[data-image-id="' + byKey[k][0] + '"]'); if(t) t.scrollIntoView({behavior:'smooth',block:'center'}); };
+      row.appendChild(b);
+    });
+  }
+  function mountCamera(){
+    $('r3Cam').onclick = function(){ $('r3CamInput').click(); };
+    $('r3CamInput').onchange = async function(){
+      var f = this.files && this.files[0]; this.value=''; if(!f) return;
+      try{ var d = await fileToDataUrl(f); openSheet(d); }catch(e){ alert('Could not read the photo: ' + e.message); }
+    };
+    $('r3SheetSave').onclick = saveSheet;
+    $('r3SheetDiscard').onclick = function(){ pending=null; $('r3Sheet').classList.remove('show'); };
+    $('r3Builder').onclick = function(){ var b = $('capOpen'); if(b) b.click(); };
+  }
+
+  // ── Toolbar: New inspection replaces Clear; add Visits button ──
+  function mountToolbar(){
+    var clr = $('clr');
+    if(clr){
+      var nb = clr.cloneNode(false); // drops the old wipe listeners
+      nb.id = 'newInsp'; nb.className = 'tb-primary'; nb.textContent = '🆕 New inspection'; nb.title = 'Start a new inspection for this project (opens the visit context form)';
+      nb.removeAttribute('data-action');
+      clr.parentNode.replaceChild(nb, clr);
+      nb.onclick = function(){ openStart({}); };
+      var hb = document.createElement('button'); hb.type='button'; hb.id='histOpen'; hb.className='tb-output'; hb.textContent='📚 Visits'; hb.title='Previous inspections for this project';
+      hb.onclick = openHistory; nb.parentNode.appendChild(hb);
+    }
+    $('si-start').onclick = function(){
+      var v = readModal(); if(!v) return;
+      closeStart();
+      if(modalMode==='edit' || modalMode==='adopt'){
+        // edit: change the context on this record. adopt: this record has no
+        // context yet (a fresh or pre-rev3 report) so it becomes the visit,
+        // keeping whatever is already typed rather than archiving a stub.
+        CUR.visit = v; CUR.id = CUR.id || uid(); CUR.project = projectKey();
+        var sc=document.querySelector('#site-contact'); if(sc && !strip(sc.innerHTML) && v.site_contact_name) sc.textContent = v.site_contact_name + (v.site_contact_role?' ('+v.site_contact_role+')':'');
+        if(modalMode==='adopt'){ var ref = document.querySelector('.html-header-only span[contenteditable]'); if(ref && !strip(ref.innerHTML)) ref.textContent = String(v.visit_number||''); }
+        gateArmed = false; renderPanel(); saveNow();
+      }
+      else startNew(v);
+    };
+    $('si-cancel').onclick = closeStart;
+    $('startInspModal').addEventListener('click', function(e){ if(e.target===this) closeStart(); });
+    $('r3Dialog').addEventListener('click', function(e){ if(e.target===this) closeDialog(); });
+    document.addEventListener('keydown', function(e){ if(e.key==='Escape'){ closeStart(); closeDialog(); } });
+  }
+
+  // A report with no visit context and no content is a new inspection that
+  // has not been through the form yet: open it on load, and again on the
+  // first edit if it was cancelled.
+  var gateArmed = false;
+  function gate(){
+    if(hasVisit(CUR.visit)) return;
+    if(!reportHasContent(collect())){ openStart({ adopt:true }); gateArmed = true; }
+  }
+  document.addEventListener('input', function(e){
+    if(!gateArmed || hasVisit(CUR.visit)) return;
+    if($('startInspModal').style.display==='block') return;
+    if(e.target && e.target.closest && e.target.closest('.container')) openStart({ adopt:true });
+  }, true);
+
+  // ── Public API used by the draft module and the PDF ──
+  window.AHS_VISIT = {
+    serialize: function(){ return CUR.visit ? migrateVisit(CUR.visit) : migrateVisit(null); },
+    id: function(){ return CUR.id; },
+    load: function(state){
+      CUR.id = state.inspectionId || CUR.id || uid();
+      CUR.visit = hasVisit(state.visit) ? migrateVisit(state.visit) : null;
+      CUR.project = projectKey();
+      renderPanel(); setTimeout(refreshBadges, 0);
+    },
+    hasVisit: function(){ return hasVisit(CUR.visit); },
+    history: history, digest: digest, openActions: openActions, buildPrompt: buildPrompt, nextVisitNumber: nextVisitNumber,
+    openStart: openStart, refreshBadges: refreshBadges,
+    pdfRows: function(){
+      var v = CUR.visit; if(!hasVisit(v)) return [];
+      var rows = [{ label:'Visit number', value:'Visit ' + (v.visit_number||'') }, { label:'Operatives on site', value: String(v.operatives_on_site) }];
+      if(v.contractors_on_site!==null) rows.push({ label:'Contractors on site', value:String(v.contractors_on_site) });
+      if(v.site_contact_name) rows.push({ label:'Met on site', value: v.site_contact_name + (v.site_contact_role?' ('+v.site_contact_role+')':'') });
+      if(v.weather_conditions) rows.push({ label:'Conditions', value:v.weather_conditions });
+      if(v.works_phase) rows.push({ label:'Phase of works', value:v.works_phase });
+      if(v.focus_areas) rows.push({ label:'Focus areas', value:v.focus_areas });
+      return rows;
+    }
+  };
+
+  document.addEventListener('click', function(e){ if(e.target && e.target.closest && e.target.closest('.frontpage-btn-save')) setTimeout(function(){ CUR.project = projectKey(); renderPanel(); }, 0); }, true);
+  function init(){
+    mountToolbar(); mountAI(); mountCamera(); renderPanel();
+    // restore runs after DOMContentLoaded; gate once it has settled
+    setTimeout(function(){
+      var p = (window.AHS_DRAFT && window.AHS_DRAFT.restoreIfPresent) ? window.AHS_DRAFT.restoreIfPresent() : Promise.resolve();
+      Promise.resolve(p).then(function(){ if(!CUR.id) CUR.id = uid(); renderPanel(); refreshBadges(); gate(); });
+    }, 0);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
 
 </body>
 </html>
