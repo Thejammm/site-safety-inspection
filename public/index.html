@@ -2232,9 +2232,18 @@ function createInspectionSection() {
   section.querySelector('.btn-remove-row-btn').onclick = function() {
     const itemsList = section.querySelector('.items-list');
     const rows = itemsList.querySelectorAll('.item-row');
-    if (rows.length > 0) itemsList.removeChild(rows[rows.length - 1]);
+    if (rows.length > 0) removeItemRow(itemsList, rows[rows.length - 1]);
   };
   return section;
+}
+// Removing a row that came from the criteria builder must also switch that
+// criteria out (inc:false), or the next rebuild would put the row straight back.
+function removeItemRow(itemsList, row) {
+  if (row && row.dataset && row.dataset.capKey && window.AHS_CAPTURE && window.AHS_CAPTURE.syncItem) {
+    window.AHS_CAPTURE.syncItem(row.dataset.capKey, row.dataset.capPid, { inc: false });
+  }
+  itemsList.removeChild(row);
+  if (typeof updateScoreDashboard === 'function') updateScoreDashboard();
 }
 function addInspectionSection() {
   secsContainer.appendChild(createInspectionSection());
@@ -2279,7 +2288,7 @@ if (initialSection) {
   if (removeBtn) removeBtn.onclick = function() {
     const itemsList = initialSection.querySelector('.items-list');
     const rows = itemsList.querySelectorAll('.item-row');
-    if (rows.length > 0) itemsList.removeChild(rows[rows.length - 1]);
+    if (rows.length > 0) removeItemRow(itemsList, rows[rows.length - 1]);
   };
 }
 
@@ -4615,7 +4624,11 @@ window.showPhraseModal = showPhraseModal;
         return {
           itemHtml,
           status: sel ? sel.value : "",
-          commentsHtml: commHtml
+          commentsHtml: commHtml,
+          // keep the row's link to its criteria item so report-side edits still
+          // sync back to the builder after a save/reload round-trip
+          capKey: (row.dataset && row.dataset.capKey) || "",
+          capPid: (row.dataset && row.dataset.capPid) || ""
         };
       });
 
@@ -4692,6 +4705,7 @@ window.showPhraseModal = showPhraseModal;
           const sel = qs("select.status-select", newRow);
           if (sel) sel.value = r.status || "";
           if (rtes[1]) setEditableText(rtes[1], r.commentsHtml || "");
+          if (r.capKey) { newRow.dataset.capKey = r.capKey; newRow.dataset.capPid = r.capPid || ""; }
         });
       });
 
@@ -5314,6 +5328,9 @@ function removeInstance(instanceId) {
     return;
   }
   instances.splice(idx, 1);                 // removes ONLY this instance
+  // Deselect the matching criteria in the builder too, or the next rebuild
+  // (triggered by answering anything else) would resurrect this section.
+  if (window.AHS_CAPTURE && window.AHS_CAPTURE.dropSection) window.AHS_CAPTURE.dropSection(instanceId);
   renderInstances();
   if (typeof window.AHS_DRAFT !== 'undefined' && window.AHS_DRAFT.scheduleSave) window.AHS_DRAFT.scheduleSave();
 }
@@ -7471,6 +7488,20 @@ function addPageFooter(doc, pageNum, totalPages) {
       var sec = S.sections[key]; if(!sec || !sec.items || !sec.items[pid]) return;
       if('st' in patch) sec.items[pid].st = patch.st || '';
       if('note' in patch) sec.items[pid].note = patch.note || '';
+      if('inc' in patch) sec.items[pid].inc = patch.inc;
+      save();
+    },
+    // The whole section was removed from the report (pill ✕ / Remove section).
+    // Switch its items out so a later rebuild does not bring the section back;
+    // answers are kept, so re-selecting an item restores its status and note.
+    dropSection: function(instanceId){
+      if(!instanceId) return;
+      Object.keys(S.sections).forEach(function(k){
+        var sec = S.sections[k];
+        if(sec.instanceId !== instanceId) return;
+        sec.instanceId = null;
+        Object.keys(sec.items || {}).forEach(function(pid){ sec.items[pid].inc = false; });
+      });
       save();
     }
   };
@@ -7516,6 +7547,7 @@ function addPageFooter(doc, pageNum, totalPages) {
   function renderHome(){
     back.style.display = 'none';
     title.textContent = 'Inspection criteria';
+    var bb = el('capBuild'); if(bb){ bb.textContent = 'Apply to report ➜'; bb.title = 'Rebuild the report from everything currently switched in'; }
     var ts = topics().filter(function(t){ return t.mode === S.mode || t.custom; });
     var total = 0; ts.forEach(function(t){ total += answered(t.key); });
     prog.textContent = total ? total + ' answered' : '';
@@ -7556,6 +7588,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     if(!t){ view = {screen:'home', key:null}; return renderHome(); }
     back.style.display = '';
     title.textContent = t.short;   // section number kept internally (t.num); UI shows the title only
+    var bb = el('capBuild'); if(bb){ bb.textContent = 'Add all to report ➜'; bb.title = 'Add every check in this section to the report at once (switched-off items stay out)'; }
     prog.textContent = answered(key) + '/' + bank()[key].length;
     var htm = '';
     bank()[key].forEach(function(q){
@@ -7774,7 +7807,19 @@ function addPageFooter(doc, pageNum, totalPages) {
     el('capHide').onclick = function(){ hide(); build({silent:true}).catch(function(){}); };
     el('capClose2').onclick = function(){ hide(); build({silent:true}).catch(function(){}); };
     back.onclick = function(){ view = { screen:'home', key:null }; render(); };
-    el('capBuild').onclick = function(){ build().catch(function(e){ alert('Build failed: ' + e.message); }); };
+    el('capBuild').onclick = function(){
+      // Inside a section, Apply = add the WHOLE section to the report in one go:
+      // every check is switched in, except any the user has explicitly switched
+      // off (the toggle stays the way to omit or hand-pick items).
+      if(view.screen === 'sec' && view.key && bank()[view.key]){
+        bank()[view.key].forEach(function(q){
+          var it = item(view.key, q.id);
+          if(it.inc !== false) it.inc = true;
+        });
+        save(); render();
+      }
+      build().catch(function(e){ alert('Build failed: ' + e.message); });
+    };
   }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
