@@ -5369,7 +5369,12 @@ async function generateClientReport() {
     const address2 = document.getElementById('fp-display-address2')?.textContent || '';
     const address3 = document.getElementById('fp-display-address3')?.textContent || '';
     const providedFor = document.getElementById('fp-display-provided-for')?.textContent || 'Client';
-    const reportDateDisplay = document.getElementById('fp-display-report-date')?.textContent || '';
+    const reportDateDisplay = (() => {
+      // front page stores ISO (2026-08-25); clients read UK dates
+      const raw = (document.getElementById('fp-display-report-date')?.textContent || '').trim();
+      const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      return m ? (m[3] + '/' + m[2] + '/' + m[1]) : raw;
+    })();
     
     const clientCDM = getFormattedText('#site');
     const principalContractor = getFormattedText('#proj');
@@ -5581,71 +5586,95 @@ if (showScores) {
   }
 
   // --- Tachograph-style dials (replaces old circle gauges) ----------------
+  // A narrative-style inspection has no scored items — a row of zero dials
+  // reads as broken, so say what is actually going on instead.
   const totalItems = compliantCount + advisoryCount + actionCount + observationCount + naCount;
-  y = drawFilledGauges(doc, y, compliantCount, advisoryCount, actionCount, observationCount, naCount, totalItems);
+  if (totalItems > 0) {
+    y = drawFilledGauges(doc, y, compliantCount, advisoryCount, actionCount, observationCount, naCount, totalItems);
+  } else {
+    y += 4;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(107, 114, 128);
+    doc.text('Findings for this visit are recorded in the section narratives — see Inspection Results.', 20, y);
+    y += 8;
+  }
 
-  // --- Detailed Breakdown — minimal table --------------------------------
-  y += 10;
-
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(107, 114, 128);
-  try { doc.setCharSpace(0.8); } catch (e) {}
-  doc.text('DETAILED BREAKDOWN', 20, y);
-  try { doc.setCharSpace(0); } catch (e) {}
-
-  y += 6;
-
-  const scoreRows = [
-    { label: 'Compliant',       count: compliantCount,   color: [16, 185, 129] },
-    { label: 'Advisory',        count: advisoryCount,    color: [234, 179, 8]  },
-    { label: 'Action',          count: actionCount,      color: [220, 38, 38]  },
-    { label: 'Observation',     count: observationCount, color: [56, 189, 248] },
-    { label: 'N/A',             count: naCount,          color: [156, 163, 175]}
-  ];
-
-  const tableX = 22;
-  const tableW = 166;
-  const rowH   = 11;
-
-  // Column header — small caps, muted, with hairline rule underneath
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(140, 148, 164);
-  try { doc.setCharSpace(1.2); } catch (e) {}
-  doc.text('CATEGORY', tableX + 8, y);
-  doc.text('COUNT',    tableX + tableW - 2, y, { align: 'right' });
-  try { doc.setCharSpace(0); } catch (e) {}
-
-  y += 2;
-  doc.setDrawColor(209, 213, 219);
-  doc.setLineWidth(0.3);
-  doc.line(tableX, y, tableX + tableW, y);
-
-  // Rows — no stripes, no borders, just hairline dividers and a coloured swatch
-  scoreRows.forEach((row) => {
-    const rowTop = y;
-    // Coloured swatch (3x3mm square) — quieter than a filled circle
-    doc.setFillColor(...row.color);
-    doc.rect(tableX + 2, rowTop + rowH / 2 - 1.5, 3, 3, 'F');
-
-    // Label
-    doc.setFontSize(10.5);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(31, 41, 55);
-    doc.text(row.label, tableX + 10, rowTop + rowH / 2 + 1.2);
-
-    // Count — bold, right aligned
-    doc.setFont('helvetica', 'bold');
-    doc.text(String(row.count), tableX + tableW - 2, rowTop + rowH / 2 + 1.2, { align: 'right' });
-
-    y += rowH;
-
-    // Hairline divider between rows
-    doc.setDrawColor(229, 231, 235);
-    doc.setLineWidth(0.25);
-    doc.line(tableX, y, tableX + tableW, y);
+  // --- Key findings — the actual raised items, not a copy of the counts ---
+  const findingRows = [];
+  document.querySelectorAll('#secs .insp-section').forEach(sec => {
+    const fields = sec.querySelectorAll(".field .rte[contenteditable='true']");
+    const secName = fields[0] ? fields[0].innerText.trim() : '';
+    sec.querySelectorAll('.items-list .item-row').forEach(row => {
+      const sel = row.querySelector('select.status-select');
+      const sv = (sel ? sel.value : '').toLowerCase();
+      if (!sv || sv === 'compliant' || sv === 'na' || sv === 'n/a') return;
+      const rtes = row.querySelectorAll(".rte[contenteditable='true']");
+      const label = sel && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].text : sv;
+      findingRows.push({
+        section: secName,
+        statusValue: sv,
+        statusLabel: label,
+        item: rtes[0] ? rtes[0].innerText.trim() : '',
+        comment: rtes[1] ? rtes[1].innerText.trim() : ''
+      });
+    });
   });
+
+  if (findingRows.length > 0) {
+    y += 10;
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(107, 114, 128);
+    try { doc.setCharSpace(0.8); } catch (e) {}
+    doc.text('KEY FINDINGS', 20, y);
+    try { doc.setCharSpace(0); } catch (e) {}
+    y += 6;
+
+    const FINDING_COLORS = { advisory: [234, 179, 8], minor: [220, 38, 38], action: [220, 38, 38], observation: [56, 189, 248] };
+    doc.setDrawColor(209, 213, 219);
+    doc.setLineWidth(0.3);
+    doc.line(22, y, 188, y);
+
+    for (const f of findingRows) {
+      if (y > 240) {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(107, 114, 128);
+        doc.text('Further findings are listed in the section detail pages.', 22, y + 6);
+        break;
+      }
+      y += 6;
+      doc.setFillColor(...(FINDING_COLORS[f.statusValue] || [156, 163, 175]));
+      doc.rect(22, y - 2.6, 3, 3, 'F');
+      doc.setFontSize(10.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(31, 41, 55);
+      const itemTxt = f.item || '(untitled item)';
+      doc.text(doc.splitTextToSize(itemTxt, 120)[0], 28, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(107, 114, 128);
+      doc.text(f.statusLabel, 188, y, { align: 'right' });
+      if (f.comment) {
+        y += 5;
+        doc.setFontSize(9);
+        doc.setTextColor(75, 85, 99);
+        const cLines = doc.splitTextToSize(f.comment, 158).slice(0, 3);
+        doc.text(cLines, 28, y);
+        y += (cLines.length - 1) * 4.2;
+      }
+      if (f.section) {
+        y += 4.5;
+        doc.setFontSize(8);
+        doc.setTextColor(140, 148, 164);
+        doc.text(doc.splitTextToSize(f.section, 158)[0], 28, y);
+      }
+      y += 4;
+      doc.setDrawColor(229, 231, 235);
+      doc.setLineWidth(0.25);
+      doc.line(22, y, 188, y);
+    }
+  }
 
   y += 10; // Space before Inspection Summary
   
@@ -6190,9 +6219,31 @@ if (images.length > 0) {
       doc.setDrawColor(200, 200, 200);
       doc.setLineWidth(0.3);
       doc.rect(x, y, imageWidth, imageHeight);
-      
-      // Add image
-      doc.addImage(img.src, 'JPEG', x + 0.5, y + 0.5, imageWidth - 1, imageHeight - 1);
+
+      // Re-encode for the PDF: embedding the full-resolution dataUrls into an
+      // 80x60mm box is what made a 15MB file, and forcing every photo into a
+      // landscape box squashed portrait shots. Cap the long edge, recompress,
+      // and draw at the photo's own aspect ratio, centred in the cell.
+      let pdfSrc = img.src, drawW = imageWidth - 1, drawH = imageHeight - 1;
+      const natW = img.naturalWidth || 0, natH = img.naturalHeight || 0;
+      if (natW > 0 && natH > 0) {
+        const MAXPX = 1000;
+        const scale = Math.min(1, MAXPX / Math.max(natW, natH));
+        const cw = Math.max(1, Math.round(natW * scale));
+        const ch = Math.max(1, Math.round(natH * scale));
+        try {
+          const cv = document.createElement('canvas');
+          cv.width = cw; cv.height = ch;
+          cv.getContext('2d').drawImage(img, 0, 0, cw, ch);
+          pdfSrc = cv.toDataURL('image/jpeg', 0.72);
+        } catch (e2) { /* tainted/odd image: fall back to the original */ }
+        drawW = imageWidth - 1;
+        drawH = drawW * (natH / natW);
+        if (drawH > imageHeight - 1) { drawH = imageHeight - 1; drawW = drawH * (natW / natH); }
+      }
+      const drawX = x + (imageWidth - drawW) / 2;
+      const drawY = y + (imageHeight - drawH) / 2;
+      doc.addImage(pdfSrc, 'JPEG', drawX, drawY, drawW, drawH);
       
       // Check for image caption/name
       const imgWrapper = img.closest('.img-wrapper, .image-item, div');
@@ -6586,7 +6637,7 @@ function addPageFooter(doc, pageNum, totalPages) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(107, 114, 128);
-  doc.text('Compliance Consulting', 34, 285);
+  doc.text('Archer Health & Safety', 34, 285);
 
   // Center — "Prepared for {Client}" pulled live from the front page
   var _pf = (document.getElementById('fp-display-provided-for')
