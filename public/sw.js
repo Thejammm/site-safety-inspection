@@ -3,13 +3,16 @@
 // when served over http(s); opened from disk it does nothing.
 //
 // Strategy:
-//   - App shell (index.html + the two CDN libraries): cached on install,
-//     served cache-first, refreshed in the background when online, so the
-//     app opens with no signal once it has been opened once.
+//   - App document (index.html): NETWORK-FIRST with a 3.5s timeout, cache
+//     fallback. A new build shows as soon as the device has signal; a poor
+//     connection or being fully offline falls back to the cached copy. (This
+//     replaced the old cache-first shell, which left iPads/PWAs a build behind
+//     after each deploy and could get stuck there.)
+//   - The two CDN PDF libraries: cache-first (versioned URLs, never change).
 //   - /api/ requests: never cached (always network) — sync handles retries.
 //   - Everything else: network first, cache fallback.
-// Bump CACHE when you ship a new build so old shells are dropped.
-const CACHE = 'ahs-ssi-rev4-12';
+// Still bump CACHE when you ship a build so old cached entries are dropped.
+const CACHE = 'ahs-ssi-rev4-13';
 const SHELL = ['./index.html'];
 const LIBS = [
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
@@ -35,15 +38,31 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.pathname.includes('/api/')) return; // sync traffic: straight to network
 
-  const isShell = req.mode === 'navigate' || /\/index\.html$/.test(url.pathname) || /cdnjs\.cloudflare\.com/.test(req.url);
-
-  if (isShell) {
-    // cache-first, then refresh the cached copy in the background
-    e.respondWith(caches.open(CACHE).then(async (c) => {
+  // App document: network-first with a short timeout, cache fallback, so a new
+  // build appears the moment the device is online instead of a load (or several)
+  // behind. Offline or slow signal still gets the cached shell immediately after.
+  if (req.mode === 'navigate' || /\/index\.html$/.test(url.pathname)) {
+    e.respondWith((async () => {
+      const c = await caches.open(CACHE);
       const key = req.mode === 'navigate' ? './index.html' : req;
+      try {
+        const net = await Promise.race([
+          fetch(req, { cache: 'no-store' }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3500))
+        ]);
+        if (net && net.ok) { c.put(key, net.clone()); return net; }
+      } catch (_) { /* offline or too slow — fall back to cache below */ }
       const cached = await c.match(key);
-      const refresh = fetch(req).then((res) => { if (res && res.ok) c.put(key, res.clone()); return res; }).catch(() => null);
-      return cached || (await refresh) || new Response('Offline and the app has not been cached yet. Open it once with signal.', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+      return cached || new Response('Offline and the app has not been cached yet. Open it once with signal.', { status: 503, headers: { 'Content-Type': 'text/plain' } });
+    })());
+    return;
+  }
+
+  // CDN PDF libraries: cache-first (the URLs are version-pinned and immutable)
+  if (/cdnjs\.cloudflare\.com/.test(req.url)) {
+    e.respondWith(caches.open(CACHE).then(async (c) => {
+      const cached = await c.match(req);
+      return cached || fetch(req).then((res) => { if (res && res.ok) c.put(req, res.clone()); return res; }).catch(() => cached);
     }));
     return;
   }
