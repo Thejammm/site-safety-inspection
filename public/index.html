@@ -1840,14 +1840,8 @@ button.r3-ai:hover{ background:var(--muted-bg); }
       </div>
 
       <div class="section">
-        <h3>H&amp;S Arrangements</h3>
-                <div style="margin-bottom:0.85rem;display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
-          <label for="hsTopicSelect" style="font-weight:600;">Add H&amp;S topic:</label>
-          <select id="hsTopicSelect" style="padding:0.45rem;border:2px solid var(--border);border-radius:6px;min-width:300px;font-size:0.9rem;">
-            <option value="">Choose a topic…</option>
-          </select>
-          <button type="button" id="hsTopicAddBtn" class="btn btn-primary btn-small">➕ Add</button>
-        </div>
+        <h3>Selected inspection criteria</h3>
+        <p style="color:var(--text-muted);font-size:13px;margin:0 0 12px;line-height:1.5;">The sections you pick in <strong>Inspection criteria</strong> appear here. Tap a title to jump to its section, or use ✕ to remove one.</p>
         <div class="arrangements" id="hsg"></div>
       </div>
 
@@ -5330,6 +5324,10 @@ function renderPills() {
   const hsg = document.getElementById('hsg');
   if (!hsg) return;
   hsg.innerHTML = '';
+  if (!instances.length) {
+    hsg.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">Nothing selected yet — open <strong>Inspection criteria</strong> to choose sections.</span>';
+    return;
+  }
   instances.forEach(inst => {
     const div = document.createElement('div');
     div.className = 'arr-item';
@@ -7542,8 +7540,11 @@ function addPageFooter(doc, pageNum, totalPages) {
       var lines = ['At the time of the inspection the following was observed:'].concat(okLines, findLines);
       var html = lines.map(function(l){ return _escapeHtml(l); }).join('<br>');
 
-      // one instance per captured section, reused on rebuild
+      // one instance per captured section, reused on rebuild. Match first by
+      // the capture section's own id, then by topicId — so the same criteria
+      // can never produce two sections (the old duplication bug).
       var inst = sec.instanceId ? instances.find(function(x){ return x.instanceId === sec.instanceId; }) : null;
+      if(!inst && t.topicId){ inst = instances.find(function(x){ return x.topicId && x.topicId === t.topicId; }); if(inst) sec.instanceId = inst.instanceId; }
       if(!inst){
         inst = { instanceId: _uid(), topicId: t.topicId, title: t.title, content: html };
         instances.push(inst);
