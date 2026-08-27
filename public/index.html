@@ -13,7 +13,7 @@
 
     <style>
 /* ============================================================
-   AHS — Site Inspection Report
+   AHS - Site Inspection Report
    Rebranded styles (screen). Print rules preserved below.
    Brand: AHS Compliance Consulting Ltd
    Accent: #4BBFD6 (teal)  •  Primary: #757575 (gray)
@@ -72,7 +72,7 @@ body {
 .score.compact .score-total  { display: none; }
 
 /* ============================================================
-   Modals — Snippet + Phrase (reused shell)
+   Modals - Snippet + Phrase (reused shell)
    ============================================================ */
 .snippet-modal {
   display: none;
@@ -360,7 +360,7 @@ body {
   background: var(--surface);
 }
 
-/* Primary (teal) AHS toolbar buttons — snippets, phrases */
+/* Primary (teal) AHS toolbar buttons - snippets, phrases */
 .toolbar button.ms-accent-snippet,
 .toolbar button.ms-accent-phrase {
   background: var(--accent);
@@ -492,7 +492,7 @@ body {
 }
 
 /* ============================================================
-   Score dashboard (gauges untouched — status semantics preserved)
+   Score dashboard (gauges untouched - status semantics preserved)
    ============================================================ */
 .score {
   background: linear-gradient(180deg, var(--muted-bg) 0%, var(--surface) 100%);
@@ -544,7 +544,7 @@ body {
   color: var(--text-muted);
 }
 
-/* Status colors — PRESERVED (carry meaning, do not rebrand) */
+/* Status colors - PRESERVED (carry meaning, do not rebrand) */
 .compliant .gauge-fill   { stroke: #10b981; }
 .observation .gauge-fill { stroke: #38bdf8; }
 .advisory .gauge-fill    { stroke: #fbbf24; }
@@ -750,8 +750,8 @@ body {
   box-sizing: border-box !important;
 }
 
-/* Item rows: the Item and Comments text boxes must always WRAP their text —
-   never scroll sideways or clip — whatever the width, however long the words
+/* Item rows: the Item and Comments text boxes must always WRAP their text -
+   never scroll sideways or clip - whatever the width, however long the words
    (pasted refs/URLs included), on screen and in print. */
 .item-row > * { min-width: 0 !important; }
 .item-row .rte{
@@ -838,7 +838,7 @@ body {
   box-sizing: border-box;
 }
 
-/* Section-level add/remove item row buttons (script-inserted, inline styled — we override by class) */
+/* Section-level add/remove item row buttons (script-inserted, inline styled - we override by class) */
 .btn.add-item-row-btn {
   background: var(--accent-light);
   border-color: var(--accent);
@@ -1091,7 +1091,7 @@ body {
 }
 
 /* ============================================================
-   PRINT — preserved from original, AHS-tinted cover
+   PRINT - preserved from original, AHS-tinted cover
    ============================================================ */
 @page { size: A4; margin: 10mm; }
 
@@ -1381,7 +1381,7 @@ body {
     <!-- PDF Export Libraries -->
 <style id="r4Skin">
 /* ============================================================
-   REV 4 SKIN — AHS Pattern Kit (as used by Compass / InSight)
+   REV 4 SKIN - AHS Pattern Kit (as used by Compass / InSight)
    with AHS tenant branding: --primary = logo grey, --accent = logo teal.
    Screen only. Print / PDF rules below are untouched except the typeface.
    ============================================================ */
@@ -1409,7 +1409,7 @@ body{ font-size:14px; line-height:1.6; color:var(--text); background:var(--bg); 
 /* ── Compass-style app header: brand row + tab row + formatting row ── */
 .toolbar{ display:block; padding:0; background:var(--surface); border-bottom:1px solid var(--border); box-shadow:none; position:sticky; top:0; z-index:200; min-height:0; }
 
-/* Row 1 — brand + primary output actions */
+/* Row 1 - brand + primary output actions */
 .app-header-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 20px; min-height:62px; }
 .header-brand{ display:flex; align-items:center; gap:11px; min-width:0; }
 .logo-mark{ width:40px; height:40px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
@@ -1426,7 +1426,7 @@ body{ font-size:14px; line-height:1.6; color:var(--text); background:var(--bg); 
 #ahsAuthSlot span{ font-size:12px; color:var(--text-muted); font-family:var(--font); }
 #ahsAuthSlot button[style]{ background:var(--accent) !important; color:#fff !important; border:1px solid var(--accent) !important; }
 
-/* Row 2 — tab bar (primary working actions) */
+/* Row 2 - tab bar (primary working actions) */
 .tab-bar-row{ display:flex; align-items:stretch; gap:2px; padding:0 10px; border-top:1px solid var(--border); overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
 .tab-bar-row::-webkit-scrollbar{ display:none; }
 .tab-bar-row button, .tab-bar-row button.tb-primary, .tab-bar-row button.tb-output, .tab-bar-row button.tb-danger{ background:none !important; border:0 !important; border-bottom:2px solid transparent !important; border-radius:0 !important; height:46px; padding:0 13px !important; font-size:13.5px; font-weight:500; color:var(--text-muted); display:inline-flex; align-items:center; gap:7px; white-space:nowrap; cursor:pointer; font-family:var(--font); flex:0 0 auto; }
@@ -1447,7 +1447,7 @@ body{ font-size:14px; line-height:1.6; color:var(--text); background:var(--bg); 
 .tab-bar-row button#clr, .tab-bar-row button.tb-danger{ color:var(--text-muted); }
 .tab-bar-row button#clr:hover, .tab-bar-row button.tb-danger:hover{ color:var(--danger); }
 
-/* Row 3 — formatting (contextual, quiet) */
+/* Row 3 - formatting (contextual, quiet) */
 .fmt-bar-row{ display:flex; align-items:center; gap:4px; flex-wrap:wrap; padding:7px 16px; border-top:1px solid var(--border); background:var(--bg); }
 .fmt-bar-row button{ height:32px; min-width:32px; padding:0 9px; border:1px solid transparent; background:transparent; border-radius:7px; color:var(--text-muted); font-size:12.5px; font-weight:600; cursor:pointer; font-family:var(--font); display:inline-flex; align-items:center; gap:6px; }
 .fmt-bar-row button:hover{ background:var(--muted-bg); color:var(--text); }
@@ -1601,7 +1601,7 @@ button.r3-ai:hover{ background:var(--muted-bg); }
   .html-header-only{ flex-wrap:wrap; gap:8px; padding:14px 14px 4px !important; }
   .html-header-only h1{ font-size:17px; }
 
-  /* iOS zooms any focused field under 16px — force 16px on every editable */
+  /* iOS zooms any focused field under 16px - force 16px on every editable */
   input, select, textarea, .rte, .field input, .field select,
   .frontpage-field input, .frontpage-field textarea, .cap-note,
   .r3-sheet select, .r3-sheet input, .item-row select.status-select,
@@ -1663,7 +1663,7 @@ button.r3-ai:hover{ background:var(--muted-bg); }
           <button data-action="print" class="tb-output" title="Print or save as PDF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>Print / PDF</button>
           <button data-action="client-report" id="btnClientReport" class="tb-output" title="Generate client-ready PDF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>Client Report</button>
           <button data-action="export" id="exphtml" class="tb-output" title="Export full HTML report"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>Export</button>
-          <!-- Cloud sign-in / out — the sync wrapper mounts its control here (see buildBar) -->
+          <!-- Cloud sign-in / out - the sync wrapper mounts its control here (see buildBar) -->
           <div id="ahsAuthSlot" title="Cloud sign-in / sign-out"></div>
         </div>
       </div>
@@ -1874,7 +1874,7 @@ button.r3-ai:hover{ background:var(--muted-bg); }
           </div>
           <div class="final-print-footer">
             <strong>Produced by AHS Compliance Consulting Ltd</strong><br>
-            Confidential — Uncontrolled when printed<br>
+            Confidential - Uncontrolled when printed<br>
           </div>
         </div>
       </div>
@@ -1883,8 +1883,8 @@ button.r3-ai:hover{ background:var(--muted-bg); }
     <!-- Phases Modal (intros, statements, summaries) -->
     <div id="snippetModal" class="snippet-modal">
       <div class="snippet-dialog">
-        <h3>Insert a phase — intro, statement or summary</h3>
-        <input type="search" id="snippetSearch" class="snippet-search" placeholder="Search phases — title or content..." autocomplete="off" autocorrect="off" spellcheck="false">
+        <h3>Insert a phase - intro, statement or summary</h3>
+        <input type="search" id="snippetSearch" class="snippet-search" placeholder="Search phases - title or content..." autocomplete="off" autocorrect="off" spellcheck="false">
         <div id="snippetList" class="snippet-list"></div>
       </div>
     </div>
@@ -1893,7 +1893,7 @@ button.r3-ai:hover{ background:var(--muted-bg); }
     <div id="phraseModal" class="snippet-modal">
       <div class="snippet-dialog">
         <h3>Select Phrase</h3>
-        <input type="search" id="phraseSearch" class="snippet-search" placeholder="Search phrases — label or text..." autocomplete="off" autocorrect="off" spellcheck="false">
+        <input type="search" id="phraseSearch" class="snippet-search" placeholder="Search phrases - label or text..." autocomplete="off" autocorrect="off" spellcheck="false">
         <div id="phraseList" class="snippet-list"></div>
       </div>
     </div>
@@ -1910,7 +1910,7 @@ button.r3-ai:hover{ background:var(--muted-bg); }
             <button type="button" onclick="clearLogo()" style="padding:7px 14px;background:#b91c1c;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-family:inherit;">Clear</button>
           </div>
           <div id="logo-preview" style="margin-top:8px;padding:15px;background:#f8fafb;border:2px dashed #d0d5dd;border-radius:8px;min-height:100px;display:flex;align-items:center;justify-content:center;">
-            <span style="color:#9ca3af;font-size:14px;">No logo uploaded — click "Choose File" to add client logo</span>
+            <span style="color:#9ca3af;font-size:14px;">No logo uploaded - click "Choose File" to add client logo</span>
           </div>
         </div>
 
@@ -2158,7 +2158,7 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
-// Handle click outside modal to close — but ONLY when the press STARTED on the
+// Handle click outside modal to close - but ONLY when the press STARTED on the
 // backdrop. Selecting text inside the modal and releasing on the backdrop used
 // to close it (the "disappearing modal" bug).
 (function(){
@@ -2540,7 +2540,7 @@ if (clearAllBtn) {
     });
     if (imgInput) imgInput.value = '';
     if (imgPreview) imgPreview.innerHTML = '';
-    // This report's photos only — the store pool is shared across projects
+    // This report's photos only - the store pool is shared across projects
     allImages.forEach(img =>
       window.AHS_PHOTOS.del(img.id).catch(e => console.warn('Could not remove stored photo:', e)));
     allImages = [];
@@ -2669,7 +2669,7 @@ updateScoreDashboard();
 updateStatusSelectColors();
 
 // ══════════════════════════════════════════════════════════════
-//  Photo store — IndexedDB
+//  Photo store - IndexedDB
 //
 //  Photos used to be written into the localStorage draft alongside the text.
 //  Browsers cap localStorage at about 5MB, counted in UTF-16 (two bytes a
@@ -2728,7 +2728,7 @@ window.AHS_PHOTOS = (function () {
       return read(s => s.get(id)).then(r => (r && r.dataUrl) || null);
     },
 
-    // Every stored photo as { id: dataUrl } — used to push photos to the server
+    // Every stored photo as { id: dataUrl } - used to push photos to the server
     all() {
       return read(s => s.getAll()).then(rows => {
         const out = {};
@@ -2757,7 +2757,7 @@ window.AHS_PHOTOS = (function () {
 })();
 
 // ══════════════════════════════════════════════════════════════
-//  Save status — a failed save must stop you on site, not on the way home
+//  Save status - a failed save must stop you on site, not on the way home
 //
 //  The old code turned a small pill red and wrote to the console. On an iPad
 //  that is invisible. This puts an unmissable bar across the top and keeps it
@@ -2961,7 +2961,7 @@ async function renderImages() {
 
     imgBox.appendChild(img);
 
-    // Section / item link — assign this photo to a section or item. Options are
+    // Section / item link - assign this photo to a section or item. Options are
     // rebuilt each time the dropdown is opened, so a section added after the
     // photo shows up straight away (handy while still on site).
     if (window.AHS_PHOTO_LINK) {
@@ -3046,7 +3046,7 @@ if (imgInput && imgPreview) {
 if (imgClearBtn && imgPreview && imgInput) {
   imgClearBtn.addEventListener('click', function() {
     imgInput.value = '';
-    // Delete just this report's photos — the store is one pool shared by
+    // Delete just this report's photos - the store is one pool shared by
     // every project on the device, so clear() would take the others with it.
     allImages.forEach(img =>
       window.AHS_PHOTOS.del(img.id).catch(e => console.warn('Could not remove stored photo:', e)));
@@ -3088,7 +3088,7 @@ document.head.appendChild(style);
 const SIMPLE_SNIPPETS = [
     {
     id: "sec1",
-    title: "PC - Section 1 – Introduction",
+    title: "PC - Section 1 - Introduction",
     preview: "PC intro",
     content: `Site Safety Inspection:
 This inspection is conducted under the principles and requirements of the Construction (Design and Management) Regulations 2015. 
@@ -3097,7 +3097,7 @@ Where the client undertakes one or both of these roles, they must ensure compete
 This document highlights compliance and areas for improvement to support those duties.`
   },  {
     id: "sec2",
-    title: "C - Section 2 – Introduction",
+    title: "C - Section 2 - Introduction",
     preview: "Contractor Intro",
     content: `Site Safety inspection:
 This inspection is undertaken with particular reference to Regulation 15 of the Construction (Design and Management) Regulations 2015.
@@ -3108,7 +3108,7 @@ This inspection will seek to understand how the contractor is doing this in prac
   },
   {
     id: "sec3",
-    title: "PC - Section 3 – Documentation",
+    title: "PC - Section 3 - Documentation",
     preview: "Documentation & Management RAMS, CPP, PTW...",
     content: `Management/Supervision & Documentation:
 
@@ -3127,7 +3127,7 @@ Opportunities to consider putting into practice by the time of the next visit:
   },
   {
     id: "sec4",
-    title: " PC - Section 4 – Site Management",
+    title: " PC - Section 4 - Site Management",
     preview: "Site Management Behaviours...",
     content: `Site Management:
 Discussions were held with the site manager regarding their role, experience and responsibilities. 
@@ -3148,7 +3148,7 @@ Opportunities to consider putting into practice by the time of the next visit:
   },
   {
     id: "sec5",
-    title: " PC - Section 5 – Protection Against Falls",
+    title: " PC - Section 5 - Protection Against Falls",
     preview: "Work activities have been risk assessed...",
     content: `Protection Against Fall
 At the time of the inspection the following was observed: 
@@ -3175,7 +3175,7 @@ Opportunities to consider putting into practice by the time of the next visit:
   },
   {
     id: "sec6",
-    title: " PC - Section 6 – Lifting Operations",
+    title: " PC - Section 6 - Lifting Operations",
     preview: "The site supervisor had spare PPE available...",
     content: `Lifting Operations
 At the time of the inspection the following was observed:
@@ -3199,7 +3199,7 @@ Opportunities to consider putting into practice by the time of the next visit:
   },
   {
     id: "sec7",
-    title: " PC - Section 7 – Excavations",
+    title: " PC - Section 7 - Excavations",
     preview: "Materials storage areas were in good order...",
     content: `Excavations
 At the time of the inspection the following was observed:
@@ -3219,7 +3219,7 @@ Opportunities to consider putting into practice by the time of the next visit:
   },
   {
     id: "sec8",
-    title: " PC - Section 8 – Plant & Equipment",
+    title: " PC - Section 8 - Plant & Equipment",
     preview: "First aid provisions were available on site...",
     content: `Plant & Equipment
 At the time of the inspection the following was observed:
@@ -3238,7 +3238,7 @@ Opportunities to consider putting into practice by the time of the next visit:
   },
   {
     id: "sec9",
-    title: " PC - Section 9 – Electrics",
+    title: " PC - Section 9 - Electrics",
     preview: "Tools and equipment were suitable for the tasks...",
     content: `Electrics
 At the time of the inspection the following was observed:
@@ -3258,7 +3258,7 @@ Opportunities to consider putting into practice by the time of the next visit:
   },
     {
     id: "sec10",
-    title: " PC - Section 10 – Access & Egress",
+    title: " PC - Section 10 - Access & Egress",
     preview: "Work activities have been risk assessed...",
     content: `Access & Egress
     At the time of the inspection the following was observed:
@@ -3280,7 +3280,7 @@ Opportunities to consider putting into practice by the time of the next visit:
   },
   {
     id: "sec11",
-    title: " PC - Section 11 – Scaffolds and Temporary works",
+    title: " PC - Section 11 - Scaffolds and Temporary works",
     preview: "The site supervisor had spare PPE available...",
     content: `Scaffolds and Temporary works
 At the time of the inspection the following was observed:
@@ -3306,7 +3306,7 @@ Opportunities to consider putting into practice by the time of the next visit:
   },
   {
     id: "sec12",
-    title: " PC - Section 12 – Fire & First Aid",
+    title: " PC - Section 12 - Fire & First Aid",
     preview: "Materials storage areas were in good order...",
     content: `Fire & First Aid
 At the time of the inspection the following was observed:
@@ -3325,7 +3325,7 @@ Opportunities to consider putting into practice by the time of the next visit:
   },
   {
     id: "sec13",
-    title: " PC - Section 13 – PPE/RPE",
+    title: " PC - Section 13 - PPE/RPE",
     preview: "First aid provisions were available on site...",
     content: `PPE/RPE
 At the time of the inspection the following was observed:
@@ -3333,16 +3333,16 @@ At the time of the inspection the following was observed:
 • Respiratory Protective Equipment (RPE) was available and used where exposure to dust, fumes, or airborne contaminants was foreseeable (e.g. cutting, grinding, sweeping, demolition). The type of RPE selected (FFP3/mask/half-mask) reflected the level of risk, and face-fit testing records were available where tight-fitting RPE was worn.
 • Spare PPE and RPE were available on site to ensure operatives could replace damaged or contaminated items promptly, particularly in areas with high dust generation or where PPE becomes worn quickly (e.g. gloves, safety eyewear).
 • PPE requirements were clearly communicated at access points and reinforced during inductions and briefings, ensuring operatives and visitors understood site rules and minimum standards.
-• Selection of PPE was proportionate to the hazards present and followed the hierarchy of control — used only where risks could not be eliminated or reduced through engineering or procedural controls.
+• Selection of PPE was proportionate to the hazards present and followed the hierarchy of control - used only where risks could not be eliminated or reduced through engineering or procedural controls.
 • Storage arrangements were in place to maintain PPE in a clean and serviceable condition, with RPE filters protected from contamination and helmets/visors stored to prevent damage.
-• Site personnel understood the need for PPE based on foreseeable hazards such as head impacts, sharp edges, foot injuries, dust inhalation, flying debris and visibility to plant operators — demonstrating that PPE was not issued arbitrarily but to manage specific risk profiles.
+• Site personnel understood the need for PPE based on foreseeable hazards such as head impacts, sharp edges, foot injuries, dust inhalation, flying debris and visibility to plant operators - demonstrating that PPE was not issued arbitrarily but to manage specific risk profiles.
 
 Opportunities to consider putting into practice by the time of the next visit:
 • None to note`
   },
   {
     id: "sec14",
-    title: " PC - Section 14 – Signage & Housekeeping",
+    title: " PC - Section 14 - Signage & Housekeeping",
     preview: "Tools and equipment were suitable for the tasks...",
     content: `Signage & Housekeeping
 At the time of the inspection the following was observed:
@@ -3361,7 +3361,7 @@ Opportunities to consider putting into practice by the time of the next visit:
   },
     {
     id: "sec15",
-    title: " PC - Section 15 – Site Good Order",
+    title: " PC - Section 15 - Site Good Order",
     preview: "The site supervisor had spare PPE available...",
     content: `Site Good Order
 At the time of the inspection the following was observed:
@@ -3380,7 +3380,7 @@ Opportunities to consider putting into practice by the time of the next visit:
   },
   {
     id: "sec16",
-    title: " PC - Section 16 – Welfare Facilities",
+    title: " PC - Section 16 - Welfare Facilities",
     preview: "Materials storage areas were in good order...",
     content: `Welfare Facilities
 At the time of the inspection the following was observed:
@@ -3399,7 +3399,7 @@ Opportunities to consider putting into practice by the time of the next visit:
   },
   {
     id: "sec17",
-    title: " PC - Section 17 – Traffic Management",
+    title: " PC - Section 17 - Traffic Management",
     preview: "First aid provisions were available on site...",
     content: `Traffic Management
 At the time of the inspection the following was observed:
@@ -3425,7 +3425,7 @@ Opportunities to consider putting into practice by the time of the next visit:
   },
   {
     id: "sec18",
-    title: " PC - Section 18 – Health",
+    title: " PC - Section 18 - Health",
     preview: "Tools and equipment were suitable for the tasks...",
     content: `Health
 At the time of the inspection the following was observed:
@@ -3447,7 +3447,7 @@ Opportunities to consider putting into practice by the time of the next visit:
   },
     {
     id: "sec19",
-    title: " PC - Section 19 – Accidents Incidents & Near Misses",
+    title: " PC - Section 19 - Accidents Incidents & Near Misses",
     preview: "Count of accidents and near misses reported...",
     content: `Section 19 Accident Reporting & Near Misses:
 
@@ -3465,7 +3465,7 @@ Opportunities to consider putting into practice by the time of the next visit:
   },
   {
     id: "sec20",
-    title: " PC - Section 20 – Site Inspection Summary",
+    title: " PC - Section 20 - Site Inspection Summary",
     preview: "Add a paragraph of findings in the form of a summary",
     content: `Section 11 Site Inspection Summary:
 
@@ -3482,7 +3482,7 @@ installation / internal fit out] commence.`
   },
   {
   id: "sec21",
-  title: "C - Section 21 – CDM Roles, Cooperation & Communication",
+  title: "C - Section 21 - CDM Roles, Cooperation & Communication",
   preview: "Contractor CDM duties, coordination, information exchange...",
   content: `CDM Roles, Cooperation & Communication:
 
@@ -3500,7 +3500,7 @@ Opportunities to consider putting into practice by the time of the next visit:
 },
 {
   id: "sec22",
-  title: "C - Section 22 – Construction Phase Plan",
+  title: "C - Section 22 - Construction Phase Plan",
   preview: "CPP availability, understanding and implementation...",
   content: `Construction Phase Plan (CPP):
 
@@ -3516,7 +3516,7 @@ Opportunities to consider putting into practice by the time of the next visit:
 },
 {
   id: "sec23",
-  title: "C - Section 23 – Risk Assessments & Method Statements",
+  title: "C - Section 23 - Risk Assessments & Method Statements",
   preview: "RAMS suitability, communication and implementation...",
   content: `Risk Assessments & Method Statements (RAMS):
 
@@ -3532,7 +3532,7 @@ Opportunities to consider putting into practice by the time of the next visit:
 },
 {
   id: "sec24",
-  title: "C - Section 24 – Competence, Training & Supervision",
+  title: "C - Section 24 - Competence, Training & Supervision",
   preview: "Training records, supervision and behavioural standards...",
   content: `Competence, Training & Supervision:
 
@@ -3548,7 +3548,7 @@ Opportunities to consider putting into practice by the time of the next visit:
 },
 {
   id: "sec25",
-  title: "C - Section 25 – Induction & Worker Engagement",
+  title: "C - Section 25 - Induction & Worker Engagement",
   preview: "Induction, briefings and consultation...",
   content: `Induction, Briefings & Worker Engagement:
 
@@ -3564,7 +3564,7 @@ Opportunities to consider putting into practice by the time of the next visit:
 },
 {
   id: "sec26",
-  title: "C - Section 26 – Site Set-Up & Housekeeping",
+  title: "C - Section 26 - Site Set-Up & Housekeeping",
   preview: "Access, egress and general site conditions...",
   content: `Site Set-Up, Housekeeping & Access/Egress:
 
@@ -3580,7 +3580,7 @@ Opportunities to consider putting into practice by the time of the next visit:
 },
 {
   id: "sec27",
-  title: "C - Section 27 – Site Security & Public Protection",
+  title: "C - Section 27 - Site Security & Public Protection",
   preview: "Security arrangements and protection of others...",
   content: `Site Security & Public Protection:
 
@@ -3596,7 +3596,7 @@ Opportunities to consider putting into practice by the time of the next visit:
 },
 {
   id: "sec28",
-  title: "C - Section 28 – Traffic Management & Deliveries",
+  title: "C - Section 28 - Traffic Management & Deliveries",
   preview: "Vehicle movements and pedestrian interfaces...",
   content: `Traffic Management & Deliveries:
 
@@ -3612,7 +3612,7 @@ Opportunities to consider putting into practice by the time of the next visit:
 },
 {
   id: "sec29",
-  title: "C - Section 29 – Plant, Tools & Equipment",
+  title: "C - Section 29 - Plant, Tools & Equipment",
   preview: "Suitability, inspections and defect management...",
   content: `Plant, Tools & Equipment:
 
@@ -3628,7 +3628,7 @@ Opportunities to consider putting into practice by the time of the next visit:
 },
 {
   id: "sec30",
-  title: "C - Section 30 – Lifting Operations",
+  title: "C - Section 30 - Lifting Operations",
   preview: "Lifting arrangements and controls...",
   content: `Lifting Operations:
 
@@ -3644,7 +3644,7 @@ Opportunities to consider putting into practice by the time of the next visit:
 },
 {
   id: "sec31",
-  title: "C - Section 31 – Work at Height",
+  title: "C - Section 31 - Work at Height",
   preview: "Falls prevention and access equipment...",
   content: `Work at Height:
 
@@ -3660,7 +3660,7 @@ Opportunities to consider putting into practice by the time of the next visit:
 },
 {
   id: "sec32",
-  title: "C - Section 32 – Excavations & Groundworks",
+  title: "C - Section 32 - Excavations & Groundworks",
   preview: "Excavation safety and ground conditions...",
   content: `Excavations, Groundworks & Temporary Works:
 
@@ -3676,7 +3676,7 @@ Opportunities to consider putting into practice by the time of the next visit:
 },
 {
   id: "sec33",
-  title: "C - Section 33 – Services & Permit Systems",
+  title: "C - Section 33 - Services & Permit Systems",
   preview: "Permit to dig and service controls...",
   content: `Services & Permit Systems:
 
@@ -3692,7 +3692,7 @@ Opportunities to consider putting into practice by the time of the next visit:
 },
 {
   id: "sec34",
-  title: "C - Section 34 – Health Risks & Occupational Health",
+  title: "C - Section 34 - Health Risks & Occupational Health",
   preview: "COSHH, dust, noise and manual handling...",
   content: `Health Risks & Occupational Health:
 
@@ -3708,7 +3708,7 @@ Opportunities to consider putting into practice by the time of the next visit:
 },
 {
   id: "sec35",
-  title: "C - Section 35 – PPE Standards",
+  title: "C - Section 35 - PPE Standards",
   preview: "PPE requirements and compliance...",
   content: `PPE Standards & Compliance:
 
@@ -3724,7 +3724,7 @@ Opportunities to consider putting into practice by the time of the next visit:
 },
 {
   id: "sec36",
-  title: "C - Section 36 – Fire & Emergency Arrangements",
+  title: "C - Section 36 - Fire & Emergency Arrangements",
   preview: "Fire safety and first aid provisions...",
   content: `Fire, First Aid & Emergency Arrangements:
 
@@ -3740,7 +3740,7 @@ Opportunities to consider putting into practice by the time of the next visit:
 },
 {
   id: "sec37",
-  title: "C - Section 37 – Welfare Facilities",
+  title: "C - Section 37 - Welfare Facilities",
   preview: "Welfare provision and cleanliness...",
   content: `Welfare Facilities:
 
@@ -3756,7 +3756,7 @@ Opportunities to consider putting into practice by the time of the next visit:
 },
     {
     id: "sec38",
-    title: " C - Section 38 – Accidents Incidents & Near Misses",
+    title: " C - Section 38 - Accidents Incidents & Near Misses",
     preview: "Count of accidents and near misses reported...",
     content: `Accident Reporting & Near Misses:
 
@@ -3774,7 +3774,7 @@ Opportunities to consider putting into practice by the time of the next visit:
   },
   {
     id: "sec39",
-    title: " C - Section 39 – Site Inspection Summary",
+    title: " C - Section 39 - Site Inspection Summary",
     preview: "Add a paragraph of findings in the form of a summary",
     content: `Site Inspection Summary:
 
@@ -3791,7 +3791,7 @@ installation / internal fit out] commence.`
   },
   {
     id: "sec40",
-    title: "C - Section 40 – Access & Egress",
+    title: "C - Section 40 - Access & Egress",
     preview: "Access to work areas, loading bays, materials storage, manual-handling distance",
     content: `Access & Egress:
 
@@ -3900,7 +3900,7 @@ function generateClosingDraft() {
     '',
     actionBlock,
     '',
-    '[INSERT closing remarks — overall standard, outlook for upcoming phases, and continued monitoring arrangements.]'
+    '[INSERT closing remarks - overall standard, outlook for upcoming phases, and continued monitoring arrangements.]'
   ].join('\n');
 }
 
@@ -4034,7 +4034,7 @@ function insertTextAtCursorSimple(target, text) {
   window.snippetTargetRange = endRange.cloneRange();
 }
 
-// 4) Build the snippet list inside the modal — report "phases" only.
+// 4) Build the snippet list inside the modal - report "phases" only.
 // The per-section observation snippets now live in the Inspection Criteria
 // (the single source of truth), so only the intros, opening/closing statements
 // and summaries are offered here. (SIMPLE_SNIPPETS is kept whole because TOPICS
@@ -4044,7 +4044,7 @@ function _isPhaseSnippet(sn){
   if (!m) return true;                                  // Opening/Closing/Auto-draft
   // Hide a section snippet only if that section actually has criteria checks
   // (i.e. its content now lives in the Inspection Criteria). Sections with no
-  // criteria — intros, summaries, accidents, and Documentation — stay here.
+  // criteria - intros, summaries, accidents, and Documentation - stay here.
   const re = new RegExp('^\\(\\s*' + m[1] + '\\s*-\\s*Section\\s*' + (+m[2]) + '\\s*\\)', 'i');
   const hasCriteria = (typeof SIMPLE_PHRASES !== 'undefined') && SIMPLE_PHRASES.some(p => re.test(p.label || ''));
   return !hasCriteria;
@@ -4478,7 +4478,7 @@ window.showPhraseModal = showPhraseModal;
 // ===== AUTO-POPULATE REPORT DATE =====//
   window.addEventListener("DOMContentLoaded", function () {
     const dateSpan = document.getElementById("report-date");
-    if (!dateSpan) return; // header date/ref removed — nothing to auto-populate
+    if (!dateSpan) return; // header date/ref removed - nothing to auto-populate
 
     // If user hasn't typed anything already
     if (!dateSpan.textContent.trim()) {
@@ -4585,7 +4585,7 @@ window.showPhraseModal = showPhraseModal;
     state.visit = window.AHS_VISIT ? window.AHS_VISIT.serialize() : null;
 
     // IMAGES: ids and captions only. The photo data lives in the IndexedDB
-    // store — writing it in here is exactly what used to blow the ~5MB
+    // store - writing it in here is exactly what used to blow the ~5MB
     // localStorage ceiling and silently lose a day's photos.
     if (typeof allImages !== 'undefined' && Array.isArray(allImages)) {
       state.photoStore = 'idb';
@@ -4609,7 +4609,7 @@ window.showPhraseModal = showPhraseModal;
     }));
 
     // Inspections: store each section's sectionName + comments + item rows
-    // (Title field was removed — no titleHtml to capture anymore)
+    // (Title field was removed - no titleHtml to capture anymore)
     const sections = qsa("#secs .insp-section");
     state.inspections = sections.map(sec => {
       const fields = qsa(".field .rte[contenteditable='true']", sec);
@@ -4724,10 +4724,10 @@ window.showPhraseModal = showPhraseModal;
         let missing = 0;
 
         // Three places a photo can come from, in order of preference:
-        //   1. inline in the draft   — an import, or a draft saved before the
+        //   1. inline in the draft   - an import, or a draft saved before the
         //                              store existed
-        //   2. the IndexedDB store   — the normal case
-        //   3. the page's own markup — an exported file carries its photos as
+        //   2. the IndexedDB store   - the normal case
+        //   3. the page's own markup - an exported file carries its photos as
         //                              image tags. This runs before
         //                              renderImages() wipes the preview, so
         //                              the tiles are still readable, which is
@@ -4807,7 +4807,7 @@ window.showPhraseModal = showPhraseModal;
 
     // Fill the embedded copy FIRST. This used to run after the localStorage
     // write, so when that write threw, this line never ran and the exported
-    // file was stale too — which is how a day's photos went missing with
+    // file was stale too - which is how a day's photos went missing with
     // nothing on screen to say so.
     try {
       const embedDraftEl = document.getElementById('AHS_EMBEDDED_DRAFT');
@@ -4914,7 +4914,7 @@ window.showPhraseModal = showPhraseModal;
     updateFrontPageDisplay(frontPageData);
   });
 
-  // Keyboard overlap mitigation — ONLY on small touch screens where the
+  // Keyboard overlap mitigation - ONLY on small touch screens where the
   // on-screen keyboard can cover the field, and only when the field is
   // actually low enough to be hidden. On desktop this used to yank the page
   // around on every click (the "dizzy" jumping); it now does nothing there.
@@ -4936,7 +4936,7 @@ window.showPhraseModal = showPhraseModal;
         const r = t.getBoundingClientRect();
         // Only scroll if the field sits in (or below) the lower half of the
         // viewport, i.e. where the keyboard would cover it. Fields already in
-        // comfortable view are left exactly where they are — no jump.
+        // comfortable view are left exactly where they are - no jump.
         if (r.bottom > window.innerHeight * 0.5) {
           t.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
         }
@@ -4951,7 +4951,7 @@ window.showPhraseModal = showPhraseModal;
   }
 
   // Expose for debugging if needed.
-  // scheduleSave is on here because the image-remove handler calls it — it was
+  // scheduleSave is on here because the image-remove handler calls it - it was
   // not exported before, so deleting a photo never actually triggered a save.
   window.AHS_DRAFT = {
     saveNow, scheduleSave, restoreIfPresent, clearDraft, key: AHS_DRAFT.KEY,
@@ -5173,7 +5173,7 @@ function clearLogo() {
 //
 
 // =====================================================================
-// AHS TWEAKS — modal search + H&S pill → inspection section
+// AHS TWEAKS - modal search + H&S pill → inspection section
 // =====================================================================
 
 // ---------- Modal list filtering (shared) ----------
@@ -5354,7 +5354,7 @@ function renderPills() {
   if (!hsg) return;
   hsg.innerHTML = '';
   if (!instances.length) {
-    hsg.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">Nothing selected yet — open <strong>Inspection criteria</strong> to choose sections.</span>';
+    hsg.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">Nothing selected yet - open <strong>Inspection criteria</strong> to choose sections.</span>';
     return;
   }
   instances.forEach(inst => {
@@ -5610,10 +5610,10 @@ async function generateClientReport() {
     console.log('Data collected successfully');
     
     // ========================================
-    // PAGE 1: COVER PAGE  (redesigned — sleek & classy)
+    // PAGE 1: COVER PAGE  (redesigned - sleek & classy)
     // ========================================
 
-    // Shared style tokens — reused by footer for a consistent look
+    // Shared style tokens - reused by footer for a consistent look
     const STYLE = {
       ink:     [31, 41, 55],    // charcoal body
       mute:    [107, 114, 128], // muted grey for labels/captions
@@ -5673,14 +5673,14 @@ async function generateClientReport() {
 
     // --- Meta block: key/value rows separated by hairline dividers ----------
     const metaRows = [];
-    metaRows.push(['Project',      cleanText(projectName) || '—']);
-    metaRows.push(['Inspection',   cleanText(inspectionType) || '—']);
+    metaRows.push(['Project',      cleanText(projectName) || '-']);
+    metaRows.push(['Inspection',   cleanText(inspectionType) || '-']);
     const addrLines = [address1, address2, address3]
       .map(cleanText)
       .filter(a => a && !a.includes('xxxx'));
     if (addrLines.length) metaRows.push(['Address', addrLines.join(', ')]);
-    metaRows.push(['Provided for', cleanText(providedFor) || '—']);
-    metaRows.push(['Date',         cleanText(reportDateDisplay) || '—']);
+    metaRows.push(['Provided for', cleanText(providedFor) || '-']);
+    metaRows.push(['Date',         cleanText(reportDateDisplay) || '-']);
 
     const metaX = MARGIN, metaW = PAGE_W - MARGIN * 2, labelW = 42;
     let my = 158;
@@ -5692,14 +5692,14 @@ async function generateClientReport() {
       const valueLines = doc.splitTextToSize(value, metaW - labelW - 4);
       const rowH = Math.max(11, 6 + valueLines.length * 5);
       my += 4;
-      // Label — small caps, muted
+      // Label - small caps, muted
       doc.setTextColor(...STYLE.mute);
       doc.setFontSize(8.5);
       doc.setFont('helvetica', 'bold');
       try { doc.setCharSpace(1.2); } catch (e) {}
       doc.text(label.toUpperCase(), metaX, my + 2);
       try { doc.setCharSpace(0); } catch (e) {}
-      // Value — charcoal body
+      // Value - charcoal body
       doc.setTextColor(...STYLE.ink);
       doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
@@ -5766,7 +5766,7 @@ if (showScores) {
 
     y += 8;
 
-    // Label + percentage + ratio — cleaner weight contrast
+    // Label + percentage + ratio - cleaner weight contrast
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(107, 114, 128);
@@ -5791,7 +5791,7 @@ if (showScores) {
   }
 
   // --- Tachograph-style dials (replaces old circle gauges) ----------------
-  // A narrative-style inspection has no scored items — a row of zero dials
+  // A narrative-style inspection has no scored items - a row of zero dials
   // reads as broken, so say what is actually going on instead.
   const totalItems = compliantCount + advisoryCount + actionCount + observationCount + naCount;
   if (totalItems > 0) {
@@ -5801,11 +5801,11 @@ if (showScores) {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'italic');
     doc.setTextColor(107, 114, 128);
-    doc.text('Findings for this visit are recorded in the section narratives — see Inspection Results.', 20, y);
+    doc.text('Findings for this visit are recorded in the section narratives - see Inspection Results.', 20, y);
     y += 8;
   }
 
-  // --- Key findings — the actual raised items, not a copy of the counts ---
+  // --- Key findings - the actual raised items, not a copy of the counts ---
   const findingRows = [];
   document.querySelectorAll('#secs .insp-section').forEach(sec => {
     const fields = sec.querySelectorAll(".field .rte[contenteditable='true']");
@@ -5906,7 +5906,7 @@ if (showScores) {
 
     y += 8;
 
-    // Topic titles only — no "PC - Section 13 –" prefix
+    // Topic titles only - no "PC - Section 13 -" prefix
     const critItems = hsArrangements.map(stripSectionTitle).filter(Boolean);
 
     // Even grid spanning the full printable width
@@ -6087,7 +6087,7 @@ if (y < 25) {
       doc.line(20, y, 50, y);
       y += 6;
 
-      // Body — rich text (bold / italic / underline / highlight preserved)
+      // Body - rich text (bold / italic / underline / highlight preserved)
       doc.setFontSize(10);
       doc.setFont(undefined, 'normal');
       doc.setTextColor(55, 65, 81);
@@ -6132,7 +6132,7 @@ if (y < 25) {
       doc.line(20, y, 50, y);
       y += 6;
 
-      // Body — rich text (bold / italic / underline / highlight preserved)
+      // Body - rich text (bold / italic / underline / highlight preserved)
       doc.setFontSize(10);
       doc.setFont(undefined, 'normal');
       doc.setTextColor(55, 65, 81);
@@ -6590,7 +6590,7 @@ if (images.length > 0) {
       y += 22;
     }
     
-    // Add authorization/approval box at bottom — only if a signatory was provided
+    // Add authorization/approval box at bottom - only if a signatory was provided
     if (manager || consultant) {
       y += 5;
       doc.setFillColor(230, 247, 251);
@@ -6662,7 +6662,7 @@ if (images.length > 0) {
 // ========================================
 
 /**
- * Draw tachograph-style (semicircular) dials — one per category, all in a row.
+ * Draw tachograph-style (semicircular) dials - one per category, all in a row.
  * Returns the y cursor below the dials (with labels + breathing room).
  */
 function drawFilledGauges(doc, startY, compliant, advisory, action, observation, na, totalItems) {
@@ -6700,7 +6700,7 @@ function drawTachographDial(doc, cx, cy, r, value, total, color, label) {
   const endA      = 0;              // right side
   const valueA    = startA - Math.PI * ratio; // sweep clockwise across the top
 
-  // jsPDF supports round line caps from 2.x onward — use them if available
+  // jsPDF supports round line caps from 2.x onward - use them if available
   try { doc.setLineCap('round'); } catch (e) {}
 
   // Colour-code to the UI: a light tint of the category colour for the empty
@@ -6709,7 +6709,7 @@ function drawTachographDial(doc, cx, cy, r, value, total, color, label) {
   var tint = color.map(function(c){ return Math.round(c + (255 - c) * 0.82); });
   var dark = color.map(function(c){ return Math.round(c * 0.72); });
 
-  // Track arc — light tint of the category colour, full 180°
+  // Track arc - light tint of the category colour, full 180°
   doc.setDrawColor(tint[0], tint[1], tint[2]);
   doc.setLineWidth(thickness);
   let prev = null;
@@ -6722,7 +6722,7 @@ function drawTachographDial(doc, cx, cy, r, value, total, color, label) {
     prev = { x, y };
   }
 
-  // Value arc — coloured
+  // Value arc - coloured
   if (ratio > 0) {
     doc.setDrawColor(...color);
     doc.setLineWidth(thickness);
@@ -6746,13 +6746,13 @@ function drawTachographDial(doc, cx, cy, r, value, total, color, label) {
   doc.setLineWidth(0.25);
   doc.line(cx - r + 1, cy + 0.6, cx + r - 1, cy + 0.6);
 
-  // Big value inside the dial — in the category colour
+  // Big value inside the dial - in the category colour
   doc.setFontSize(15);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(dark[0], dark[1], dark[2]);
   doc.text(String(value), cx, cy - 1.5, { align: 'center' });
 
-  // Label below — category colour, sized to match the rest of the report
+  // Label below - category colour, sized to match the rest of the report
   doc.setFontSize(9.5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(dark[0], dark[1], dark[2]);
@@ -6901,7 +6901,7 @@ function collectCheckedHSArrangements() {
   return arrangements;
 }
 
-// Strip the "PC - Section 13 – " / "C - Section 3 – " prefix so only the topic
+// Strip the "PC - Section 13 - " / "C - Section 3 - " prefix so only the topic
 // title remains (e.g. "PPE/RPE"). Idempotent; leaves already-clean names alone.
 function stripSectionTitle(name){
   var s = String(name == null ? '' : name).replace(/<[^>]*>/g, '').replace(/&amp;/g,'&').replace(/&nbsp;/g,' ').trim();
@@ -6928,12 +6928,12 @@ function addPageFooter(doc, pageNum, totalPages) {
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 274, 210, 23, 'F');
 
-  // Light-grey hairline — calmer than the previous thick teal rule
+  // Light-grey hairline - calmer than the previous thick teal rule
   doc.setDrawColor(209, 213, 219);
   doc.setLineWidth(0.25);
   doc.line(22, 278, 188, 278);
 
-  // Left — AHS compass logo mark (matches the app) + company name
+  // Left - AHS compass logo mark (matches the app) + company name
   var _mcx = 24.4, _mcy = 283.0;
   doc.setLineWidth(0.5);
   doc.setDrawColor(75, 191, 214);
@@ -6947,7 +6947,7 @@ function addPageFooter(doc, pageNum, totalPages) {
   doc.setTextColor(31, 41, 55);
   doc.text('AHS Compliance Consulting Ltd', 30, 285);
 
-  // Center — "Prepared for {Client}" pulled live from the front page
+  // Center - "Prepared for {Client}" pulled live from the front page
   var _pf = (document.getElementById('fp-display-provided-for')
               && document.getElementById('fp-display-provided-for').textContent) || '';
   _pf = _pf.trim();
@@ -6957,7 +6957,7 @@ function addPageFooter(doc, pageNum, totalPages) {
   doc.setTextColor(107, 114, 128);
   doc.text('Prepared for ' + _pf, 105, 285, { align: 'center' });
 
-  // Right — page X of Y (bold) / date (muted)
+  // Right - page X of Y (bold) / date (muted)
   const dateStr = new Date().toLocaleDateString('en-GB');
   const pageStr = (totalPages !== '?') ? ('Page ' + pageNum + ' of ' + totalPages) : '';
   doc.setFont('helvetica', 'bold');
@@ -7014,7 +7014,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     // Every reload here happens right after this layer has deliberately
     // rewritten localStorage (hydrate, open project, new project). The
     // reload's own pagehide fires the draft's saveNow, which would collect
-    // the not-yet-refreshed page and overwrite what was just written — that
+    // the not-yet-refreshed page and overwrite what was just written - that
     // is how a pulled draft lost its photo list. The flag makes saveNow a
     // no-op for the remainder of this doomed page.
     function _reload(){
@@ -7031,7 +7031,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       }
       try{
         // Only the photos this draft actually references. The store is one
-        // pool shared by every project on the device — pushing all of it
+        // pool shared by every project on the device - pushing all of it
         // would upload every project's photos into every project's blob.
         var wanted = {};
         Object.keys(blob).forEach(function(k){
@@ -7096,7 +7096,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       }
       catch(e){
         setStatus('error');
-        // A red pill in the toolbar is not enough — that is how a whole day's
+        // A red pill in the toolbar is not enough - that is how a whole day's
         // work went up the road without anyone noticing.
         window.AHS_SAVE_STATUS.fail('server',
           e.status === 413 ? 'this report is too large for the server'
@@ -7116,7 +7116,7 @@ function addPageFooter(doc, pageNum, totalPages) {
             return;
           }
         } else {
-          // Server empty for this project — push current local so nothing is lost.
+          // Server empty for this project - push current local so nothing is lost.
           _pulling=false; await push(); _pulling=true;
         }
       }catch(e){ /* keep local */ }
@@ -7148,7 +7148,7 @@ function addPageFooter(doc, pageNum, totalPages) {
         if(_hasLocalReport()) return;                            // a report is already on screen
         var projs;
         try{ projs = await listProjects(); }
-        catch(_){ return; }                                      // couldn't reach server — leave it; nothing destructive
+        catch(_){ return; }                                      // couldn't reach server - leave it; nothing destructive
         if(!projs.length) return;                                // genuinely nothing saved for this account
         openProjects();                                          // show the populated picker: "tap to open"
       }catch(_){}
@@ -7168,7 +7168,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       }catch(_){}
     }
     async function listProjects(){
-      // No silent catch here — a network/sign-in failure must NOT look like
+      // No silent catch here - a network/sign-in failure must NOT look like
       // "you have no saved projects" (that reads as lost data). Let it throw so
       // the caller can tell a real empty list apart from a failed request.
       var r = await api('/api/state/projects?tenantId='+encodeURIComponent(TENANT));
@@ -7224,7 +7224,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       listEl.innerHTML='Loading…';
       var projs;
       try{ projs = await listProjects(); }
-      catch(e){ listEl.innerHTML='<div style="padding:12px;color:#b91c1c;line-height:1.5;">Couldn’t load your saved projects — this is a connection or sign-in problem, <strong>not</strong> lost data. Check the top bar shows your email (signed in) and that you’re online, then reopen Projects.</div>'; return; }
+      catch(e){ listEl.innerHTML='<div style="padding:12px;color:#b91c1c;line-height:1.5;">Couldn’t load your saved projects - this is a connection or sign-in problem, <strong>not</strong> lost data. Check the top bar shows your email (signed in) and that you’re online, then reopen Projects.</div>'; return; }
       if(!projs.length){ listEl.innerHTML='<div style="padding:12px;color:#888;">No saved projects found for this account yet. Once you save an inspection to the cloud it appears here.</div>'; return; }
       listEl.innerHTML='';
       projs.forEach(function(p){
@@ -7265,7 +7265,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       box.innerHTML =
         '<h3 style="margin:0 0 6px;font:600 18px system-ui">Projects</h3>'+
         '<div style="font-size:12px;color:#666;margin-bottom:12px;">Current: <strong id="ahsPjCur"></strong></div>'+
-        '<div style="font-size:12px;font-weight:600;color:#444;margin-bottom:6px;">Your projects — tap to open, ✎ to rename, 🗑 to delete</div>'+
+        '<div style="font-size:12px;font-weight:600;color:#444;margin-bottom:6px;">Your projects - tap to open, ✎ to rename, 🗑 to delete</div>'+
         '<div id="ahsPjList" style="border:1px solid #eee;border-radius:8px;max-height:240px;overflow:auto;margin-bottom:14px;">Loading…</div>'+
         '<div style="font-size:12px;font-weight:600;color:#444;margin-bottom:6px;">New / save as</div>'+
         '<input id="ahsPjName" type="text" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;margin-bottom:8px;">'+
@@ -7287,8 +7287,8 @@ function addPageFooter(doc, pageNum, totalPages) {
     function setStatus(s){
       if(!statusEl) return;
       if(!_user){ statusEl.textContent='Local only'; return; }
-      if(s==='error' && navigator.onLine===false){ statusEl.textContent='Offline — saved on this device, will upload when signal returns'; return; }
-      statusEl.textContent = ({saving:'Saving…',saved:'Saved to cloud ✓',error:'Save error — retrying on next change',off:'Signed in'})[s] || ('Cloud: '+(_user.email||'on'));
+      if(s==='error' && navigator.onLine===false){ statusEl.textContent='Offline - saved on this device, will upload when signal returns'; return; }
+      statusEl.textContent = ({saving:'Saving…',saved:'Saved to cloud ✓',error:'Save error - retrying on next change',off:'Signed in'})[s] || ('Cloud: '+(_user.email||'on'));
     }
     function el(tag,attrs,html){ var e=document.createElement(tag); if(attrs)Object.keys(attrs).forEach(function(a){e.setAttribute(a,attrs[a]);}); if(html!=null)e.innerHTML=html; return e; }
     function buildBar(){
@@ -7325,7 +7325,7 @@ function addPageFooter(doc, pageNum, totalPages) {
         var em=box.querySelector('#ahsE').value.trim(), pw=box.querySelector('#ahsP').value, pj=box.querySelector('#ahsJ').value.trim();
         if(pj) setProject(pj);
         try{ var r=await api('/api/auth/login',{method:'POST',body:JSON.stringify({email:em,password:pw})}); _user=r.user; ov.remove(); bar._refresh(); await pull(); await _autoRecover(); }
-        catch(e){ box.querySelector('#ahsErr').textContent = (e.status===401?'Invalid email or password':'Sign-in failed — try again'); }
+        catch(e){ box.querySelector('#ahsErr').textContent = (e.status===401?'Invalid email or password':'Sign-in failed - try again'); }
       };
     }
     async function doLogout(){ try{ await api('/api/auth/logout',{method:'POST'}); }catch(_){} _user=null; try{ sessionStorage.removeItem('ahsSyncHydrated'); }catch(_){} bar._refresh(); }
@@ -7435,7 +7435,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       if(!m) return null;
       return { topicId: t.id, key: m[1] + m[2], mode: m[1], num: +m[2], short: m[3].trim(), title: String(t.title).trim() };
     }).filter(function(t){ return t && bank()[t.key]; });
-    // Custom sections — shown in both PC and Contractor modes, listed last
+    // Custom sections - shown in both PC and Contractor modes, listed last
     if(S.custom){ Object.keys(S.custom).forEach(function(k){ var cs = S.custom[k];
       _topics.push({ topicId:'cust-'+k, key:k, mode:'ALL', num: cs.num || 900, short: cs.short || 'Custom section', title: cs.short || 'Custom section', custom:true }); }); }
     _topics.sort(function(a,b){ return a.num - b.num; });
@@ -7736,9 +7736,9 @@ function addPageFooter(doc, pageNum, totalPages) {
         } else if(it.st === 'na'){
           if(it.note) okLines.push('• ' + it.note + suffix);   // a plain note; N/A is not highlighted
         } else {
-          // Advisory / Action required / Observation: a finding — the item text is
+          // Advisory / Action required / Observation: a finding - the item text is
           // HIGHLIGHTED so it stands out for you to reword into the actual finding.
-          findLines.push('• ' + q.text + (it.note ? ' — ' + it.note : '') + suffix);
+          findLines.push('• ' + q.text + (it.note ? ' - ' + it.note : '') + suffix);
         }
         rows.push({ item: q.check, status: it.st || '', note: it.note || '', capKey: t.key, capPid: q.id });
       }
@@ -7751,7 +7751,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       var html = parts.join('<br>');
 
       // one instance per captured section, reused on rebuild. Match first by
-      // the capture section's own id, then by topicId — so the same criteria
+      // the capture section's own id, then by topicId - so the same criteria
       // can never produce two sections (the old duplication bug).
       var inst = sec.instanceId ? instances.find(function(x){ return x.instanceId === sec.instanceId; }) : null;
       if(!inst && t.topicId){ inst = instances.find(function(x){ return x.topicId && x.topicId === t.topicId; }); if(inst) sec.instanceId = inst.instanceId; }
@@ -7795,8 +7795,8 @@ function addPageFooter(doc, pageNum, totalPages) {
     if(opts.silent) return;
     hide();
     alert(built
-      ? '✅ Applied to report: ' + built + ' section' + (built===1?'':'s') + (photosAdded ? ', ' + photosAdded + ' photo' + (photosAdded===1?'':'s') + ' placed' : '') + '. Review and edit as normal — rebuilding updates these sections without touching your edits elsewhere.'
-      : 'Nothing switched on yet — answer an item or flick its "In report" switch first.');
+      ? '✅ Applied to report: ' + built + ' section' + (built===1?'':'s') + (photosAdded ? ', ' + photosAdded + ' photo' + (photosAdded===1?'':'s') + ' placed' : '') + '. Review and edit as normal - rebuilding updates these sections without touching your edits elsewhere.'
+      : 'Nothing switched on yet - answer an item or flick its "In report" switch first.');
   }
 
   // ── Wire up ──
@@ -7866,7 +7866,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     </div>
     <div class="ps-card">
       <h3>Training / competence matrix</h3>
-      <p class="ps-sub">Upload the contractor's matrix (.xlsx or .csv). Expiry-type columns are checked automatically — red = expired, amber = within 30 days.</p>
+      <p class="ps-sub">Upload the contractor's matrix (.xlsx or .csv). Expiry-type columns are checked automatically - red = expired, amber = within 30 days.</p>
       <button type="button" class="ps-up" id="psMxBtn">⬆ Upload matrix</button>
       <input type="file" id="psMxFile" accept=".xlsx,.csv" style="display:none">
       <div class="ps-err" id="psMxErr"></div>
@@ -7874,7 +7874,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     </div>
     <div class="ps-card">
       <h3>Project RAMS</h3>
-      <p class="ps-sub">Upload the RAMS PDFs, review each and set its status. Documents stay on this device — the report text carries your findings.</p>
+      <p class="ps-sub">Upload the RAMS PDFs, review each and set its status. Documents stay on this device - the report text carries your findings.</p>
       <button type="button" class="ps-up" id="psRamsBtn">⬆ Add RAMS PDF(s)</button>
       <input type="file" id="psRamsFile" accept="application/pdf,.pdf" multiple style="display:none">
       <div class="ps-err" id="psRamsErr"></div>
@@ -7888,7 +7888,7 @@ function addPageFooter(doc, pageNum, totalPages) {
 </div>
 <script>
 // ═══════════════ REV 2: PRE-SITE PACK MODULE ═══════════════
-// Training matrix (.xlsx read natively via DecompressionStream — no library)
+// Training matrix (.xlsx read natively via DecompressionStream - no library)
 // and RAMS PDFs (stored in their own IndexedDB, 'ahs-inspection-files', so
 // the shared photo store's schema version is never touched).
 (function(){
@@ -8059,8 +8059,8 @@ function addPageFooter(doc, pageNum, totalPages) {
         if(!DATE_HDR.test(String(hd||''))) return;
         var ms=cellDate(r[ci]); if(ms==null) return;
         var c=classify(ms);
-        if(c==='exp') out.exp.push(who+' — '+hd+' ('+fmtDate(ms)+')');
-        else if(c==='soon') out.soon.push(who+' — '+hd+' ('+fmtDate(ms)+')');
+        if(c==='exp') out.exp.push(who+' - '+hd+' ('+fmtDate(ms)+')');
+        else if(c==='soon') out.soon.push(who+' - '+hd+' ('+fmtDate(ms)+')');
       });
     });
     return out;
@@ -8103,7 +8103,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       var nm=document.createElement('span'); nm.className='nm';
       nm.textContent=doc.name+' ('+(doc.size/1048576).toFixed(1)+' MB)';
       var sel=document.createElement('select');
-      RSTATUS.forEach(function(s){ var o=document.createElement('option'); o.value=s[0]; o.textContent=s[1]||'— status —'; if(doc.status===s[0]) o.selected=true; sel.appendChild(o); });
+      RSTATUS.forEach(function(s){ var o=document.createElement('option'); o.value=s[0]; o.textContent=s[1]||'- status -'; if(doc.status===s[0]) o.selected=true; sel.appendChild(o); });
       sel.onchange=function(){ doc.status=sel.value; save(); };
       var note=document.createElement('input'); note.type='text'; note.placeholder='Comment (used in the report)'; note.value=doc.note||'';
       note.oninput=function(){ doc.note=note.value; save(); };
@@ -8111,7 +8111,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       op.onclick=async function(){
         try{
           var rec=await FILES.get(doc.id);
-          if(!rec||!rec.dataUrl){ alert('This PDF is not stored on this device — re-upload it here.'); return; }
+          if(!rec||!rec.dataUrl){ alert('This PDF is not stored on this device - re-upload it here.'); return; }
           var blob=await (await fetch(rec.dataUrl)).blob();
           window.open(URL.createObjectURL(blob),'_blank');
         }catch(e){ alert('Could not open: '+e.message); }
@@ -8165,8 +8165,8 @@ function addPageFooter(doc, pageNum, totalPages) {
     if(P.matrix){
       var a=analyse();
       var lines=['A training and competence matrix ("'+P.matrix.name+'") was provided and reviewed prior to the visit, covering '+a.people+' personnel.'];
-      a.exp.forEach(function(x){ lines.push('• Action required — expired: '+x); });
-      a.soon.forEach(function(x){ lines.push('• Advisory — expiring within 30 days: '+x); });
+      a.exp.forEach(function(x){ lines.push('• Action required - expired: '+x); });
+      a.soon.forEach(function(x){ lines.push('• Advisory - expiring within 30 days: '+x); });
       if(!a.exp.length&&!a.soon.length) lines.push('• All recorded training and certification was in date at the time of review.');
       var st=a.exp.length?'minor':(a.soon.length?'advisory':'compliant');
       var trRows=[{ item:'Training / competence matrix reviewed', status:st,
@@ -8179,7 +8179,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       var rRows=[];
       P.rams.forEach(function(d){
         var s=d.status==='sat'?'Satisfactory':(d.status==='comments'?'Comments':(d.status==='not'?'Not yet reviewed':'Not yet reviewed'));
-        rLines.push('• '+d.name+' — '+s+(d.note?': '+d.note:''));
+        rLines.push('• '+d.name+' - '+s+(d.note?': '+d.note:''));
         rRows.push({ item:'RAMS: '+d.name,
           status:d.status==='sat'?'compliant':(d.status==='comments'?'advisory':'observation'),
           note:d.note||'' });
@@ -8187,11 +8187,11 @@ function addPageFooter(doc, pageNum, totalPages) {
       var rTopic=topicFor(mode==='PC'?3:23);
       if(rTopic){
         if(mode==='PC'&&P.matrix){
-          // PC: Documentation section carries both — rebuild it combined
+          // PC: Documentation section carries both - rebuild it combined
           var a2=analyse();
           var both=['A training and competence matrix ("'+P.matrix.name+'") was provided and reviewed prior to the visit, covering '+a2.people+' personnel.'];
-          a2.exp.forEach(function(x){ both.push('• Action required — expired: '+x); });
-          a2.soon.forEach(function(x){ both.push('• Advisory — expiring within 30 days: '+x); });
+          a2.exp.forEach(function(x){ both.push('• Action required - expired: '+x); });
+          a2.soon.forEach(function(x){ both.push('• Advisory - expiring within 30 days: '+x); });
           if(!a2.exp.length&&!a2.soon.length) both.push('• All recorded training and certification was in date at the time of review.');
           both.push('');
           both=both.concat(rLines);
@@ -8206,12 +8206,12 @@ function addPageFooter(doc, pageNum, totalPages) {
         }
       }
     }
-    if(!wrote.length){ alert('Nothing to apply yet — load a matrix or some RAMS first.'); return; }
+    if(!wrote.length){ alert('Nothing to apply yet - load a matrix or some RAMS first.'); return; }
     if(typeof updateStatusSelectColors==='function') updateStatusSelectColors();
     if(typeof updateScoreDashboard==='function') updateScoreDashboard();
     if(window.AHS_DRAFT&&window.AHS_DRAFT.saveNow) window.AHS_DRAFT.saveNow();
     el('psOverlay').classList.remove('open');
-    alert('✅ Applied to the report: '+wrote.join('; ')+'. Edit as normal — applying again updates the same sections.');
+    alert('✅ Applied to the report: '+wrote.join('; ')+'. Edit as normal - applying again updates the same sections.');
   }
 
   // ── Uploads ──
@@ -8237,7 +8237,7 @@ function addPageFooter(doc, pageNum, totalPages) {
   function loadRamsFiles(files){
     el('psRamsErr').textContent='';
     Array.prototype.forEach.call(files,function(f){
-      if(f.size>25*1048576){ el('psRamsErr').textContent='"'+f.name+'" is over 25MB — compress it or split it.'; return; }
+      if(f.size>25*1048576){ el('psRamsErr').textContent='"'+f.name+'" is over 25MB - compress it or split it.'; return; }
       var fr=new FileReader();
       fr.onload=async function(){
         var id='rams-'+Date.now()+'-'+Math.random().toString(36).substr(2,9);
@@ -8719,7 +8719,7 @@ function addPageFooter(doc, pageNum, totalPages) {
   function line(label, val){ return (val===null||val===undefined||val==='') ? label + ': not recorded' : label + ': ' + val; }
   function listRows(rows, max){
     if(!rows.length) return '  (none)';
-    return rows.slice(0, max||12).map(function(r){ return '  - ' + (r.section?'['+r.section+'] ':'') + r.item + (r.note?' — '+r.note:''); }).join('\n') + (rows.length>(max||12) ? '\n  - …and ' + (rows.length-(max||12)) + ' more' : '');
+    return rows.slice(0, max||12).map(function(r){ return '  - ' + (r.section?'['+r.section+'] ':'') + r.item + (r.note?' - '+r.note:''); }).join('\n') + (rows.length>(max||12) ? '\n  - …and ' + (rows.length-(max||12)) + ' more' : '');
   }
   function buildPrompt(kind){
     var p = projectDetails(), v = migrateVisit(CUR.visit), cur = digest(collect());
@@ -8740,11 +8740,11 @@ function addPageFooter(doc, pageNum, totalPages) {
       'Action required:\n' + listRows(cur.actions) + '\nAdvisory:\n' + listRows(cur.advisories) + '\nObservations:\n' + listRows(cur.observations, 6) + '\nCompliant (sample):\n' + listRows(cur.compliant, 8);
     var histTxt = hist.length ? hist.map(function(h){
       var d = digest(h.state);
-      return 'Visit ' + (h.visit.visit_number||'?') + ' — ' + (fmtDate(d.date)||'date not recorded') + (h.visit.site_contact_name?' — met '+h.visit.site_contact_name:'') + (h.visit.works_phase?' — phase: '+h.visit.works_phase:'') + '\n' +
+      return 'Visit ' + (h.visit.visit_number||'?') + ' - ' + (fmtDate(d.date)||'date not recorded') + (h.visit.site_contact_name?' - met '+h.visit.site_contact_name:'') + (h.visit.works_phase?' - phase: '+h.visit.works_phase:'') + '\n' +
         '  Counts: ' + d.counts.compliant + ' compliant, ' + d.counts.advisory + ' advisory, ' + d.counts.action + ' action required\n' +
         '  Headline findings:\n' + listRows(d.actions.concat(d.advisories), 6).replace(/^/gm,'  ');
     }).join('\n') : '  (no previous inspections on record for this project)';
-    var openTxt = open.length ? open.map(function(a){ return '  - From visit ' + a.visit + (a.date?' ('+fmtDate(a.date)+')':'') + ': ' + a.item + (a.note?' — '+a.note:''); }).join('\n') : '  (none)';
+    var openTxt = open.length ? open.map(function(a){ return '  - From visit ' + a.visit + (a.date?' ('+fmtDate(a.date)+')':'') + ': ' + a.item + (a.note?' - '+a.note:''); }).join('\n') : '  (none)';
 
     var task = kind==='site'
       ? 'Write the "Site Summary and works being undertaken at the time of inspection" paragraph(s): what the site was doing on the day, who was met, the conditions, the workforce present and the focus of the visit. One or two paragraphs, 80 to 150 words in total.'
@@ -8762,7 +8762,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     return { system: system, user: user };
   }
 
-  // AI drafting removed — no API key, no external request, no cost. The
+  // AI drafting removed - no API key, no external request, no cost. The
   // summaries are now composed locally from what has been entered (see
   // buildLocalSummary). This stub stays only so nothing that referenced it
   // throws a ReferenceError.
@@ -8847,7 +8847,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     if(!target) return;
     if(strip(target.innerHTML) && !confirm('Replace the existing text with a version composed from the details you have entered?')) return;
     var parts = buildLocalSummary(kind);
-    if(!parts.length){ alert('Add some details first — the visit context, project information and findings — then try again.'); return; }
+    if(!parts.length){ alert('Add some details first - the visit context, project information and findings - then try again.'); return; }
     target.innerHTML = parts.map(function(p){ return esc(p).replace(/\n/g,'<br>'); }).join('<br><br>');
     try{ save(); }catch(e){ if(window.AHS_DRAFT && window.AHS_DRAFT.saveNow) window.AHS_DRAFT.saveNow(); }
   }
@@ -8890,8 +8890,8 @@ function addPageFooter(doc, pageNum, totalPages) {
     return opts;
   }
   function captionFor(link, note){
-    // Just the title of whatever the photo relates to — the section name for a
-    // section link, or the item text for an item link. No "S36 —" prefix.
+    // Just the title of whatever the photo relates to - the section name for a
+    // section link, or the item text for an item link. No "S36 -" prefix.
     if(!link) return note || '';
     var sec = document.querySelector('.insp-section[data-instance-id="' + link.instanceId + '"]'); if(!sec) return note||'';
     var sl = sectionLabel(sec);
@@ -8983,7 +8983,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       else startNew(v);
     };
     $('si-cancel').onclick = closeStart;
-    // Backdrop close, but ONLY when the press STARTED on the backdrop — dragging
+    // Backdrop close, but ONLY when the press STARTED on the backdrop - dragging
     // to select text and releasing on the backdrop must not close the modal.
     var _bdClose = function(el, fn){ if(!el) return; var d=false;
       el.addEventListener('mousedown', function(e){ d = (e.target === el); });

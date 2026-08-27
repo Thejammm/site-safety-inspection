@@ -9,10 +9,10 @@
 //     replaced the old cache-first shell, which left iPads/PWAs a build behind
 //     after each deploy and could get stuck there.)
 //   - The two CDN PDF libraries: cache-first (versioned URLs, never change).
-//   - /api/ requests: never cached (always network) — sync handles retries.
+//   - /api/ requests: never cached (always network) - sync handles retries.
 //   - Everything else: network first, cache fallback.
 // Still bump CACHE when you ship a build so old cached entries are dropped.
-const CACHE = 'ahs-ssi-rev4-18';
+const CACHE = 'ahs-ssi-rev4-19';
 const SHELL = ['./index.html'];
 const LIBS = [
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
@@ -51,7 +51,7 @@ self.addEventListener('fetch', (e) => {
           new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3500))
         ]);
         if (net && net.ok) { c.put(key, net.clone()); return net; }
-      } catch (_) { /* offline or too slow — fall back to cache below */ }
+      } catch (_) { /* offline or too slow - fall back to cache below */ }
       const cached = await c.match(key);
       return cached || new Response('Offline and the app has not been cached yet. Open it once with signal.', { status: 503, headers: { 'Content-Type': 'text/plain' } });
     })());
