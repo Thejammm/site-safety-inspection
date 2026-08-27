@@ -5299,27 +5299,11 @@ function _escapeHtml(s) {
 function _textToHtml(text) {
   return _escapeHtml(text).split('\n').join('<br>');
 }
-function _suffixTitle(topic) {
-  const n = instances.filter(i => i.topicId === topic.id).length;
-  return n === 0 ? topic.title : topic.title + ' (' + (n + 1) + ')';
-}
-
-// ----- Add / remove instances (both pill-x and section-remove call remove) --
-function addInstance(topicId) {
-  const topic = TOPICS.find(t => t.id === topicId);
-  if (!topic) return;
-  const inst = {
-    instanceId: _uid(),
-    topicId: topic.id,
-    title: _suffixTitle(topic),
-    content: topic.templateHtml
-  };
-  instances.push(inst);
-  renderInstances();                       // ONE call builds pill + section
-  const sec = document.querySelector('.insp-section[data-instance-id="' + inst.instanceId + '"]');
-  if (sec) { try { sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {} }
-  if (typeof window.AHS_DRAFT !== 'undefined' && window.AHS_DRAFT.scheduleSave) window.AHS_DRAFT.scheduleSave();
-}
+// ----- Remove instances (both pill-x and section-remove call remove). -----
+// Sections are CREATED by the criteria builder (one instance per captured
+// section) and recreated on restore - the old "Add H&S topic" dropdown went
+// with the H&S Arrangements card in c7c1319, and its addInstance() path went
+// unreachable then.
 function removeInstance(instanceId) {
   const idx = instances.findIndex(i => i.instanceId === instanceId);
   if (idx < 0) return;
@@ -5451,33 +5435,10 @@ function renderInstances() {
   renderPills();
   renderSections();
 }
-window.addInstance = addInstance;
 window.removeInstance = removeInstance;
 window.renderInstances = renderInstances;
 
-// Populate the "Add H&S topic" picker + wire the Add button.
-function _populateTopicPicker() {
-  const sel = document.getElementById('hsTopicSelect');
-  if (!sel) return;
-  sel.querySelectorAll('option[data-topic]').forEach(o => o.remove());
-  TOPICS.forEach(t => {
-    const o = document.createElement('option');
-    o.value = t.id;
-    o.textContent = t.title;
-    o.setAttribute('data-topic', '1');
-    sel.appendChild(o);
-  });
-}
-
 document.addEventListener('DOMContentLoaded', function () {
-  _populateTopicPicker();
-  const sel = document.getElementById('hsTopicSelect');
-  const btn = document.getElementById('hsTopicAddBtn');
-  if (btn && sel) {
-    btn.addEventListener('click', () => {
-      if (sel.value) { addInstance(sel.value); sel.value = ''; }
-    });
-  }
   renderInstances();   // starts empty
 });
 
