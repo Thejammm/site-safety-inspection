@@ -3806,6 +3806,25 @@ Opportunities to consider:
 • Continue to review material routes and storage as the works progress so access to work areas stays short and safe.`
   },
   {
+    id: "sec41",
+    title: "C - Section 41 – Wates Specific",
+    preview: "PC-specific systems: Start Right, Black Hats, Stop/Go, Plan Right, Safety Committee",
+    content: `Wates Specific:
+
+At the time of the inspection the following was observed:
+• Start Right briefings were delivered by the supervisor to the operatives at the start of each shift and the records were available on site.
+• The supervisor attended the daily Black Hats trade supervisors' meeting and the following day's works were coordinated with the other trades.
+• Operatives had access to the Stop/Go app and understood the Zero Harm observation process.
+• A Plan Right pre-start meeting was held before the works commenced and the minutes were held on site.
+• A representative attended the monthly Safety Committee meeting.
+• A daily hazard board was displayed at the workface and weekly toolbox talks were delivered and recorded.
+• The works were being carried out to the current drawings issued through Dalux / Viewpoint.
+• A copy of the Sub-Contractor Professional Standards was held and the works were being carried out in accordance with them.
+
+Opportunities to consider:
+• Continue to evidence attendance at the daily coordination meetings and the monthly Safety Committee, as these are the arrangements the Principal Contractor monitors the supply chain against.`
+  },
+  {
     id: "openingStatement",
     title: "★ Opening Statement (prompted)",
     preview: "Generic opening paragraph with [INSERT …] cues to drive your own sentences.",
@@ -4408,7 +4427,18 @@ const SIMPLE_PHRASES = [
   { id: 'c40_4', label: '(C - Section 40) Drop-off close to point of use', text: 'Material drop-off and storage points were positioned close to the point of use so that carrying distances were kept short, reducing manual handling effort and the risk of injury.' },
   { id: 'c40_5', label: '(C - Section 40) Mechanical handling aids provided', text: 'Suitable mechanical handling aids such as telehandlers, pallet trucks, trolleys or hoists were available and used to move materials rather than relying on manual carrying over distance.' },
   { id: 'c40_6', label: '(C - Section 40) Access maintained as works progress', text: 'Access and egress to work areas, and the routes used to move materials, were reviewed and maintained as the works progressed so that changing site conditions did not create long or hazardous manual handling routes.' },
-  { id: 'c40_7', label: '(C - Section 40) Safe movement of materials between levels', text: 'Where materials had to be moved between levels, a safe means such as a goods hoist or loading platform was provided instead of manual carrying up ladders or stairs.' }
+  { id: 'c40_7', label: '(C - Section 40) Safe movement of materials between levels', text: 'Where materials had to be moved between levels, a safe means such as a goods hoist or loading platform was provided instead of manual carrying up ladders or stairs.' },
+  { id: 'c41_1', label: '(C - Section 41) Start Right briefings delivered', text: 'Start Right briefings were delivered by the supervisor to the operatives at the start of each shift, covering the day\'s activities and the risks arising from them, and the briefing records were available on site.' },
+  { id: 'c41_2', label: '(C - Section 41) Black Hats coordination attended', text: 'The supervisor attended the daily Black Hats trade supervisors\' meeting, and the following day\'s works were planned and coordinated with the other trades working in the same area.' },
+  { id: 'c41_3', label: '(C - Section 41) Stop/Go app and Zero Harm observations', text: 'Operatives had access to the Stop/Go app, understood the Zero Harm observation process, and observations had been raised for hazards identified at the workface.' },
+  { id: 'c41_4', label: '(C - Section 41) Plan Right meeting held and minuted', text: 'A Plan Right pre-start meeting was held with the Principal Contractor before the works commenced and a copy of the minutes was held on site.' },
+  { id: 'c41_5', label: '(C - Section 41) Safety Committee represented', text: 'A representative attended the monthly Safety Committee meeting and the matters raised were fed back to the workforce.' },
+  { id: 'c41_6', label: '(C - Section 41) Daily hazard board displayed', text: 'A daily hazard board was displayed at the workface and showed the current risks for the work being undertaken.' },
+  { id: 'c41_7', label: '(C - Section 41) Weekly toolbox talks delivered', text: 'Weekly toolbox talks were delivered to the workforce and the records were available on site.' },
+  { id: 'c41_8', label: '(C - Section 41) Current drawings in use at the workface', text: 'The works were being carried out to the current drawings issued through Dalux / Viewpoint, and the revision in use at the workface was confirmed as the latest issue.' },
+  { id: 'c41_9', label: '(C - Section 41) Sub-Contractor Professional Standards held', text: 'A copy of the Sub-Contractor Professional Standards was held and the works were being carried out in accordance with them.' },
+  { id: 'c41_10', label: '(C - Section 41) Visiting Managers Report completed', text: 'A Visiting Managers Report was completed for each visiting manager\'s visit to site and copies were retained.' },
+  { id: 'c41_11', label: '(C - Section 41) Current Construction Phase Plan held', text: 'The current revision of the Construction Phase Plan was held, and any changes affecting the works had been communicated and briefed to the workforce.' }
 ];
 
 
@@ -7493,7 +7523,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     'induction & worker engagement':'IWE','site set-up & housekeeping':'SSU','site security & public protection':'SEC',
     'traffic management & deliveries':'TMD','plant, tools & equipment':'PTE','work at height':'WAH',
     'excavations & groundworks':'EXG','services & permit systems':'SPS','health risks & occupational health':'OCH',
-    'ppe standards':'PPE','fire & emergency arrangements':'FEA'
+    'ppe standards':'PPE','fire & emergency arrangements':'FEA','wates specific':'WAT'
   };
   function sectionCode(title){
     var key = String(title||'').trim().toLowerCase();
