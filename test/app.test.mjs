@@ -414,8 +414,13 @@ test('every finding cites a verified regulation from the register, never a free-
   assert.equal(L.AHS_LAW.anchorLine('C24'), 'Assessed against CDM 2015 regs 15(7) and 15(8); MHSWR 1999 reg 13(2).');
   assert.equal(L.AHS_LAW.holderPhrase('c22_4'), "the Principal Contractor's duty");
   assert.match(SRC, /if\(anchor\) gen\.push\(\{ text: anchor, hl:false \}\);/, 'the section anchor line is no longer written');
-  assert.match(SRC, /doc\.text\('Legal basis of findings', 20, 20\);/, 'the PDF appendix is gone');
-  assert.match(SRC, /'Requirement: ' \+ f\.basis/, 'Key Findings no longer show the requirement');
+  assert.doesNotMatch(SRC, /doc\.text\('Legal basis of findings'/, 'the regulation appendix is back in the PDF (Simon: it makes the report massive)');
+  assert.doesNotMatch(SRC, /doc\.text\('KEY FINDINGS'/, 'Key Findings is back on the PDF executive summary (Simon asked for it removed)');
+  assert.match(SRC, /legal: legal,/, 'the composer model no longer carries the one-paragraph legal basis');
+  const lg = L.AHS_LAW.summaryFor(['s7_1', 's17_5', 'c41_1']);
+  assert.equal(lg.statutory, 'CDM 2015 regs 22(1) and 28(2)');
+  assert.match(lg.hse, /excavations/);
+  assert.match(lg.contractual, /Construction Phase Plan \(CDM 2015 reg 15\(3\)\(b\)\)/);
   assert.match(SRC, /class="cap-law"/, 'the criteria modal no longer shows the basis under each check');
 });
 
@@ -436,6 +441,7 @@ test('the summary composer writes from the inspector\'s own words and never leav
     client: 'Department for Health', pc: 'Henry Boot Construction Ltd', contract: 'G & H Ltd', contractor: 'Morley Ventilation Ltd',
     contact: 'Mark (Site Supervisor)', inspector: 'Simon Archer',
     visit: { works_phase: 'Installing ductwork', operatives_on_site: 3 },
+    legal: { statutory: 'CDM 2015 regs 13(1) and 15(8)', hse: 'site rules and induction', contractual: '' },
     criteria,
     sections: [
       { name: 'CDM Roles, Cooperation & Communication',
@@ -460,5 +466,7 @@ test('the summary composer writes from the inspector\'s own words and never leav
   assert.doesNotMatch(site, /Task-specific RAMS were in place/, 'a criteria sentence the builder wrote was passed off as the inspector\'s words');
   assert.doesNotMatch(site, /…/, 'an unfilled placeholder line reached the summary');
   assert.match(closing, /A1\. Understanding of CDM duties/, 'findings are not numbered in the sign-off');
+  assert.match(closing, /measured against CDM 2015 regs 13\(1\) and 15\(8\)\. The standard applied is HSE's construction guidance on site rules and induction\./, 'the sign-off no longer summarises the legal basis in a paragraph');
+  assert.match(site, /measured against CDM 2015 regs 13\(1\) and 15\(8\)/, 'the site summary no longer summarises the legal basis');
   assert.match(SRC, /function buildLocalSummary\(kind\)\{[\s\S]{0,600}AHS_COMPOSE\.build\(/, 'buildLocalSummary no longer composes through AHS_COMPOSE');
 });

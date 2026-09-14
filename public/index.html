@@ -5486,12 +5486,28 @@ const AHS_LAW = (function(){
     var parts = [citeList(ids)].concat(ids.map(get).filter(function(e){ return e && e.kind !== 'statutory'; }).map(function(e){ return e.cite; })).filter(Boolean);
     return parts.length ? 'Assessed against ' + parts.join('; ') + '.' : '';
   }
-  // Distinct register entries behind a set of findings, in register order, for the appendix
+  // Distinct register entries behind a set of findings, in register order
   function appendix(pids){
     var want = {}; pids.forEach(function(pid){ var f = forItem(pid); if(f) f.law.forEach(function(e){ want[e.id] = true; }); });
     return LAW_REGISTER.filter(function(e){ return want[e.id]; });
   }
-  return { get: get, sectionOf: sectionOf, forItem: forItem, primary: primary, basisText: basisText, holderText: holderText, holderPhrase: holderPhrase, citeList: citeList, anchorLine: anchorLine, appendix: appendix };
+  // One paragraph's worth for the composed summaries: the regulations cited
+  // against a set of findings (their primary basis, grouped by instrument),
+  // whether the CPP is among them, and the HSE construction topics behind them.
+  function summaryFor(pids){
+    var stat = [], hse = {}, cpp = false;
+    (pids || []).forEach(function(pid){
+      var p = primary(pid); if(!p) return;
+      if(p.kind === 'statutory'){ if(stat.indexOf(p.id) < 0) stat.push(p.id); }
+      else if(p.kind === 'contractual'){ cpp = true; }
+      (SECTION_HSE[sectionOf(pid)] || []).forEach(function(id){ var e = get(id); if(e) hse[e.id] = e.cite.replace(/^HSE construction:\s*/, '').replace(/,.*$/, ''); });
+    });
+    var topics = Object.keys(hse).map(function(k){ var t = hse[k]; return /^[A-Z]{2,}/.test(t) ? t : t.charAt(0).toLowerCase() + t.slice(1); });
+    // topic names that themselves contain "and" read better separated by semicolons
+    var hseList = !topics.length ? '' : (topics.some(function(t){ return / and /.test(t); }) ? topics.join('; ') : joinRefs(topics));
+    return { statutory: citeList(stat), hse: hseList, contractual: cpp ? 'the Construction Phase Plan (CDM 2015 reg 15(3)(b))' : '' };
+  }
+  return { get: get, sectionOf: sectionOf, forItem: forItem, primary: primary, basisText: basisText, holderText: holderText, holderPhrase: holderPhrase, citeList: citeList, anchorLine: anchorLine, appendix: appendix, summaryFor: summaryFor };
 })();
 if (typeof window !== 'undefined') window.AHS_LAW = AHS_LAW;
 // ── AHS_LAW end ──
@@ -5976,91 +5992,6 @@ if (showScores) {
     doc.setTextColor(107, 114, 128);
     doc.text('Findings for this visit are recorded in the section narratives - see Inspection Results.', 20, y);
     y += 8;
-  }
-
-  // --- Key findings - the actual raised items, not a copy of the counts ---
-  const findingRows = [];
-  document.querySelectorAll('#secs .insp-section').forEach(sec => {
-    const fields = sec.querySelectorAll(".field .rte[contenteditable='true']");
-    const secName = fields[0] ? stripSectionTitle(fields[0].innerText.trim()) : '';
-    sec.querySelectorAll('.items-list .item-row').forEach(row => {
-      const sel = row.querySelector('select.status-select');
-      const sv = (sel ? sel.value : '').toLowerCase();
-      if (!sv || sv === 'compliant' || sv === 'na' || sv === 'n/a') return;
-      const rtes = row.querySelectorAll(".rte[contenteditable='true']");
-      const label = sel && sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex].text : sv;
-      findingRows.push({
-        section: secName,
-        statusValue: sv,
-        statusLabel: label,
-        item: rtes[0] ? rtes[0].innerText.trim() : '',
-        comment: rtes[1] ? rtes[1].innerText.trim() : '',
-        basis: (window.AHS_LAW && row.dataset && row.dataset.capPid && AHS_LAW.basisText(row.dataset.capPid, sv))
-          ? AHS_LAW.basisText(row.dataset.capPid, sv) + (AHS_LAW.holderPhrase(row.dataset.capPid) ? ', ' + AHS_LAW.holderPhrase(row.dataset.capPid) : '') : ''
-      });
-    });
-  });
-
-  if (findingRows.length > 0) {
-    y += 10;
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(107, 114, 128);
-    try { doc.setCharSpace(0.8); } catch (e) {}
-    doc.text('KEY FINDINGS', 20, y);
-    try { doc.setCharSpace(0); } catch (e) {}
-    y += 6;
-
-    const FINDING_COLORS = { advisory: [234, 179, 8], minor: [220, 38, 38], action: [220, 38, 38], observation: [56, 189, 248] };
-    doc.setDrawColor(209, 213, 219);
-    doc.setLineWidth(0.3);
-    doc.line(22, y, 188, y);
-
-    for (const f of findingRows) {
-      if (y > 240) {
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'italic');
-        doc.setTextColor(107, 114, 128);
-        doc.text('Further findings are listed in the section detail pages.', 22, y + 6);
-        break;
-      }
-      y += 6;
-      doc.setFillColor(...(FINDING_COLORS[f.statusValue] || [156, 163, 175]));
-      doc.rect(22, y - 2.6, 3, 3, 'F');
-      doc.setFontSize(10.5);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(31, 41, 55);
-      const itemTxt = f.item || '(untitled item)';
-      doc.text(doc.splitTextToSize(itemTxt, 120)[0], 28, y);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(107, 114, 128);
-      doc.text(f.statusLabel, 188, y, { align: 'right' });
-      if (f.comment) {
-        y += 5;
-        doc.setFontSize(9);
-        doc.setTextColor(75, 85, 99);
-        const cLines = doc.splitTextToSize(f.comment, 158).slice(0, 3);
-        doc.text(cLines, 28, y);
-        y += (cLines.length - 1) * 4.2;
-      }
-      if (f.basis) {
-        y += 4.5;
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(11, 107, 127);
-        doc.text(doc.splitTextToSize('Requirement: ' + f.basis, 158)[0], 28, y);
-      }
-      if (f.section) {
-        y += 4.5;
-        doc.setFontSize(8);
-        doc.setTextColor(140, 148, 164);
-        doc.text(doc.splitTextToSize(f.section, 158)[0], 28, y);
-      }
-      y += 4;
-      doc.setDrawColor(229, 231, 235);
-      doc.setLineWidth(0.25);
-      doc.line(22, y, 188, y);
-    }
   }
 
   y += 10; // Space before Inspection Summary
@@ -6680,44 +6611,6 @@ if (images.length > 0) {
   console.log('✓ Images added:', imageCount);
   addPageFooter(doc, currentPage, '?');
 }
-    // ========================================
-    // LEGAL BASIS OF FINDINGS - every requirement an Action or Advisory
-    // finding was measured against, in plain English, with its reference.
-    // ========================================
-    if (window.AHS_LAW) {
-      const pidsCited = [];
-      document.querySelectorAll('#secs .insp-section .items-list .item-row').forEach(row => {
-        const sv = ((row.querySelector('select.status-select') || {}).value || '').toLowerCase();
-        if ((sv === 'minor' || sv === 'advisory') && row.dataset && row.dataset.capPid) pidsCited.push(row.dataset.capPid);
-      });
-      const lawEntries = AHS_LAW.appendix(pidsCited);
-      if (lawEntries.length) {
-        doc.addPage(); currentPage++;
-        if (typeof drawBrandBorders === 'function') drawBrandBorders(doc);
-        doc.setFontSize(22); doc.setFont(undefined, 'bold'); doc.setTextColor(58, 58, 58);
-        doc.text('Legal basis of findings', 20, 20);
-        doc.setDrawColor(75, 191, 214); doc.setLineWidth(0.8); doc.line(20, 24, 190, 24);
-        y = 33;
-        doc.setFontSize(9.5); doc.setFont(undefined, 'normal'); doc.setTextColor(75, 85, 99);
-        const lawIntro = doc.splitTextToSize('The findings marked Action or Advisory in this report are measured against the requirements below. Statutory requirements are given in plain English from the regulation as published on legislation.gov.uk; guidance and the Construction Phase Plan are named as the standard applied, not as law. Where a requirement is qualified by "so far as is reasonably practicable", the finding is that the standard was not met on the day; whether it was reasonably practicable to meet it is for the duty holder to demonstrate.', 170);
-        doc.text(lawIntro, 20, y); y += lawIntro.length * 4.4 + 4;
-        lawEntries.forEach(e => {
-          doc.setFontSize(9);
-          const req = doc.splitTextToSize(e.requirement || '', 166);
-          const need = 5 + (e.holder ? 4.2 : 0) + req.length * 4.2 + (e.url ? 3.5 : 0) + 7;
-          if (y + need > 272) { addPageFooter(doc, currentPage, '?'); doc.addPage(); currentPage++; if (typeof drawBrandBorders === 'function') drawBrandBorders(doc); y = 20; }
-          doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(11, 107, 127);
-          doc.text(e.cite, 20, y); y += 4.8;
-          if (e.holder) { doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(140, 148, 164); doc.text('Duty holder: ' + e.holder, 20, y); y += 4.2; }
-          doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.setTextColor(55, 65, 81);
-          doc.text(req, 20, y); y += req.length * 4.2 + 1;
-          if (e.url) { doc.setFontSize(7.5); doc.setTextColor(140, 148, 164); doc.text(e.url, 20, y); y += 3.5; }
-          doc.setDrawColor(229, 231, 235); doc.setLineWidth(0.25); doc.line(20, y + 1, 190, y + 1); y += 6;
-        });
-        addPageFooter(doc, currentPage, '?');
-      }
-    }
-
     // ========================================
     // FINAL PAGE: SIGN-OFF  (only when the sign-off toggle is on)
     // ========================================
@@ -9518,6 +9411,14 @@ function addPageFooter(doc, pageNum, totalPages) {
       return 'The incidents recorded since the last visit' + (inc.themes.length ? ' involve ' + join(inc.themes) : ' are listed under the findings') +
         '. The pattern behind them should be reviewed with the workforce, and the controls for the activities involved checked at the next visit.';
     }
+    // The legal basis in one paragraph, instead of an appendix: what the findings
+    // are measured against, grouped by instrument, and the HSE topics behind them.
+    function legalText(legal) {
+      if (!legal || (!legal.statutory && !legal.contractual)) return '';
+      var s = 'The matters above are measured against ' + [legal.statutory, legal.contractual].filter(Boolean).join(' and ') + '.';
+      if (legal.hse) s += " The standard applied is HSE's construction guidance on " + legal.hse + '.';
+      return s + ' Each requirement is stated against the finding it applies to.';
+    }
     function priorText(prior) {
       return plural(prior.length, 'action', 'actions') + ' raised at ' + (prior.length === 1 ? 'a previous visit remains' : 'previous visits remain') + ' open: ' +
         prior.map(function (x) { return noStop(x.item) + (x.visit ? ' (visit ' + x.visit + ')' : ''); }).join('; ') + '.';
@@ -9615,6 +9516,7 @@ function addPageFooter(doc, pageNum, totalPages) {
         // the inspector's comments in areas with no finding
         var rest = Object.keys(own);
         if (rest.length) parts.push('The inspector also noted the following. ' + rest.map(function (s) { return s + ': ' + own[s].join(' '); }).join(' '));
+        if (f.minor.length || f.advisory.length) { var lt = legalText(m.legal); if (lt) parts.push(lt); }
 
         // 8. incidents, open actions, gaps
         if (inc) parts.push(incidentsText(inc));
@@ -9645,6 +9547,7 @@ function addPageFooter(doc, pageNum, totalPages) {
         if (f.advisory.length) parts.push(cap(plural(f.advisory.length, 'advisory item was', 'advisory items were')) + ' raised for ' + p.subject + ' to improve on before the next visit.\n' + f.advisory.map(findingLine).join('\n'));
         if (f.observation.length) parts.push(cap(plural(f.observation.length, 'observation was', 'observations were')) + ' recorded for attention.\n' + f.observation.map(findingLine).join('\n'));
         if (!f.all.length && c.total) parts.push('No corrective actions were required on this visit.');
+        if (f.minor.length || f.advisory.length) { var lt2 = legalText(m.legal); if (lt2) parts.push(lt2); }
         if (inc) parts.push(incidentsText(inc));
         if (prior.length) parts.push(priorText(prior));
         if (ev.length) parts.push('The areas found to be in good order, in particular ' + join(ev.slice(0, 3).map(function (g) { return inSentence(g.section, p.keep); }), '; ') + ', should be maintained.');
@@ -9675,20 +9578,36 @@ function addPageFooter(doc, pageNum, totalPages) {
   // Model for the composer: everything the report holds, in plain text. The
   // criteria and section-template sentences go with it so the composer can
   // tell the builder's lines from the inspector's own words.
+  // Model for the composer: everything the report holds, in plain text. The
+  // criteria and section-template sentences go with it so the composer can
+  // tell the builder's lines from the inspector's own words.
+  // Model for the composer: everything the report holds, in plain text. The
+  // criteria and section-template sentences go with it so the composer can
+  // tell the builder's lines from the inspector's own words.
   function _composeModel(){
     var s = collect(); var fx = s.fixed || {};
     var fp = {}; try{ fp = JSON.parse(localStorage.getItem('FRONTPAGE_DATA_V1') || '{}') || {}; }catch(e){ fp = {}; }
     var phrases = (typeof SIMPLE_PHRASES !== 'undefined') ? SIMPLE_PHRASES : [];
     var byId = {}; phrases.forEach(function(p){ byId[p.id] = p.text || ''; });
+    var hasLaw = (typeof AHS_LAW !== 'undefined');
+    // the builder's own sentences: criteria, section templates, the observed line and the legal anchors
     var criteria = phrases.map(function(p){ return p.text || ''; })
-      .concat(((typeof TOPICS !== 'undefined') ? TOPICS : []).map(function(t){ return t.templateHtml || ''; }), ['At the time of the inspection the following was observed:']);
+      .concat(((typeof TOPICS !== 'undefined') ? TOPICS : []).map(function(t){ return t.templateHtml || ''; }), ['At the time of the inspection the following was observed:'],
+        (hasLaw && typeof SECTION_LAW !== 'undefined') ? Object.keys(SECTION_LAW).map(function(k){ return AHS_LAW.anchorLine(k); }) : []);
+    var cited = [];   // checks behind the Action and Advisory findings, for the one-paragraph legal basis
     var sections = (s.inspections || []).map(function(sec){
       var name = strip(sec.sectionNameHtml); if(window.stripSectionTitle) name = window.stripSectionTitle(name);
       return { name: name, lines: AHS_COMPOSE.linesFromHtml(sec.commentsHtml),
-        rows: (sec.rows || []).map(function(r){ return { item: strip(r.itemHtml), status: r.status || '', note: strip(r.commentsHtml), text: r.capPid ? (byId[r.capPid] || '') : '' }; }) };
+        rows: (sec.rows || []).map(function(r){
+          var st = r.status || '';
+          if(r.capPid && (st === 'minor' || st === 'advisory')) cited.push(r.capPid);
+          return { item: strip(r.itemHtml), status: st, note: strip(r.commentsHtml), text: r.capPid ? (byId[r.capPid] || '') : '',
+            basis: (r.capPid && hasLaw) ? AHS_LAW.basisText(r.capPid, st) : '', holder: (r.capPid && hasLaw) ? AHS_LAW.holderPhrase(r.capPid) : '' };
+        }) };
     });
     var prior = []; try{ prior = openActions(); }catch(e){ prior = []; }
-    return { project: fp.projectName || '', description: fp.description || '',
+    var legal = (hasLaw && cited.length) ? AHS_LAW.summaryFor(cited) : null;
+    return { project: fp.projectName || '', description: fp.description || '', legal: legal,
       client: strip(fx.site), pc: strip(fx.proj), contract: strip(fx.con), contractor: strip(fx.cli),
       contact: strip(fx.siteContact), inspector: strip(fx.cslt) || strip(fx.ins),
       visit: CUR.visit || {}, sections: sections, criteria: criteria, prior: prior };
