@@ -12,7 +12,7 @@
 //   - /api/ requests: never cached (always network) - sync handles retries.
 //   - Everything else: network first, cache fallback.
 // Still bump CACHE when you ship a build so old cached entries are dropped.
-const CACHE = 'ahs-ssi-rev4-26';
+const CACHE = 'ahs-ssi-rev4-27';
 const SHELL = ['./index.html'];
 const LIBS = [
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
@@ -45,6 +45,13 @@ self.addEventListener('fetch', (e) => {
     e.respondWith((async () => {
       const c = await caches.open(CACHE);
       const key = req.mode === 'navigate' ? './index.html' : req;
+      // Known offline: the cached shell straight away, no 3.5s wait for a
+      // request that cannot succeed. (Stalled-but-connected still goes
+      // through the timed race below.)
+      if (self.navigator && navigator.onLine === false) {
+        const off = await c.match(key);
+        if (off) return off;
+      }
       try {
         const net = await Promise.race([
           fetch(req, { cache: 'no-store' }),

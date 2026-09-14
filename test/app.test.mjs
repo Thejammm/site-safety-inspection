@@ -99,6 +99,30 @@ test('photos can be written out as real files, and the store asks to persist', (
   assert.match(h[1], /AHS_PHOTOS\.get\(/, 'photos not yet in memory are skipped instead of read from the store');
 });
 
+test('a poor site signal degrades to amber and a retry, never a hang or a red banner', () => {
+  // 2026-09-14: 'on site the web access drops out and the app freezes'. Four
+  // rules, each undone silently by a careless edit: every request times out;
+  // one upload in flight at a time (edits during it queue one more); photos
+  // ride only when the set changed, and the SERVER keeps its copy when the key
+  // is absent; a network failure is an amber note plus backoff retry, and the
+  // red banner stays reserved for the server actually rejecting.
+  const apiFn = SRC.match(/async function api\(path, opts\)\s*\{([\s\S]*?)\r?\n {4}\}/);
+  assert.ok(apiFn, 'api() not found');
+  assert.match(apiFn[1], /AbortController/, 'requests no longer time out - a stalled signal hangs the app');
+  assert.match(SRC, /if\(_inflight\)\{ _pushAgain = true; return _inflight; \}/, 'pushes can overlap again');
+  assert.match(SRC, /if\(!sendingPhotos\) delete blob\[PHOTO_KEY\];/, 'every save re-uploads every photo again');
+  assert.match(SRC, /else if\(!blob\[PHOTO_KEY\]\) blob\[PHOTO_KEY\] = \{\};/, 'deleting the last photo would not clear it on the server');
+  assert.match(SRC, /AHS_SAVE_STATUS\.note\('offline'/, 'a lost signal raises the red NOT SAVED banner instead of the amber note');
+  assert.match(SRC, /_retryTimer = setTimeout\(function\(\)\{ _retryTimer = null; push\(\); \}, _retryMs\);/, 'no automatic retry when the signal returns');
+  // server side of the photo rule
+  const route = fs.readFileSync(path.join(here, '..', 'routes', 'state.js'), 'utf8');
+  assert.match(route, /require\('\.\/merge-state'\)/, 'routes/state.js no longer merges - an omitted __photos__ would wipe the server copy');
+  assert.match(route, /JSON\.stringify\(merged\)/, 'the merged state is not what gets written');
+  // service worker: known-offline serves the shell at once
+  const sw = fs.readFileSync(path.join(here, '..', 'public', 'sw.js'), 'utf8');
+  assert.match(sw, /navigator\.onLine === false/, 'offline load waits the full timeout before showing the cached app');
+});
+
 test('the photo store is only ever wiped wholesale from the confirmed device wipe', () => {
   // Clearing this store loses every photo for every report on the device.
   // Per-report clears must delete their own ids. One legitimate caller.

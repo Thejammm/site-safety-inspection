@@ -9,6 +9,7 @@
 const express  = require('express');
 const { pool } = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { mergeState } = require('./merge-state');
 
 const router = express.Router();
 
@@ -105,6 +106,14 @@ router.post('/', requireAuth, express.json({ limit: '50mb' }), async (req, res) 
       return res.status(403).json({ error: 'forbidden' });
     }
 
+    // Photos omitted by the client mean 'unchanged since my last upload':
+    // carry the row's existing copy across rather than replacing it with none.
+    const cur = await pool.query(
+      `SELECT state FROM app_state WHERE tenant_id = $1 AND project = $2 LIMIT 1`,
+      [tenantId, project]
+    );
+    const merged = mergeState(cur.rows.length ? cur.rows[0].state : null, state);
+
     const r = await pool.query(
       `INSERT INTO app_state (tenant_id, project, state, updated_at, updated_by)
        VALUES ($1, $2, $3::jsonb, NOW(), $4)
@@ -113,7 +122,7 @@ router.post('/', requireAuth, express.json({ limit: '50mb' }), async (req, res) 
              updated_at = NOW(),
              updated_by = EXCLUDED.updated_by
        RETURNING updated_at`,
-      [tenantId, project, JSON.stringify(state), req.user.id]
+      [tenantId, project, JSON.stringify(merged), req.user.id]
     );
     res.json({
       ok:        true,

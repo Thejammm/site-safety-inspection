@@ -7075,13 +7075,37 @@ function addPageFooter(doc, pageNum, totalPages) {
     }
     function setProject(p){ _project = (p||'Default Project'); try{ localStorage.setItem('ahsSyncProject',_project); }catch(_){} }
 
+    // Every request times out. On site the connection often stalls rather than
+    // drops, and a stalled fetch otherwise hangs for minutes with Saving... on
+    // screen. opts.timeoutMs overrides the 12s default (photo uploads use more).
     async function api(path, opts){
       opts = opts || {};
+      var ms = opts.timeoutMs || 12000; delete opts.timeoutMs;
       opts.headers = Object.assign({'Content-Type':'application/json'}, opts.headers||{});
       opts.credentials = 'same-origin';
-      var res = await fetch(path, opts);
-      if(!res.ok){ var e=new Error('http_'+res.status); e.status=res.status; throw e; }
-      return res.status===204 ? null : res.json();
+      var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null, timer = null;
+      if(ctl){ opts.signal = ctl.signal; timer = setTimeout(function(){ try{ ctl.abort(); }catch(_){} }, ms); }
+      if(opts.abortRef){ opts.abortRef.abort = ctl ? function(){ try{ ctl.abort(); }catch(_){} } : null; delete opts.abortRef; }
+      try{
+        var res = await fetch(path, opts);
+        if(!res.ok){ var e=new Error('http_'+res.status); e.status=res.status; throw e; }
+        return res.status===204 ? null : res.json();
+      } finally { if(timer) clearTimeout(timer); }
+    }
+    // No signal, or the request stalled and our timeout cut it. Nothing is
+    // lost either way: the draft and the photos are on this device.
+    function _isNetworkFailure(e){
+      if(navigator.onLine === false) return true;
+      if(!e) return false;
+      if(e.name === 'AbortError') return true;
+      if(e.status) return false;                       // the server answered
+      return (e instanceof TypeError) || /fetch|network/i.test(String(e.message||''));
+    }
+    function _photoSig(map){
+      if(!map) return 'none';
+      var ids = Object.keys(map).sort(), total = 0;
+      ids.forEach(function(id){ total += (map[id]||'').length; });
+      return ids.join(',') + '|' + total;
     }
 
     // Photos no longer live in localStorage, so they have to be carried
@@ -7166,17 +7190,63 @@ function addPageFooter(doc, pageNum, totalPages) {
     }
     // Returns true only if the state is safely on the server. Callers that are
     // about to clear this device depend on that answer.
+    // One push in flight at a time: edits made while it runs queue exactly one
+    // more. Before this, every edit during a slow upload started another
+    // multi-megabyte POST alongside it, and on a poor signal that is how the
+    // app came to feel frozen.
+    var _inflight = null, _pushAgain = false, _lastPhotoSig = null, _retryTimer = null, _retryMs = 15000, _lastPushOffline = false, _pushAbort = {}, _selfAbort = false;
     async function push(){
       if(!_user) return false;
+      if(_inflight){ _pushAgain = true; return _inflight; }
+      _inflight = (async function(){
+        var ok = false;
+        try{ ok = await _pushOnce(); } finally { _inflight = null; }
+        // Edits that arrived meanwhile: one follow-up, but only after a success.
+        // After a failure the retry timer sends the newest draft anyway, and
+        // chaining here is what made a stalled Save wait for push after push.
+        var again = _pushAgain; _pushAgain = false;
+        if(again && ok) setTimeout(push, 0);
+        return ok;
+      })();
+      return _inflight;
+    }
+    async function _pushOnce(){
       var blob = await collectState();
       if(!Object.keys(blob).length) return true;   // nothing to save is not a failure
+      // Photos ride only when the set changed since the last successful upload.
+      // The server keeps its copy when the key is absent (routes/state.js merges),
+      // so a text edit sends kilobytes instead of re-serialising every photo on
+      // the main thread. An explicit empty object still clears them server-side.
+      var sig = _photoSig(blob[PHOTO_KEY]);
+      var sendingPhotos = (sig !== _lastPhotoSig);
+      if(!sendingPhotos) delete blob[PHOTO_KEY];
+      else if(!blob[PHOTO_KEY]) blob[PHOTO_KEY] = {};
       try{
-        await api('/api/state',{method:'POST',body:JSON.stringify({tenantId:TENANT,project:project(),state:blob})});
+        _pushAbort = {};
+        await api('/api/state',{method:'POST',body:JSON.stringify({tenantId:TENANT,project:project(),state:blob}),
+                                 timeoutMs: sendingPhotos ? 45000 : 15000, abortRef: _pushAbort});
+        if(sendingPhotos) _lastPhotoSig = sig;
+        _lastPushOffline = false; _retryMs = 15000;
+        if(_retryTimer){ clearTimeout(_retryTimer); _retryTimer = null; }
         setStatus('saved');
-        window.AHS_SAVE_STATUS.ok('server');
+        window.AHS_SAVE_STATUS.ok('server'); window.AHS_SAVE_STATUS.ok('offline');
         return true;
       }
       catch(e){
+        if(_selfAbort){ _selfAbort = false; return false; }   // we cut it short ourselves: not a signal problem
+        if(_isNetworkFailure(e)){
+          // Carry on: the work is on this device. Amber, not red, and retried
+          // quietly with backoff until the signal comes back.
+          _lastPushOffline = true;
+          setStatus('offline');
+          window.AHS_SAVE_STATUS.ok('server');
+          window.AHS_SAVE_STATUS.note('offline', 'No signal - your work is saved on this device and will upload when the connection returns');
+          if(_retryTimer) clearTimeout(_retryTimer);
+          _retryTimer = setTimeout(function(){ _retryTimer = null; push(); }, _retryMs);
+          _retryMs = Math.min(_retryMs * 2, 60000);
+          return false;
+        }
+        _lastPushOffline = false;
         setStatus('error');
         // A red pill in the toolbar is not enough - that is how a whole day's
         // work went up the road without anyone noticing.
@@ -7185,6 +7255,12 @@ function addPageFooter(doc, pageNum, totalPages) {
                            : 'your report could not be saved online', e);
         return false;
       }
+    }
+    // What to tell the user when a save they asked for did not happen.
+    function _saveFailMsg(name, then){
+      return _lastPushOffline
+        ? 'No signal right now, so "' + name + '" could not be uploaded. ' + then + ' Your work is saved on this device and will upload when the connection returns.'
+        : 'Could not save "' + name + '" to the cloud. Check you are signed in and try again. Your work is still here.';
     }
     async function pull(){
       // Hydrate from server once per tab session, to avoid reload loops.
@@ -7246,6 +7322,14 @@ function addPageFooter(doc, pageNum, totalPages) {
       clearTimeout(_saveTimer);
       try{ if(window.AHS_DRAFT && window.AHS_DRAFT.saveNow) window.AHS_DRAFT.saveNow(); }catch(_){}
       if(!_user) return false;            // signed out: nothing to save to
+      if(_inflight){
+        // A push is already running with older content. Cut it short and
+        // send the page as it is now - one timeout on a stalled signal, not two.
+        _selfAbort = true;
+        try{ if(_pushAbort.abort) _pushAbort.abort(); }catch(_){}
+        try{ await _inflight; }catch(_){}
+        _selfAbort = false;
+      }
       return (await push()) !== false;
     }
 
@@ -7279,9 +7363,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       if(!name) return;
       if(name === project()) return;                 // already open
       if(!(await _flushCurrent())){
-        alert('Could not save "' + project() + '" to the cloud, so nothing has been switched.' +
-              String.fromCharCode(10,10) +
-              'Check you are online and signed in, then try again. Your work is still here.');
+        alert(_saveFailMsg(project(), 'Switching now would leave that work behind, so nothing has been switched - carry on with this inspection.'));
         return;
       }
       setProject(name);
@@ -7304,9 +7386,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     async function newBlankProject(name){
       if(!name) return;
       if(!(await _flushCurrent())){
-        alert('Could not save "' + project() + '" to the cloud, so nothing has been started.' +
-              String.fromCharCode(10,10) +
-              'Check you are online and signed in, then try again. Your work is still here.');
+        alert(_saveFailMsg(project(), 'Starting a blank one now would leave that work behind, so nothing has been started - carry on with this inspection.'));
         return;
       }
       setProject(name);
@@ -7397,8 +7477,8 @@ function addPageFooter(doc, pageNum, totalPages) {
     function setStatus(s){
       if(!statusEl) return;
       if(!_user){ statusEl.textContent='Local only'; return; }
-      if(s==='error' && navigator.onLine===false){ statusEl.textContent='Offline - saved on this device, will upload when signal returns'; return; }
-      statusEl.textContent = ({saving:'Saving…',saved:'Saved to cloud ✓',error:'Save error - retrying on next change',off:'Signed in'})[s] || ('Cloud: '+(_user.email||'on'));
+      if(s==='error' && navigator.onLine===false) s = 'offline';
+      statusEl.textContent = ({saving:'Saving…',saved:'Saved to cloud ✓',offline:'No signal - saved on this device, will upload when it returns',error:'Save error - retrying on next change',off:'Signed in'})[s] || ('Cloud: '+(_user.email||'on'));
     }
     function el(tag,attrs,html){ var e=document.createElement(tag); if(attrs)Object.keys(attrs).forEach(function(a){e.setAttribute(a,attrs[a]);}); if(html!=null)e.innerHTML=html; return e; }
     function buildBar(){
@@ -7423,8 +7503,7 @@ function addPageFooter(doc, pageNum, totalPages) {
         try{ ok = await _flushCurrent(); }catch(_){ ok = false; }
         saveBtn.textContent = ok ? 'Saved ✓' : 'Not saved';
         saveBtn.style.color = ok ? '#0b6b7f' : '#b91c1c';
-        if(!ok) alert('Could not save "' + project() + '" to the cloud.' + String.fromCharCode(10,10) +
-                      'Check you are online and signed in, then press Save again. Your work is still on this device.');
+        if(!ok) alert(_saveFailMsg(project(), 'You can carry on.'));
         setTimeout(function(){ saveBtn.disabled = false; saveBtn.textContent = label; saveBtn.style.color = '#0b6b7f'; }, 2000);
       };
       bar.appendChild(statusEl); bar.appendChild(saveBtn); bar.appendChild(projBtn); bar.appendChild(btn); (slot||document.body).appendChild(bar);
