@@ -4856,7 +4856,9 @@ window.showPhraseModal = showPhraseModal;
     // IMAGES: Restore images from saved state
     if (Array.isArray(state.images) && typeof allImages !== 'undefined') {
       try {
-        allImages = [];
+        // Built privately and swapped in whole: anything that reads allImages
+        // while this runs sees the previous complete list, never a partial one.
+        const built = [];
         let missing = 0;
 
         // Three places a photo can come from, in order of preference:
@@ -4896,12 +4898,13 @@ window.showPhraseModal = showPhraseModal;
           }
 
           if (dataUrl) {
-            allImages.push({ id, file: null, dataUrl, caption: imgData.caption || '', link: imgData.link || null });
+            built.push({ id, file: null, dataUrl, caption: imgData.caption || '', link: imgData.link || null });
           } else {
             missing++;
           }
         }
 
+        allImages = built;
         if (missing) {
           window.AHS_SAVE_STATUS.note('photos',
             missing + ' photo' + (missing === 1 ? ' is' : 's are') + ' not stored in this browser' +
@@ -4930,9 +4933,15 @@ window.showPhraseModal = showPhraseModal;
   //    server and reloads; the reload's own pagehide used to collect the
   //    still-empty page and overwrite the just-pulled draft.
   let _restoredOnce = false;
+  // How many restore passes are in flight, and whether a save asked for one
+  // while they were. Every pass rebuilds the photo list from the store one
+  // read at a time; a save landing mid-pass used to write the half-built
+  // list back as truth and silently drop the rest of the photos.
+  let _restoring = 0, _saveAfterRestore = false;
 
   function saveNow() {
     if (!_restoredOnce || window.AHS_SYNC_RELOADING) return;
+    if (_restoring) { _saveAfterRestore = true; return; }   // a pass is rebuilding the page: save after it, not over it
     let stateJson;
     try {
       stateJson = JSON.stringify(collectState());
@@ -4973,10 +4982,16 @@ window.showPhraseModal = showPhraseModal;
   // state after the first has finished.
   let _restoreChain = Promise.resolve();
   function restoreIfPresent() {
+    _restoring++;
     _restoreChain = _restoreChain
       .then(() => _restoreOnce())
       .catch(e => { console.warn('Draft restore failed:', e); })
-      .then(() => { _restoredOnce = true; });
+      .then(() => {
+        _restoredOnce = true;
+        _restoring = Math.max(0, _restoring - 1);
+        // a save that was asked for during the pass runs now, on the complete page
+        if (!_restoring && _saveAfterRestore) { _saveAfterRestore = false; try { saveNow(); } catch (e) {} }
+      });
     return _restoreChain;
   }
 
@@ -5043,7 +5058,11 @@ window.showPhraseModal = showPhraseModal;
     const frontPageData = loadFrontPageData();
     updateFrontPageDisplay(frontPageData);
   });
-  window.addEventListener("pageshow", async () => {
+  window.addEventListener("pageshow", async (e) => {
+    // A normal load already restored on DOMContentLoaded; a second full pass
+    // here is what opened the race. Only a return from the back/forward
+    // cache needs one.
+    if (!(e && e.persisted)) return;
     await restoreIfPresent();
     // Also update front page display on page show
     const frontPageData = loadFrontPageData();

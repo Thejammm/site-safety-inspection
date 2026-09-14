@@ -183,6 +183,25 @@ test('opening the app never writes the server copy over unsynced work on the dev
   assert.match(SRC, /visibilityState === 'visible' && _user && _isDirty\(\)\) push\(\)/, 'coming back to the app does not retry unsynced work');
 });
 
+test('a save can never capture a half-restored photo list', () => {
+  // 2026-09-14: a 56-photo report came back from an export with 36, then 25,
+  // then 10 photos. The draft restore ran on DOMContentLoaded AND on pageshow
+  // (which fires right after load), each pass emptied allImages and rebuilt it
+  // one store read at a time, and _restoredOnce only guarded the FIRST pass -
+  // so a save landing mid-pass wrote the half-built list back as truth and the
+  // rest of the photos dropped off the report. Three guards, each one enough
+  // to reopen the hole if removed.
+  const save = SRC.match(/function saveNow\(\)\s*\{\s*([\s\S]{0,300})/);
+  assert.ok(save, 'saveNow() not found');
+  assert.match(save[1], /if \(_restoring\) \{ _saveAfterRestore = true; return; \}/,
+    'saveNow no longer stands down while a restore pass is rebuilding the page');
+  assert.match(SRC, /_restoring\+\+;/, 'restoreIfPresent no longer counts itself in');
+  assert.match(SRC, /allImages = built;/, 'the photo list is no longer built privately and swapped in whole');
+  assert.ok(!/allImages = \[\];\s*let missing = 0;/.test(SRC), 'applyState empties allImages before rebuilding it again');
+  const ps = SRC.match(/addEventListener\("pageshow", async \(e\) => \{([\s\S]{0,400}?)restoreIfPresent\(\)/);
+  assert.ok(ps && /e\.persisted/.test(ps[1]), 'pageshow restores on every load again, not only on a BFCache return');
+});
+
 test('the photo store is only ever wiped wholesale from the confirmed device wipe', () => {
   // Clearing this store loses every photo for every report on the device.
   // Per-report clears must delete their own ids. One legitimate caller.

@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Restore an exported report</title>
+<style>
+  body{font:15px/1.5 -apple-system,system-ui,"DM Sans",sans-serif;color:#222;background:#f4f6f8;margin:0;padding:18px}
+  .card{background:#fff;border:1px solid #d0d5dd;border-radius:10px;padding:18px;max-width:720px;margin:0 auto 14px}
+  h1{font-size:19px;margin:0 0 6px} h2{font-size:15px;margin:18px 0 6px}
+  .sub{color:#555;font-size:13px;margin:0 0 10px}
+  button{font:inherit;border-radius:8px;padding:11px 16px;cursor:pointer;border:1px solid #bfe3ec;background:#eef6f8;color:#0b6b7f}
+  button.b1{background:#4BBFD6;color:#fff;border-color:#4BBFD6;font-weight:600}
+  button[disabled]{opacity:.5;cursor:default}
+  input[type=file]{font:inherit} input[type=text]{font:inherit;padding:9px;border:1px solid #ccc;border-radius:6px;width:100%;box-sizing:border-box}
+  table{border-collapse:collapse;width:100%;font-size:14px} td{padding:5px 8px;border-bottom:1px solid #eef2f6;vertical-align:top} td:first-child{color:#555;width:38%}
+  .warn{background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:8px;padding:10px 12px;margin:10px 0}
+  .ok{background:#ecfdf5;border:1px solid #6ee7b7;color:#065f46;border-radius:8px;padding:10px 12px;margin:10px 0}
+  .err{background:#fef2f2;border:1px solid #fca5a5;color:#991b1b;border-radius:8px;padding:10px 12px;margin:10px 0}
+  #log{font:12px/1.5 ui-monospace,monospace;white-space:pre-wrap;color:#444;background:#f8fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px;max-height:220px;overflow:auto}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Restore an exported report onto this device</h1>
+  <p class="sub">Pick a report you saved with <b>Export HTML</b>. It carries the written report and every photo. This puts it back on this device exactly as it was, then the app uploads it to the cloud the next time it opens with a signal.</p>
+  <p><input type="file" id="file" accept=".html,text/html"></p>
+  <div id="summary" hidden>
+    <h2>What is in the file</h2>
+    <table id="tbl"></table>
+    <h2>Restore it under this project name</h2>
+    <input type="text" id="proj" placeholder="Project name">
+    <div id="dirtyWarn" class="warn" hidden><b>This device holds work that has not reached the cloud yet.</b> Restoring will replace it. Open the app first and press Save, then come back - or tick below to replace it anyway.<br><label><input type="checkbox" id="force"> Replace the unsaved work on this device</label></div>
+    <p><button class="b1" id="go">Restore onto this device</button> <button id="cancel">Cancel</button></p>
+  </div>
+  <div id="msg"></div>
+  <div id="log" hidden></div>
+</div>
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var parsed = null;
+  var logEl = $('log');
+  function log(t){ logEl.hidden = false; logEl.textContent += t + "\n"; logEl.scrollTop = logEl.scrollHeight; }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function strip(h){ return String(h||'').replace(/<[^>]+>/g,' ').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/\s+/g,' ').trim(); }
+  function num(k){ var v = parseInt(localStorage.getItem(k),10); return isNaN(v)?0:v; }
+  function deviceDirty(){ return num('ahsSyncDirtySeq') > num('ahsSyncPushedSeq'); }
+
+  // The app's own draft key on this site is "AHS_REPORT_DRAFT_V1:" + its
+  // pathname, which is "/" here - NOT this page's pathname.
+  var DRAFT_KEY = 'AHS_REPORT_DRAFT_V1:/';
+
+  function parseExport(text){
+    var draftJson = ((text.match(/id="AHS_EMBEDDED_DRAFT"[^>]*>([\s\S]*?)<\/script>/)||[])[1]||'').trim();
+    var fpJson    = ((text.match(/id="AHS_EMBEDDED_FRONTPAGE"[^>]*>([\s\S]*?)<\/script>/)||[])[1]||'').trim();
+    if(!draftJson) throw new Error('This file has no embedded report (it is not an Export HTML from the app).');
+    var draft = JSON.parse(draftJson);
+    var fp = null; try{ fp = fpJson ? JSON.parse(fpJson) : null; }catch(_){ fp = null; }
+    var photos = {}, blocks = text.split(/<div class="img-item"/).slice(1);
+    blocks.forEach(function(b){
+      var id = (b.match(/data-image-id="([^"]+)"/)||[])[1];
+      var m = b.match(/<img[^>]+src="(data:image\/[a-z]+;base64,[A-Za-z0-9+\/=]+)"/);
+      if(id && m && !photos[id]) photos[id] = m[1];
+    });
+    var sections = (draft.inspections||[]).map(function(x){ return strip(x.sectionNameHtml); });
+    var rows = (draft.inspections||[]).reduce(function(n,x){ return n + (x.rows||[]).length; },0);
+    var listed = (draft.images||[]).length;
+    var missing = (draft.images||[]).filter(function(im){ return im && im.id && !photos[im.id]; }).length;
+    var name = (fp && fp.projectName) || (draft.fixed && strip(draft.fixed.proj)) || '';
+    return { draftJson:draftJson, fpJson:fpJson, draft:draft, photos:photos, sections:sections, rows:rows, listed:listed, missing:missing, name:name, savedAt: draft.t ? new Date(draft.t) : null };
+  }
+
+  $('file').addEventListener('change', function(){
+    var f = this.files && this.files[0]; if(!f) return;
+    $('msg').innerHTML = ''; $('summary').hidden = true; parsed = null;
+    var r = new FileReader();
+    r.onload = function(){
+      try{
+        parsed = parseExport(String(r.result));
+        var t = $('tbl'); t.innerHTML = '';
+        var add = function(k,v){ var tr=document.createElement('tr'); tr.innerHTML='<td>'+esc(k)+'</td><td>'+v+'</td>'; t.appendChild(tr); };
+        add('File', esc(f.name) + ' (' + (f.size/1024/1024).toFixed(1) + ' MB)');
+        add('Report last saved', parsed.savedAt ? esc(parsed.savedAt.toLocaleString('en-GB')) : 'unknown');
+        add('Project', esc(parsed.name || '(front page not filled in)'));
+        add('Sections', parsed.sections.length + (parsed.sections.length ? ': ' + esc(parsed.sections.join(', ')) : ''));
+        add('Item rows', String(parsed.rows));
+        add('Photos', Object.keys(parsed.photos).length + ' in the file' + (parsed.missing ? ' <span style="color:#b91c1c">(' + parsed.missing + ' listed in the report are not in the file)</span>' : ''));
+        $('proj').value = parsed.name || '';
+        $('dirtyWarn').hidden = !deviceDirty(); $('force').checked = false;
+        $('summary').hidden = false;
+      }catch(e){ $('msg').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+    };
+    r.onerror = function(){ $('msg').innerHTML = '<div class="err">Could not read the file.</div>'; };
+    r.readAsText(f);
+  });
+
+  function putPhotos(map){
+    return new Promise(function(resolve, reject){
+      var ids = Object.keys(map); if(!ids.length) return resolve(0);
+      var req = indexedDB.open('ahs-inspection');
+      req.onupgradeneeded = function(){ var db = req.result; if(!db.objectStoreNames.contains('photos')) db.createObjectStore('photos', { keyPath:'id' }); };
+      req.onerror = function(){ reject(req.error || new Error('photo store would not open')); };
+      req.onsuccess = function(){
+        var db = req.result;
+        if(!db.objectStoreNames.contains('photos')){ db.close(); return reject(new Error('photo store missing on this device - open the app once first, then retry')); }
+        var tx = db.transaction('photos','readwrite'), st = tx.objectStore('photos'), n = 0;
+        ids.forEach(function(id){ st.put({ id:id, dataUrl: map[id] }); n++; });
+        tx.oncomplete = function(){ db.close(); resolve(n); };
+        tx.onerror = function(){ db.close(); reject(tx.error || new Error('could not write the photos')); };
+      };
+    });
+  }
+
+  $('cancel').onclick = function(){ location.href = './'; };
+  $('go').onclick = async function(){
+    if(!parsed) return;
+    var name = ($('proj').value||'').trim();
+    if(!name){ $('msg').innerHTML = '<div class="err">Give the project a name first.</div>'; return; }
+    if(deviceDirty() && !$('force').checked){ $('msg').innerHTML = '<div class="err">This device holds unsaved work. Tick the box to replace it, or open the app and press Save first.</div>'; return; }
+    $('go').disabled = true; $('msg').innerHTML = '';
+    try{
+      log('Writing ' + Object.keys(parsed.photos).length + ' photos into the photo store...');
+      var n = await putPhotos(parsed.photos);
+      log('Photos stored: ' + n);
+      // the report itself, under the app's own keys
+      localStorage.setItem(DRAFT_KEY, parsed.draftJson);
+      if(parsed.fpJson) localStorage.setItem('FRONTPAGE_DATA_V1', parsed.fpJson); else localStorage.removeItem('FRONTPAGE_DATA_V1');
+      localStorage.setItem('ahsSyncProject', name);
+      // this is now work the cloud has not seen: mark the device dirty so the
+      // app uploads it (device wins) instead of pulling the server copy over it
+      localStorage.setItem('ahsSyncDirtySeq', String(num('ahsSyncPushedSeq') + 1));
+      localStorage.removeItem('ahsSyncBase');
+      try{ sessionStorage.removeItem('ahsSyncHydrated'); }catch(_){}
+      log('Report written under project "' + name + '" and marked for upload.');
+      $('msg').innerHTML = '<div class="ok"><b>Restored.</b> ' + n + ' photos and the report are back on this device under <b>' + esc(name) + '</b>. Open the app: if you are signed in and have a signal it uploads straight away.</div><p><button class="b1" id="open">Open the app</button></p>';
+      $('open').onclick = function(){ location.href = './'; };
+    }catch(e){
+      log('ERROR: ' + (e && e.message ? e.message : e));
+      $('msg').innerHTML = '<div class="err">Restore failed: ' + esc(e && e.message ? e.message : e) + '. Nothing else was changed.</div>';
+      $('go').disabled = false;
+    }
+  };
+})();
+</script>
+</body>
+</html>
