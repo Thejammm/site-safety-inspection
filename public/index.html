@@ -847,7 +847,7 @@ body {
   box-sizing: border-box;
 }
 
-/* Section-level add/remove item row buttons (script-inserted, inline styled - we override by class) */
+/* Section-level add item row button (script-inserted, inline styled - we override by class) */
 .btn.add-item-row-btn {
   background: var(--accent-light);
   border-color: var(--accent);
@@ -1512,7 +1512,6 @@ body{ font-size:14px; line-height:1.6; color:var(--text); background:var(--bg); 
 .btn-danger{ background:transparent; border-color:var(--danger-brd); color:var(--danger); }
 .btn-danger:hover{ background:var(--danger-bg); border-color:var(--danger-brd); }
 .btn-small{ min-height:36px; padding:0 12px; font-size:12px; }
-.btn-remove-row-btn{ background:transparent !important; border-color:var(--danger-brd) !important; color:var(--danger) !important; }
 .frontpage-btn{ border-radius:8px; min-height:42px; font-size:13px; font-weight:700; }
 .frontpage-btn-save{ background:var(--accent); color:var(--primary); }
 .frontpage-btn-save:hover{ background:var(--accent-dark); color:#fff; }
@@ -1554,7 +1553,6 @@ button.r3-ai:hover{ background:var(--muted-bg); }
 #capOverlay .cap-build{ background:var(--accent); color:var(--primary); }
 #capOverlay .cap-build:hover{ background:var(--accent-dark); color:#fff; }
 .cap-close{ border-radius:10px; }
-#capOverlay .cap-inc[data-on="1"] .sw{ background:var(--accent-dark); }
 .cap-progress{ color:rgba(255,255,255,.75); }
 #capOverlay{ background:var(--bg); }
 .r3-fab{ box-shadow:var(--shadow-md), 0 0 0 1px rgba(16,24,40,.06); }
@@ -2241,15 +2239,9 @@ function createInspectionSection() {
     </div>
     <div class="items-list"></div>
     <button class="btn btn-secondary btn-small add-item-row-btn" style="margin-top:1rem;">+ Add Item Row</button>
-    <button class="btn btn-remove-row-btn btn-small" style="margin-top:1rem;background:#fee2e2;color:#991b1b;">- Remove Item Row</button>
   `;
   section.querySelector('.add-item-row-btn').onclick = function() {
     addItemRow(section.querySelector('.items-list'));
-  };
-  section.querySelector('.btn-remove-row-btn').onclick = function() {
-    const itemsList = section.querySelector('.items-list');
-    const row = rowToRemove(itemsList);
-    if (row) removeItemRow(itemsList, row);
   };
   return section;
 }
@@ -2293,33 +2285,15 @@ function addItemRow(itemsList) {
   });
   // Delete THIS row, not the last one in the list.
   itemRow.querySelector('.item-del').onclick = function() { removeItemRow(itemsList, itemRow); };
-  // Remember the row being edited, so "- Remove Item Row" takes that one.
-  itemRow.addEventListener('focusin', function() { itemsList._lastRow = itemRow; });
   itemsList.appendChild(itemRow);
   updateStatusSelectColors();
 }
-// The row to remove when the section button is pressed: the one last edited,
-// if it is still there; otherwise the last in the list.
-function rowToRemove(itemsList) {
-  const rows = itemsList.querySelectorAll('.item-row');
-  if (!rows.length) return null;
-  const last = itemsList._lastRow;
-  if (last && last.parentNode === itemsList) return last;
-  return rows[rows.length - 1];
-}
-
 // --- Attach logic to initial section ---
 const initialSection = document.getElementById('inspection_1');
 if (initialSection) {
   const addBtn = initialSection.querySelector('.add-item-row-btn');
-  const removeBtn = initialSection.querySelector('.btn-remove-row-btn');
   if (addBtn) addBtn.onclick = function() {
     addItemRow(initialSection.querySelector('.items-list'));
-  };
-  if (removeBtn) removeBtn.onclick = function() {
-    const itemsList = initialSection.querySelector('.items-list');
-    const row = rowToRemove(itemsList);
-    if (row) removeItemRow(itemsList, row);
   };
 }
 
@@ -7734,6 +7708,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     var sec = S.sections[key]; if(!sec) return 0;
     return Object.keys(sec.items).filter(function(pid){ var it=sec.items[pid]; return it.st || it.note || (it.photos||[]).length; }).length;
   }
+  var STATUS_LETTER = { minor:'A', advisory:'AD', observation:'O' };   // the neat letter at the end of every highlighted finding
   function answeredItem(it){ return !!(it && (it.st || it.note || (it.photos||[]).length)); }
   function included(it){ if(!it) return false; if(it.inc === true) return true; if(it.inc === false) return false; return answeredItem(it); }
   var _liveT = null;
@@ -7827,7 +7802,7 @@ function addPageFooter(doc, pageNum, totalPages) {
   function renderHome(){
     back.style.display = 'none';
     title.textContent = 'Inspection criteria';
-    var bb = el('capBuild'); if(bb){ bb.textContent = 'Apply to report ➜'; bb.title = 'Rebuild the report from everything currently switched in'; }
+    var bb = el('capBuild'); if(bb){ bb.textContent = 'Apply to report ➜'; bb.title = 'Rebuild the report from everything answered'; }
     var ts = topics().filter(function(t){ return t.mode === S.mode || t.custom; });
     var total = 0; ts.forEach(function(t){ total += answered(t.key); });
     prog.textContent = total ? total + ' answered' : '';
@@ -7868,13 +7843,12 @@ function addPageFooter(doc, pageNum, totalPages) {
     if(!t){ view = {screen:'home', key:null}; return renderHome(); }
     back.style.display = '';
     title.textContent = t.short;   // section number kept internally (t.num); UI shows the title only
-    var bb = el('capBuild'); if(bb){ bb.textContent = 'Add all to report ➜'; bb.title = 'Add every check in this section to the report at once (switched-off items stay out)'; }
+    var bb = el('capBuild'); if(bb){ bb.textContent = 'Add all to report ➜'; bb.title = 'Add every check in this section to the report at once (items removed with the x on their row stay out)'; }
     prog.textContent = answered(key) + '/' + bank()[key].length;
     var htm = '';
     bank()[key].forEach(function(q){
       var it = (S.sections[key] && S.sections[key].items[q.id]) || { st:'', note:'', photos:[] };
       htm += '<div class="cap-item" data-pid="' + esc(q.id) + '">' +
-        '<label class="cap-inc" data-on="' + (included(it)?1:0) + '" title="Switch this item into or out of the report"><span>In report</span><span class="sw"></span></label>' +
         '<div class="lbl">' + esc(q.check) + '</div>' +
         '<div class="cap-sts">' + STS.map(function(s){
           return '<button type="button" class="cap-st ' + s.cls + '" data-st="' + s.k + '" data-on="' + (it.st===s.k?1:0) + '">' + s.chip + '</button>';
@@ -7906,24 +7880,14 @@ function addPageFooter(doc, pageNum, totalPages) {
           it.st = (it.st === b.getAttribute('data-st')) ? '' : b.getAttribute('data-st');
           node.querySelectorAll('.cap-st').forEach(function(x){ x.setAttribute('data-on', x.getAttribute('data-st')===it.st ? '1':'0'); });
           prog.textContent = answered(key) + '/' + bank()[key].length;
-          if(node._syncInc) node._syncInc();
+          if(it.inc === false) delete it.inc;   // answered again after its row was removed: back in the report
           save(); liveApply();
         };
       });
       var note = node.querySelector('.cap-note');
-      note.oninput = function(){ item(key, pid).note = note.value; if(node._syncInc) node._syncInc(); save(); liveApply(); };
-      // rev3: In-report toggle. Turning an item on puts it in the report straight
-      // away (debounced rebuild of that section); off removes it.
-      var inc = node.querySelector('.cap-inc');
-      inc.onclick = function(ev){
-        ev.preventDefault();
-        var it = item(key, pid);
-        var now = !included(it);
-        it.inc = now;
-        inc.setAttribute('data-on', now ? '1' : '0');
-        save(); liveApply();
-      };
-      node._syncInc = function(){ inc.setAttribute('data-on', included(item(key, pid)) ? '1' : '0'); };
+      note.oninput = function(){ var it = item(key, pid); it.note = note.value; if(it.inc === false && note.value) delete it.inc; save(); liveApply(); };
+      // No include switch: answering an item puts it in the report; the x on its
+      // row in the report takes it out (inc:false); answering it again brings it back.
       var cam = node.querySelector('.cap-cam');
       var file = node.querySelector('input[type="file"]');
       cam.onclick = function(){ file.click(); };
@@ -7978,11 +7942,11 @@ function addPageFooter(doc, pageNum, totalPages) {
     frags.forEach(function(f){
       var tmp = document.createElement('div'); tmp.innerHTML = f;
       var text = (tmp.textContent||'').replace(/\u00a0/g,' ').trim();
-      if(text) out.push({ html: f.trim(), key: _lineKey(text) });
+      if(text) out.push({ html: f.trim(), key: _lineKey(text), text: text.replace(/\s+/g, ' ') });
     });
     return out;
   }
-  function _mergeNarrative(gen, boxHTML, prevKeys){
+  function _mergeNarrative(gen, boxHTML, prevKeys, prevText){
     var box = _boxLines(boxHTML);
     var genKeys = {}; gen.forEach(function(g){ genKeys[g.key] = true; });
     var prev = {}; (prevKeys||[]).forEach(function(k){ prev[k] = true; });
@@ -7991,6 +7955,9 @@ function addPageFooter(doc, pageNum, totalPages) {
       var c = null;
       for(var i = 0; i < box.length; i++){ if(!used[i] && box[i].key === g.key){ c = box[i]; used[i] = true; break; } }
       if(!c) return g.html;
+      // Exactly what the last build wrote, never hand-edited: the new version
+      // wins, so a changed status letter or note reaches the report.
+      if(prevText && prevText[g.key] != null && c.text === String(prevText[g.key]).replace(/\s+/g, ' ').trim()) return g.html;
       // the user's version wins; add the finding highlight if it lost it
       return (g.hl && !/background-color/i.test(c.html)) ? '<span style="background-color:#FFE58A">' + c.html + '</span>' : c.html;
     });
@@ -8062,7 +8029,7 @@ function addPageFooter(doc, pageNum, totalPages) {
         } else {
           // Advisory / Action required / Observation: a finding - the item text is
           // HIGHLIGHTED so it stands out for you to reword into the actual finding.
-          findLines.push('• ' + q.text + (it.note ? ' - ' + it.note : '') + suffix);
+          findLines.push('• ' + q.text + (it.note ? ' - ' + it.note : '') + suffix + ' (' + STATUS_LETTER[it.st] + ')');
         }
         rows.push({ item: q.check, status: it.st || '', note: it.note || '', capKey: t.key, capPid: q.id });
       }
@@ -8084,8 +8051,9 @@ function addPageFooter(doc, pageNum, totalPages) {
       // longer generated (item switched off) are dropped even if edited.
       var boxNode = inst ? document.querySelector('.insp-section[data-instance-id="' + inst.instanceId + '"]') : null;
       var boxRte = boxNode ? boxNode.querySelectorAll(".field .rte[contenteditable='true']")[1] : null;
-      var html = _mergeNarrative(gen, boxRte ? boxRte.innerHTML : (inst ? inst.content : ''), sec.builtLines || []);
+      var html = _mergeNarrative(gen, boxRte ? boxRte.innerHTML : (inst ? inst.content : ''), sec.builtLines || [], sec.builtText || {});
       sec.builtLines = gen.map(function(g){ return g.key; });
+      sec.builtText = {}; gen.forEach(function(g){ sec.builtText[g.key] = g.text; });
       if(!inst){
         inst = { instanceId: _uid(), topicId: t.topicId, title: t.title, content: html };
         instances.push(inst);
@@ -8132,7 +8100,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     hide();
     alert(built
       ? '✅ Applied to report: ' + built + ' section' + (built===1?'':'s') + (photosAdded ? ', ' + photosAdded + ' photo' + (photosAdded===1?'':'s') + ' placed' : '') + '. Review and edit as normal - rebuilding updates these sections without touching your edits elsewhere.'
-      : 'Nothing switched on yet - answer an item or flick its "In report" switch first.');
+      : 'Nothing in the report yet - answer an item first.');
   }
 
   // ── Wire up ──
@@ -8145,8 +8113,8 @@ function addPageFooter(doc, pageNum, totalPages) {
     back.onclick = function(){ view = { screen:'home', key:null }; render(); };
     el('capBuild').onclick = function(){
       // Inside a section, Apply = add the WHOLE section to the report in one go:
-      // every check is switched in, except any the user has explicitly switched
-      // off (the toggle stays the way to omit or hand-pick items).
+      // every check goes in, except any the user has removed with the x on its
+      // row in the report (inc:false), which stays out until answered again.
       if(view.screen === 'sec' && view.key && bank()[view.key]){
         bank()[view.key].forEach(function(q){
           var it = item(view.key, q.id);
@@ -8656,14 +8624,7 @@ function addPageFooter(doc, pageNum, totalPages) {
   .r3-hist .row:last-child{border-bottom:0}
   .r3-hist .row .meta{flex:1;min-width:0;font-size:13px}
   .r3-hist .row .meta small{display:block;color:#6b7280}
-  /* Builder include toggle */
   .cap-item{position:relative}
-  .cap-inc{position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#475569;cursor:pointer;user-select:none}
-  .cap-inc .sw{width:36px;height:20px;border-radius:999px;background:#cbd5e1;position:relative;transition:background .15s}
-  .cap-inc .sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
-  .cap-inc[data-on="1"] .sw{background:#4A4F55}
-  .cap-inc[data-on="1"] .sw::after{left:18px}
-  .cap-item .lbl{padding-right:96px}
   @media print{
     .r3-fab,#r3Sheet,.r3-ai,.vc-edit,.r3-badge{display:none !important}
     #visitCtx{padding:0}
@@ -9154,7 +9115,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
     function join(list, sep) { sep = sep || ', '; if (!list.length) return ''; if (list.length === 1) return list[0]; return list.slice(0, -1).join(sep) + ' and ' + list[list.length - 1]; }
     function key(t) { return clean(t).toLowerCase().slice(0, 40); }
-    function norm(s) { return clean(s).toLowerCase().replace(/\(see images\)/g, ' ').replace(/\u2026+|\.{3,}/g, ' ').replace(/[^a-z0-9&/' ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+    function norm(s) { return clean(s).toLowerCase().replace(/\(see images\)|\((?:a|ad|o)\)/g, ' ').replace(/\u2026+|\.{3,}/g, ' ').replace(/[^a-z0-9&/' ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
     function tokens(s) { var n = norm(s); return n ? n.split(' ') : []; }
     function wordCount(s) { return tokens(s).length; }
     function isPlaceholder(s) { return /\u2026|\.{4,}|\[insert/i.test(s); }
@@ -9197,8 +9158,8 @@ function addPageFooter(doc, pageNum, totalPages) {
           var ct = c.split(' '), w1 = ct[ct.length - 2], w2 = ct[ct.length - 1];
           var re = new RegExp((w1 ? reEsc(w1) + '\\W+' : '') + reEsc(w2), 'i');
           var m = re.exec(line);
-          if (m) return clean(line.slice(m.index + m[0].length).replace(/\(see images\)/gi, '').replace(/^[\s\-\u2013:;,.]+/, ''));
-          return clean(line.split(' ').slice(ct.length).join(' '));
+          if (m) return clean(line.slice(m.index + m[0].length).replace(/\(see images\)/gi, '').replace(/\s*\((?:A|AD|O)\)\s*$/, '').replace(/^[\s\-\u2013:;,.]+/, ''));
+          return clean(line.split(' ').slice(ct.length).join(' ').replace(/\s*\((?:A|AD|O)\)\s*$/, ''));
         }
         var diff = symDiff(lt, c.split(' '));
         if (diff.length <= 1 && !diff.some(function (w) { return /^(not|no|never|without|nor|un\w+)$/.test(w); })) return '';
@@ -9242,7 +9203,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       function echoes(t, r) { var n = norm(t); if (!n) return true; var x = noteOf(r); return !!x && (x === n || x.indexOf(n) >= 0 || (n.indexOf(x) >= 0 && x.length > 15 && n.length < x.length + 12)); }
       var out = [], label = '';
       function push(text, row, replaces) {
-        text = clean(text.replace(/\(see images\)/gi, '')); if (!text) return;
+        text = clean(text.replace(/\(see images\)/gi, '').replace(/\s*\((?:A|AD|O)\)\s*$/, '')); if (!text) return;
         out.push({ text: (label ? label + ': ' : '') + cap(voice(text)), row: row || null, replaces: !!replaces }); label = '';
       }
       joined.forEach(function (l) {
@@ -9326,7 +9287,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     // Findings numbered in the order they appear in the report: A1.. (action),
     // AD1.. (advisory), OB1.. (observation) - the way Simon numbers them by hand.
     function findingsOf(sections) {
-      var pre = { minor: 'A', advisory: 'AD', observation: 'OB' }, n = { minor: 0, advisory: 0, observation: 0 };
+      var pre = { minor: 'A', advisory: 'AD', observation: 'O' }, n = { minor: 0, advisory: 0, observation: 0 };
       var all = [], by = { minor: [], advisory: [], observation: [] };
       sections.forEach(function (sec) {
         sec.rows.forEach(function (r) {
@@ -9551,6 +9512,9 @@ function addPageFooter(doc, pageNum, totalPages) {
   // Builds the Site Summary and the sign-off from what has already been typed:
   // project info, the visit context and the findings. Entirely local.
   function _fieldTxt(sel){ var e = document.querySelector(sel); return e ? (e.innerText || e.textContent || '').replace(/\s+/g,' ').trim() : ''; }
+  // Model for the composer: everything the report holds, in plain text. The
+  // criteria and section-template sentences go with it so the composer can
+  // tell the builder's lines from the inspector's own words.
   // Model for the composer: everything the report holds, in plain text. The
   // criteria and section-template sentences go with it so the composer can
   // tell the builder's lines from the inspector's own words.

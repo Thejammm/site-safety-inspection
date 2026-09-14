@@ -141,24 +141,36 @@ test('a changed section merges its narrative with what the user typed, instead o
   // scratch, wiping the user's own lines and rewordings in that box. The
   // rebuild now merges: the user's version of a generated line wins, their
   // own lines are kept after, and lines for switched-off items go.
-  assert.match(SRC, /function _mergeNarrative\(gen, boxHTML, prevKeys\)/,
+  assert.match(SRC, /function _mergeNarrative\(gen, boxHTML, prevKeys, prevText\)/,
     '_mergeNarrative() is gone - a changed section wipes the user\'s comments again');
-  assert.match(SRC, /var html = _mergeNarrative\(gen, boxRte \? boxRte\.innerHTML : \(inst \? inst\.content : ''\), sec\.builtLines \|\| \[\]\);/,
+  assert.match(SRC, /var html = _mergeNarrative\(gen, boxRte \? boxRte\.innerHTML : \(inst \? inst\.content : ''\), sec\.builtLines \|\| \[\], sec\.builtText \|\| \{\}\);/,
     'the narrative is no longer merged with the box');
   assert.match(SRC, /sec\.builtLines = gen\.map\(function\(g\)\{ return g\.key; \}\);/,
     'generated lines are not remembered, so switched-off items leave their edited lines behind');
+  assert.match(SRC, /if\(prevText && prevText\[g\.key\] != null && c\.text === String\(prevText\[g\.key\]\)/,
+    'an unedited narrative line no longer takes the new version, so a status letter or note change never reaches the report');
 });
 
-test('removing an item row takes the selected row, never blindly the last one', () => {
-  // Same visit: '- Remove Item Row' always deleted the LAST row. Each row now
-  // has its own x, and the button removes the row last edited.
+test('each item row has its own x; the section-level remove button is gone', () => {
+  // 2026-09-14: with an x on every row the '- Remove Item Row' button was
+  // clutter and it went, with rowToRemove(). The x itself must stay.
   const add = SRC.match(/function addItemRow\(itemsList\) \{([\s\S]*?)\r?\n\}/);
   assert.ok(add, 'addItemRow not found');
   assert.match(add[1], /class="item-del"/, 'rows have no per-row delete');
   assert.match(add[1], /removeItemRow\(itemsList, itemRow\)/, 'the per-row x does not remove its own row');
-  assert.match(SRC, /function rowToRemove\(itemsList\)/, 'rowToRemove() is gone');
-  assert.ok(!/removeItemRow\(itemsList, rows\[rows\.length - 1\]\)/.test(SRC), 'a remove button still deletes the last row unconditionally');
+  assert.doesNotMatch(SRC, /Remove Item Row|btn-remove-row-btn|function rowToRemove/, 'the section-level remove button is back');
   assert.match(SRC, /@media print\{ \.item-del\{ display:none !important; \} \}/, 'the x would print on the client report');
+});
+
+test('findings end with their status letter and the criteria modal has no include switch', () => {
+  // Simon, 2026-09-14: a neat letter at the end of every highlighted finding -
+  // (A) action, (AD) advisory, (O) observation - and the "In report" switch
+  // removed: answering an item puts it in, the x on its report row takes it
+  // out, answering it again brings it back.
+  assert.match(SRC, /var STATUS_LETTER = \{ minor:'A', advisory:'AD', observation:'O' \};/, 'STATUS_LETTER map changed or gone');
+  assert.match(SRC, /findLines\.push\('• ' \+ q\.text \+ \(it\.note \? ' - ' \+ it\.note : ''\) \+ suffix \+ ' \(' \+ STATUS_LETTER\[it\.st\] \+ '\)'\);/, 'highlighted findings no longer end with their status letter');
+  assert.doesNotMatch(SRC, /class="cap-inc"|_syncInc|In report</, 'the include switch is back in the criteria modal');
+  assert.match(SRC, /if\(it\.inc === false\) delete it\.inc;/, 'answering a removed item no longer brings it back into the report');
 });
 
 test('opening the app never writes the server copy over unsynced work on the device', () => {
