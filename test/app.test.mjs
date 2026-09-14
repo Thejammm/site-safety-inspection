@@ -161,6 +161,28 @@ test('removing an item row takes the selected row, never blindly the last one', 
   assert.match(SRC, /@media print\{ \.item-del\{ display:none !important; \} \}/, 'the x would print on the client report');
 });
 
+test('opening the app never writes the server copy over unsynced work on the device', () => {
+  // 2026-09-14, first site visit: an inspection done offline, reopened when a
+  // bar of signal came back, was REPLACED by the older server copy. pull()
+  // hydrated on every fresh session (iOS kills the PWA constantly) and
+  // applyState() wrote over localStorage regardless of what was there. Now a
+  // persisted dirty sequence says whether the device holds work the server has
+  // not seen; if it does, pull() pushes (device wins) and never hydrates.
+  const pull = SRC.match(/async function pull\(\)\s*\{([\s\S]*?)\r?\n {4}\}/);
+  assert.ok(pull, 'pull() not found');
+  const dirtyAt = pull[1].indexOf('_isDirty()');
+  const applyAt = pull[1].indexOf('applyState(');
+  assert.ok(dirtyAt !== -1, 'pull() no longer checks for unsynced work - reopening online will wipe an offline inspection again');
+  assert.ok(applyAt === -1 || dirtyAt < applyAt, 'pull() hydrates before checking for unsynced work');
+  assert.match(pull[1], /_markClean\(r\.updatedAt\)/, 'a hydrate does not record the server version it took, so the next open re-hydrates');
+  // only a REAL change marks the device dirty: the draft re-saves itself with a
+  // fresh "t" on pagehide, and that must not look like work
+  assert.match(SRC, /if\(_sameSynced\(prev, v\)\) return;/, 'an identical re-save marks the device dirty, so a clean device pushes instead of hydrating');
+  assert.match(SRC, /_bumpDirty\(\); scheduleSave\(\);/, 'local changes no longer mark the device dirty');
+  assert.match(SRC, /_markPushed\(seq, resp && resp\.updatedAt\);/, 'a successful push does not clear the dirty mark');
+  assert.match(SRC, /visibilityState === 'visible' && _user && _isDirty\(\)\) push\(\)/, 'coming back to the app does not retry unsynced work');
+});
+
 test('the photo store is only ever wiped wholesale from the confirmed device wipe', () => {
   // Clearing this store loses every photo for every report on the device.
   // Per-report clears must delete their own ids. One legitimate caller.

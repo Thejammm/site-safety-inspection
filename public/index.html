@@ -7080,6 +7080,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     }
     // rev3: when signal comes back, push straight away instead of waiting for the next edit
     window.addEventListener('online', function(){ try{ scheduleSave(); }catch(_){} });
+    document.addEventListener('visibilitychange', function(){ try{ if(document.visibilityState === 'visible' && _user && _isDirty()) push(); }catch(_){} });
 
     var TENANT        = 'archer';
     var SYNC_KEYS     = ['FRONTPAGE_DATA_V1','clientLogo','AHS_INSPECTIONS_V1'];
@@ -7195,10 +7196,30 @@ function addPageFooter(doc, pageNum, totalPages) {
 
     var _rawSet = localStorage.setItem.bind(localStorage);
     localStorage.setItem = function(k,v){
+      var prev = _rawGet(k);
       _rawSet(k,v);
       var match = SYNC_KEYS.indexOf(k)!==-1 || SYNC_PREFIXES.some(function(p){ return k && k.indexOf(p)===0; });
-      if(match) scheduleSave();
+      if(!match) return;
+      if(_sameSynced(prev, v)) return;          // a re-save of the same content is not a change
+      _bumpDirty(); scheduleSave();
     };
+    // The draft stamps itself with "t": Date.now() on every save, so compare
+    // with that stripped; otherwise the pagehide re-save would look like work.
+    function _sameSynced(a, b){
+      if(a === b) return true;
+      if(a == null || b == null) return false;
+      var strip = function(x){ return String(x).replace(/^\{"t":\d+,?/, '{').replace(/"t":\d{10,},?/, ''); };
+      return strip(a) === strip(b);
+    }
+    // Unsynced-work bookkeeping. Persisted, so it survives reloads and iOS
+    // killing the PWA: that is exactly when it matters.
+    function _num(k){ var v = parseInt(_rawGet(k), 10); return isNaN(v) ? 0 : v; }
+    function _rawGet(k){ try{ return localStorage.getItem(k); }catch(_){ return null; } }
+    function _bumpDirty(){ try{ _rawSet('ahsSyncDirtySeq', String(_num('ahsSyncDirtySeq') + 1)); }catch(_){} }
+    function _dirtySeq(){ return _num('ahsSyncDirtySeq'); }
+    function _isDirty(){ return _dirtySeq() > _num('ahsSyncPushedSeq'); }
+    function _markPushed(seq, updatedAt){ try{ _rawSet('ahsSyncPushedSeq', String(seq)); if(updatedAt) _rawSet('ahsSyncBase', String(updatedAt)); }catch(_){} }
+    function _markClean(updatedAt){ _markPushed(_dirtySeq(), updatedAt); }
 
     function scheduleSave(){
       if(!_user || _pulling) return;
@@ -7229,6 +7250,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       return _inflight;
     }
     async function _pushOnce(){
+      var seq = _dirtySeq();                        // what this push covers
       var blob = await collectState();
       if(!Object.keys(blob).length) return true;   // nothing to save is not a failure
       // Photos ride only when the set changed since the last successful upload.
@@ -7241,8 +7263,10 @@ function addPageFooter(doc, pageNum, totalPages) {
       else if(!blob[PHOTO_KEY]) blob[PHOTO_KEY] = {};
       try{
         _pushAbort = {};
-        await api('/api/state',{method:'POST',body:JSON.stringify({tenantId:TENANT,project:project(),state:blob}),
+        var resp = await api('/api/state',{method:'POST',body:JSON.stringify({tenantId:TENANT,project:project(),state:blob}),
                                  timeoutMs: sendingPhotos ? 45000 : 15000, abortRef: _pushAbort});
+        _markPushed(seq, resp && resp.updatedAt);
+        window.AHS_SAVE_STATUS.ok('unsynced');
         if(sendingPhotos) _lastPhotoSig = sig;
         _lastPushOffline = false; _retryMs = 15000;
         if(_retryTimer){ clearTimeout(_retryTimer); _retryTimer = null; }
@@ -7259,6 +7283,7 @@ function addPageFooter(doc, pageNum, totalPages) {
           setStatus('offline');
           window.AHS_SAVE_STATUS.ok('server');
           window.AHS_SAVE_STATUS.note('offline', 'No signal - your work is saved on this device and will upload when the connection returns');
+          window.AHS_SAVE_STATUS.ok('unsynced');
           if(_retryTimer) clearTimeout(_retryTimer);
           _retryTimer = setTimeout(function(){ _retryTimer = null; push(); }, _retryMs);
           _retryMs = Math.min(_retryMs * 2, 60000);
@@ -7281,13 +7306,25 @@ function addPageFooter(doc, pageNum, totalPages) {
         : 'Could not save "' + name + '" to the cloud. Check you are signed in and try again. Your work is still here.';
     }
     async function pull(){
-      // Hydrate from server once per tab session, to avoid reload loops.
+      // Work on this device that has not reached the server ALWAYS wins. An
+      // offline inspection reopened with signal used to be replaced by the
+      // older server copy here. Hydrate only when the device is clean AND the
+      // server holds something newer than what this device last synced.
+      if(_isDirty()){
+        window.AHS_SAVE_STATUS.note('unsynced', 'Work on this device has not been uploaded yet - uploading now');
+        var ok = await push();
+        if(!ok) setStatus('offline');
+        return;
+      }
       _pulling = true;
       try{
         var r = await api('/api/state?tenantId='+encodeURIComponent(TENANT)+'&project='+encodeURIComponent(project()));
         if(r && r.state && Object.keys(r.state).length){
+          var base = _rawGet('ahsSyncBase');
+          if(r.updatedAt && base && String(r.updatedAt) === String(base)) return;   // already what we have
           if(!sessionStorage.getItem('ahsSyncHydrated')){
             await applyState(r.state);
+            _markClean(r.updatedAt);
             sessionStorage.setItem('ahsSyncHydrated','1');
             _reload();
             return;
@@ -7389,6 +7426,7 @@ function addPageFooter(doc, pageNum, totalPages) {
         var r = await api('/api/state?tenantId='+encodeURIComponent(TENANT)+'&project='+encodeURIComponent(name));
         _clearSyncedKeys();
         if(r && r.state) await applyState(r.state);
+        _markClean(r && r.updatedAt);
         try{ sessionStorage.setItem('ahsSyncHydrated','1'); }catch(_){}
       }catch(e){}
       _reload();
@@ -7409,6 +7447,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       }
       setProject(name);
       _clearSyncedKeys();
+      _markClean(null);
       try{ sessionStorage.setItem('ahsSyncHydrated','1'); }catch(_){}
       _reload();
     }
