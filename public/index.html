@@ -8954,7 +8954,24 @@ function addPageFooter(doc, pageNum, totalPages) {
       nb.id = 'newInsp'; nb.className = 'tb-primary'; nb.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>New inspection'; nb.title = 'Start a new inspection for this project (opens the visit context form)';
       nb.removeAttribute('data-action');
       clr.parentNode.replaceChild(nb, clr);
-      nb.onclick = function(){ openStart({}); };
+      nb.onclick = function(){
+        // A report that has never been through the start form IS the inspection
+        // you are setting up, not a second visit. Adopt what is already typed
+        // rather than archiving it and clearing the body underneath you.
+        if(!hasVisit(CUR.visit)){ openStart({ adopt:true }); return; }
+        // A genuine new visit: this files the current one and clears the body,
+        // so say so plainly before doing it.
+        var st = collect(), d = digest(st), bits = [];
+        if(d.rows.length) bits.push(d.rows.length + ' item' + (d.rows.length===1?'':'s'));
+        if((st.instances||[]).length) bits.push((st.instances||[]).length + ' section' + ((st.instances||[]).length===1?'':'s'));
+        if((st.images||[]).length) bits.push((st.images||[]).length + ' photo' + ((st.images||[]).length===1?'':'s'));
+        var msg = 'Start a new visit?' + '\n\n' +
+                  'The inspection on screen' + (bits.length ? ' (' + bits.join(', ') + ')' : '') +
+                  ' will be filed under Visits and the report body cleared ready for the next visit.' + '\n\n' +
+                  'Your front page and project details stay.';
+        if(!confirm(msg)) return;
+        openStart({});
+      };
       var hb = document.createElement('button'); hb.type='button'; hb.id='histOpen'; hb.className='tb-output'; hb.innerHTML='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>Visits'; hb.title='Previous inspections for this project';
       hb.onclick = openHistory; nb.parentNode.appendChild(hb);
     }
