@@ -359,3 +359,47 @@ test('syncItem accepts inc so a removed row stays removed', { skip: !CHROME && '
   assert.ok(ok, 'syncItem no longer handles inc - removed rows will come back on the next build');
   assert.deepEqual(errs, []);
 });
+
+test('the summary composer writes from the inspector\'s own words and never leaves [INSERT] cues', () => {
+  // 2026-09-14: the composed summaries were template prose with [INSERT] cues
+  // that ignored every note typed on site. The composer now takes the whole
+  // report as its model. This pins the behaviours that make it worth having,
+  // running the block exactly as it is embedded in the page.
+  const s = SRC.indexOf('// ── AHS_COMPOSE start ──'), e = SRC.indexOf('// ── AHS_COMPOSE end ──');
+  assert.ok(s > 0 && e > s, 'AHS_COMPOSE block (with its start/end markers) not found');
+  const C = new Function(SRC.slice(s, e) + '\nreturn AHS_COMPOSE;')();
+  const criteria = [
+    'Task-specific RAMS were in place for the activities being undertaken.',
+    'Adequate supervision was provided to manage the work activities safely.',
+    'At the time of the inspection the following was observed:',
+  ];
+  const model = {
+    client: 'Department for Health', pc: 'Henry Boot Construction Ltd', contract: 'G & H Ltd', contractor: 'Morley Ventilation Ltd',
+    contact: 'Mark (Site Supervisor)', inspector: 'Simon Archer',
+    visit: { works_phase: 'Installing ductwork', operatives_on_site: 3 },
+    criteria,
+    sections: [
+      { name: 'CDM Roles, Cooperation & Communication',
+        lines: ['At the time of the inspection the following was observed:', 'Actions to be addressed,',
+          '• The Principal Contractor can improve by engaging in regular communication with their appointed contractors -',
+          'PC is not participating in the regular safety meeting.'],
+        rows: [{ item: 'Understanding of CDM duties', status: 'minor', note: 'No safety meetings taking place on a regular basis' }] },
+      { name: 'Risk Assessments & Method Statements',
+        lines: ['• Task-specific RAMS were in place for the activities being undertaken. (see images)',
+          '• Adequate supervision was provided to manage the work activities safely the operative I spoke to knew the RAMS well',
+          '• Through the you see we say scheme have so far this month raised …....'],
+        rows: [{ item: 'RAMS in place', status: 'compliant', note: 'G and H approve the RAMS', text: criteria[0] },
+               { item: 'Supervision', status: 'compliant', note: '', text: criteria[1] }] },
+    ],
+  };
+  const site = C.build(model, 'site').join('\n'), closing = C.build(model, 'closing').join('\n');
+  assert.doesNotMatch(site + closing, /\[INSERT/i, 'a cue was written instead of leaving the unknown out');
+  assert.match(site, /No safety meetings taking place on a regular basis/, 'the note against a finding is not in the summary');
+  assert.match(site, /Action: The Principal Contractor can improve[^\n]*PC is not participating/, 'the comment lines typed under a section (label + continuation) were lost');
+  assert.match(site, /CDM 2015 places with Henry Boot Construction Ltd/, 'a PC-level failure is not escalated to the Principal Contractor');
+  assert.match(site, /operative the inspector spoke to knew the RAMS well/, 'words typed onto the end of a criteria line were lost, or left in the first person');
+  assert.doesNotMatch(site, /Task-specific RAMS were in place/, 'a criteria sentence the builder wrote was passed off as the inspector\'s words');
+  assert.doesNotMatch(site, /…/, 'an unfilled placeholder line reached the summary');
+  assert.match(closing, /A1\. Understanding of CDM duties/, 'findings are not numbered in the sign-off');
+  assert.match(SRC, /function buildLocalSummary\(kind\)\{[\s\S]{0,600}AHS_COMPOSE\.build\(/, 'buildLocalSummary no longer composes through AHS_COMPOSE');
+});

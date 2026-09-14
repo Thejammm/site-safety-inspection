@@ -9122,61 +9122,461 @@ function addPageFooter(doc, pageNum, totalPages) {
     }catch(e){ alert('Could not draft the summary.\n\n' + e.message); }
     btn.disabled = false; btn.textContent = old;
   }
+  // ── AHS_COMPOSE start ──
+  // AHS_COMPOSE - composes the Site Summary and the Sign-off summary from
+  // everything the inspection holds: the parties, the visit context, every
+  // item's status and, above all, the inspector's own words - the notes typed
+  // against items and the lines typed into each section's Comments box. The
+  // criteria sentences the builder writes are recognised and left out; what
+  // remains is the inspector's evidence, and that is what the summary is built
+  // from. Nothing is invented and no [INSERT] cues are written: a detail that
+  // has not been recorded is left out of the text.
+  //
+  // Pure: build(model, kind) -> array of paragraphs. No DOM. The same text is
+  // spliced into index.html (AHS_COMPOSE) and run in node against real reports.
+  //
+  // model = {
+  //   project, description, client, pc, contract, contractor, contact, inspector,
+  //   visit: { operatives_on_site, contractors_on_site, site_contact_name, site_contact_role,
+  //            weather_conditions, works_phase, focus_areas, visit_number },
+  //   sections: [ { name, lines: [plain-text comment lines],
+  //                 rows: [ { item, status, note, text (the criteria sentence, if the row came from one) } ] } ],
+  //   criteria: [ every sentence the builder can write (criteria texts and section templates) ],
+  //   prior: [ { item, note, visit } ]   // actions from earlier visits still open (optional)
+  // }
+  var AHS_COMPOSE = (function () {
+    'use strict';
+    function clean(s) { return String(s == null ? '' : s).replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim(); }
+    function cap(s) { s = clean(s); return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+    function lc(s) { s = clean(s); if (!s) return ''; var w = s.split(' ')[0]; if (w.length > 1 && w === w.toUpperCase()) return s; return s.charAt(0).toLowerCase() + s.slice(1); }
+    function endStop(s) { s = noStop(s); if (!s) return ''; return /[.!?]$/.test(s) ? s : s + '.'; }
+    function noStop(s) { return clean(s).replace(/[;,\s]+$/, '').replace(/[;,\s]+\.$/, '.'); }
+    function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+    function join(list, sep) { sep = sep || ', '; if (!list.length) return ''; if (list.length === 1) return list[0]; return list.slice(0, -1).join(sep) + ' and ' + list[list.length - 1]; }
+    function key(t) { return clean(t).toLowerCase().slice(0, 40); }
+    function norm(s) { return clean(s).toLowerCase().replace(/\(see images\)/g, ' ').replace(/\u2026+|\.{3,}/g, ' ').replace(/[^a-z0-9&/' ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+    function tokens(s) { var n = norm(s); return n ? n.split(' ') : []; }
+    function wordCount(s) { return tokens(s).length; }
+    function isPlaceholder(s) { return /\u2026|\.{4,}|\[insert/i.test(s); }
+    function reEsc(s) { return s.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&'); }
+    function symDiff(a, b) {
+      var c = {}; a.forEach(function (w) { c[w] = (c[w] || 0) + 1; }); b.forEach(function (w) { c[w] = (c[w] || 0) - 1; });
+      return Object.keys(c).filter(function (w) { return c[w] !== 0; });
+    }
+
+    // Comments-box HTML -> plain-text lines. The generator joins lines with
+    // <br>; typing Enter in a contenteditable adds <div>. Both are line breaks.
+    function linesFromHtml(html) {
+      var frags = String(html || '').replace(/<div[^>]*>/gi, '<br>').replace(/<\/div>/gi, '').replace(/<p[^>]*>/gi, '<br>').replace(/<\/p>/gi, '').replace(/<li[^>]*>/gi, '<br>').split(/<br\s*\/?>/i);
+      return frags.map(function (f) {
+        return clean(f.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
+      }).filter(Boolean);
+    }
+
+    // Every sentence the builder can write, keyed on its first 40 characters
+    // (the same key the narrative merge uses), so a line can be recognised as
+    // ours even after the inspector has typed onto the end of it.
+    function index(criteria) {
+      var idx = {};
+      (criteria || []).forEach(function (t) {
+        linesFromHtml(String(t).replace(/\n/g, '<br>')).forEach(function (l) {
+          l = l.replace(/^\u2022\s*/, ''); if (wordCount(l) < 3) return;
+          var k = key(l); (idx[k] = idx[k] || []).push(norm(l));
+        });
+      });
+      return idx;
+    }
+    // '' when the line is the criteria sentence as written; the inspector's
+    // words when he typed onto the end of it; null when he reworded it.
+    function tailAfter(line, cands) {
+      var nl = norm(line), lt = tokens(line);
+      for (var i = 0; i < cands.length; i++) {
+        var c = cands[i]; if (!c) continue;
+        if (nl === c) return '';
+        if (nl.indexOf(c + ' ') === 0) {
+          var ct = c.split(' '), w1 = ct[ct.length - 2], w2 = ct[ct.length - 1];
+          var re = new RegExp((w1 ? reEsc(w1) + '\\W+' : '') + reEsc(w2), 'i');
+          var m = re.exec(line);
+          if (m) return clean(line.slice(m.index + m[0].length).replace(/\(see images\)/gi, '').replace(/^[\s\-\u2013:;,.]+/, ''));
+          return clean(line.split(' ').slice(ct.length).join(' '));
+        }
+        var diff = symDiff(lt, c.split(' '));
+        if (diff.length <= 1 && !diff.some(function (w) { return /^(not|no|never|without|nor|un\w+)$/.test(w); })) return '';
+      }
+      return null;
+    }
+
+    // Notes are typed in the first person on site; the report is written in
+    // the third. Only "I <verb>" is touched, so a typo like "I plemented" is left alone.
+    var VERBS = ('spoke saw observed witnessed was noted found checked asked discussed reviewed could did have had am met looked ' +
+      'inspected confirmed raised requested advised recommended questioned understand believe feel think consider would will can also ' +
+      'visited walked viewed examined sampled tested verified established recorded photographed suggested explained').split(' ');
+    function voice(s) {
+      return clean(s).replace(/(^|[\s(])I\s+([a-z]+)/g, function (m0, pre, w) { return VERBS.indexOf(w) >= 0 ? pre + 'the inspector ' + w : m0; })
+        .replace(/\bmy\b/g, "the inspector's").replace(/\b(to|with|told|showed|shown to|for) me\b/g, '$1 the inspector');
+    }
+
+    var LABEL = /^(observation|observations|action|actions|actions to be addressed|actions to address|advisory|advisories|note|notes|recommendation|recommendations|good practice|comment|comments)\s*[:,.\-\u2013]*$/i;
+    var LABEL_TEXT = { observation: 'Observation', observations: 'Observation', action: 'Action', actions: 'Action', 'actions to be addressed': 'Action', 'actions to address': 'Action', advisory: 'Advisory', advisories: 'Advisory', recommendation: 'Recommendation', recommendations: 'Recommendation', 'good practice': 'Good practice' };
+    var FINDING = { minor: 1, advisory: 1, observation: 1 };
+
+    // The inspector's own words in a section's Comments box, each tied to the
+    // item row it belongs to where that can be told: a criteria sentence he
+    // typed onto the end of, a line he began with the item's label, a fuller
+    // version of a note. Everything else is a section-level comment.
+    // Placeholders left unfilled, stray labels and repeats of a note are dropped.
+    function ownEntries(sec, idx, rows) {
+      var raw = (sec.lines && sec.lines.length) ? sec.lines : (sec.comments ? [sec.comments] : []);
+      var ls = [];
+      raw.forEach(function (l) { String(l || '').split(/\s*\u2022\s*/).forEach(function (p) { p = clean(p); if (p) ls.push(p); }); });
+      var joined = [];
+      ls.forEach(function (l) {
+        var prev = joined.length ? joined[joined.length - 1] : '';
+        if (prev && /[-\u2013,;]$/.test(prev) && !LABEL.test(prev)) joined[joined.length - 1] = prev + ' ' + l;
+        else joined.push(l);
+      });
+      var byKey = {};
+      rows.forEach(function (r) { if (r.text && wordCount(r.text) >= 3) byKey[key(r.text)] = r; });
+      function noteOf(r) { return norm(r.note); }
+      function sameStart(a, b) { a = norm(a); b = norm(b); if (a.length < 20 || b.length < 20) return false; return a.slice(0, 20) === b.slice(0, 20); }
+      function echoes(t, r) { var n = norm(t); if (!n) return true; var x = noteOf(r); return !!x && (x === n || x.indexOf(n) >= 0 || (n.indexOf(x) >= 0 && x.length > 15 && n.length < x.length + 12)); }
+      var out = [], label = '';
+      function push(text, row, replaces) {
+        text = clean(text.replace(/\(see images\)/gi, '')); if (!text) return;
+        out.push({ text: (label ? label + ': ' : '') + cap(voice(text)), row: row || null, replaces: !!replaces }); label = '';
+      }
+      joined.forEach(function (l) {
+        var body = l.replace(/^\u2022\s*/, '');
+        if (/^at the time of the inspection the following was observed:?$/i.test(body)) return;
+        if (isPlaceholder(body)) return;
+        var lab = LABEL.exec(body);
+        if (lab) { label = LABEL_TEXT[lab[1].toLowerCase()] || ''; return; }
+        if (wordCount(body) <= 4 && !/[.!?]$/.test(body)) return;
+        var k = key(body), row = byKey[k] || null, cands = idx[k] || (row ? [norm(row.text)] : null);
+        if (cands) {
+          var t = tailAfter(body, cands);
+          if (t === null) { push(body, row); return; }               // reworded: his words, tied to the row if known
+          if (!t || wordCount(t) < 4) return;                          // the sentence as written
+          if (row && echoes(t, row)) return;                           // the finding line repeating the note
+          if (row && sameStart(t, row.note) && norm(t).length > noteOf(row).length) { push(t, row, true); return; }   // a fuller note
+          push(t, row); return;
+        }
+        // "<item label> - ..." typed by hand
+        var nb = norm(body), hit = null, rest = '';
+        for (var i = 0; i < rows.length; i++) {
+          var it = norm(rows[i].item); if (!it || it.length < 4) continue;
+          if (nb.indexOf(it + ' ') === 0 && nb.length > it.length + 8) {
+            var m = new RegExp('^' + reEsc(rows[i].item).replace(/\s+/g, '\\s+') + '\\s*[-\u2013:]\\s*', 'i').exec(body);
+            hit = rows[i]; rest = m ? body.slice(m[0].length) : body; break;
+          }
+        }
+        if (hit) {
+          if (echoes(rest, hit)) return;
+          if (sameStart(rest, hit.note) && norm(rest).length > noteOf(hit).length) { push(rest, hit, true); return; }
+          push(rest, hit); return;
+        }
+        for (var j = 0; j < rows.length; j++) { if (echoes(body, rows[j])) return; }
+        push(body, null);
+      });
+      return out;
+    }
+
+    // The sections with the inspector's words folded back onto their rows:
+    // row.note (a fuller version replaces the short one), row.extra (words
+    // typed onto the criteria line) and sec.own (comments tied to no row).
+    function annotate(m, idx) {
+      return (m.sections || []).map(function (sec) {
+        var rows = (sec.rows || []).map(function (r) { return { item: clean(r.item), status: r.status || '', note: noStop(clean(r.note)), text: clean(r.text), extra: '' }; });
+        var own = [];
+        ownEntries(sec, idx, rows).forEach(function (e) {
+          if (!e.row) { own.push(endStop(e.text)); return; }
+          if (e.replaces) e.row.note = noStop(e.text);
+          else e.row.extra = (e.row.extra ? e.row.extra + ' ' : '') + endStop(e.text);
+        });
+        return { name: clean(sec.name), rows: rows, own: own };
+      });
+    }
+
+    function parties(m) {
+      var v = m.visit || {};
+      var contact = clean(m.contact) || (v.site_contact_name ? clean(v.site_contact_name) + (v.site_contact_role ? ' (' + clean(v.site_contact_role) + ')' : '') : '');
+      var role = ''; var rm = /\(([^)]+)\)\s*$/.exec(contact); if (rm) role = clean(rm[1]);
+      var p = { contractor: clean(m.contractor), pc: clean(m.pc), contract: clean(m.contract), client: clean(m.client), contact: contact, role: role, project: clean(m.project), description: noStop(m.description) };
+      p.pcMode = !p.contractor;
+      p.subject = p.contractor || p.pc || 'the site team';
+      p.who = p.role ? 'the ' + p.role : (contact ? contact.split(' (')[0] : 'the site supervisor');
+      var keep = {}, common = /^(construction|building|build|services?|group|limited|ltd|plc|llp|department|health|education|ventilation|contractors?|engineering|electrical|mechanical|council|school|trust|the|and|for|of|uk|company|holdings|developments|homes|partnership|projects?|systems|solutions|safety|management|site|north|south|east|west|city|county)$/;
+      [p.client, p.pc, p.contract, p.contractor].join(' ').split(' ').forEach(function (w) { w = w.replace(/[^A-Za-z]/g, '').toLowerCase(); if (w.length > 2 && !common.test(w)) keep[w] = true; });
+      p.keep = keep;
+      return p;
+    }
+    function firstName(contact) { return contact ? contact.split(' (')[0] : ''; }
+    // Section headings read as headings; in a sentence they drop to lower case,
+    // keeping acronyms and any word that is part of a party's name.
+    function inSentence(name, keep) {
+      return clean(name).split(' ').map(function (w) {
+        var core = w.replace(/[^A-Za-z&]/g, '');
+        if (!core) return w;
+        if (core.length > 1 && core === core.toUpperCase()) return w;
+        if (keep && keep[core.toLowerCase()]) return w;
+        return w.toLowerCase();
+      }).join(' ');
+    }
+
+    // Findings numbered in the order they appear in the report: A1.. (action),
+    // AD1.. (advisory), OB1.. (observation) - the way Simon numbers them by hand.
+    function findingsOf(sections) {
+      var pre = { minor: 'A', advisory: 'AD', observation: 'OB' }, n = { minor: 0, advisory: 0, observation: 0 };
+      var all = [], by = { minor: [], advisory: [], observation: [] };
+      sections.forEach(function (sec) {
+        sec.rows.forEach(function (r) {
+          if (!FINDING[r.status]) return;
+          var f = { status: r.status, ref: pre[r.status] + (++n[r.status]), item: r.item, note: r.note, extra: r.extra || '', section: sec.name };
+          all.push(f); by[r.status].push(f);
+        });
+      });
+      return { all: all, minor: by.minor, advisory: by.advisory, observation: by.observation };
+    }
+    function findings(m) { return findingsOf(annotate(m, index(m.criteria))); }
+    function counts(m) {
+      var c = { compliant: 0, advisory: 0, minor: 0, observation: 0, na: 0, blank: 0, total: 0 };
+      (m.sections || []).forEach(function (sec) { (sec.rows || []).forEach(function (r) { var st = r.status || 'blank'; c[st] = (c[st] || 0) + 1; c.total++; }); });
+      return c;
+    }
+    // Evidence recorded against compliant items, in the inspector's words, by section.
+    function evidenceOf(sections) {
+      var groups = [];
+      sections.forEach(function (sec) {
+        var notes = [];
+        sec.rows.forEach(function (r) {
+          if (r.status !== 'compliant') return;
+          var n = clean(r.note); if (isPlaceholder(n)) n = '';
+          if (n.length >= 12) notes.push(endStop(n.length < 30 ? cap(r.item) + ' - ' + lc(n) : cap(voice(n))));
+          if (r.extra) notes.push(r.extra);
+        });
+        if (notes.length) groups.push({ section: sec.name, notes: notes });
+      });
+      return groups;
+    }
+    function allCompliantSections(sections) {
+      return sections.filter(function (sec) {
+        var rows = sec.rows; if (!rows.length) return false;
+        return rows.every(function (r) { return r.status === 'compliant' || r.status === 'na'; }) && rows.some(function (r) { return r.status === 'compliant'; });
+      }).map(function (sec) { return sec.name; });
+    }
+    function isAccidentSection(sec) { return /accident|incident/i.test(sec.name || ''); }
+    var THEMES = [
+      [/crane|lift(ing|ed)?\b|hoist|sling/i, 'lifting operations'],
+      [/trolle?y|overload|manual handl|carry|carried/i, 'manual handling and the movement of materials'],
+      [/\bfell\b|\bfall|dropped|\bdrop\b/i, 'falling or dropped materials'],
+      [/height|ladder|scaffold|mewp|tower/i, 'work at height'],
+      [/vehicle|driver|reversing|forklift|telehandler|plant\b/i, 'vehicle and plant movements'],
+      [/slip|trip/i, 'slips and trips'],
+      [/electr|cable|shock/i, 'electrical work'],
+      [/\beye\b|eyes/i, 'eye injuries'],
+      [/finger|hand\b|hands/i, 'hand and finger injuries'],
+      [/dust|fume|noise|vibration|havs/i, 'health exposures'],
+      [/fire|hot work/i, 'fire and hot works']
+    ];
+    function incidentsOf(sections) {
+      var notes = [];
+      sections.forEach(function (sec) { if (isAccidentSection(sec)) sec.rows.forEach(function (r) { var n = clean(r.note); if (n && !isPlaceholder(n)) notes.push(n); }); });
+      if (!notes.length) return null;
+      var text = notes.join(' '), themes = [];
+      THEMES.forEach(function (t) { if (t[0].test(text)) themes.push(t[1]); });
+      return { notes: notes, themes: themes.slice(0, 4) };
+    }
+    var GAP = { minor: 'corrective action required', advisory: 'improvement required', observation: 'noted for attention' };
+    function findingLine(f) {
+      var body = f.note ? endStop(voice(f.note)) : GAP[f.status] + '.';
+      return f.ref + '. ' + f.item + ' - ' + body + (f.extra ? ' ' + f.extra : '');
+    }
+    function pcRelated(f) { return /principal contractor|\bpc\b|safety meeting|communicat|interface|co-?operat|cdm|coordinat/i.test(f.item + ' ' + f.note + ' ' + f.extra + ' ' + f.section); }
+    function judgement(c, f) {
+      if (f.minor.length >= 3 || (f.minor.length && f.advisory.length >= 3)) return 'not acceptable';
+      if (f.minor.length) return 'acceptable in most areas, with corrective action required';
+      if (f.advisory.length) return 'acceptable, with improvements advised';
+      if (f.observation.length) return 'well controlled, with ' + plural(f.observation.length, 'observation', 'observations') + ' to attend to';
+      return 'well controlled';
+    }
+    function incidentsText(inc) {
+      return 'The incidents recorded since the last visit' + (inc.themes.length ? ' involve ' + join(inc.themes) : ' are listed under the findings') +
+        '. The pattern behind them should be reviewed with the workforce, and the controls for the activities involved checked at the next visit.';
+    }
+    function priorText(prior) {
+      return plural(prior.length, 'action', 'actions') + ' raised at ' + (prior.length === 1 ? 'a previous visit remains' : 'previous visits remain') + ' open: ' +
+        prior.map(function (x) { return noStop(x.item) + (x.visit ? ' (visit ' + x.visit + ')' : ''); }).join('; ') + '.';
+    }
+
+    function build(m, kind) {
+      m = m || {};
+      var v = m.visit || {};
+      var p = parties(m);
+      var c = counts(m);
+      var sections = annotate(m, index(m.criteria));
+      var f = findingsOf(sections);
+      var ev = evidenceOf(sections);
+      var evSecs = {}; ev.forEach(function (g) { evSecs[g.section] = true; });
+      var okSecs = allCompliantSections(sections).filter(function (n) { return !evSecs[n]; });
+      var inc = incidentsOf(sections);
+      var prior = (m.prior || []).filter(function (x) { return clean(x.item); });
+      var own = {};
+      sections.forEach(function (sec) { if (sec.own.length) own[sec.name] = sec.own; });
+      var secNames = sections.map(function (s) { return s.name; }).filter(Boolean);
+      var byArea = [], seen = {};
+      f.all.forEach(function (x) { if (!seen[x.section]) { seen[x.section] = []; byArea.push({ section: x.section, items: seen[x.section] }); } seen[x.section].push(x); });
+      var pcFails = f.minor.concat(f.advisory).filter(pcRelated);
+      var whom = firstName(p.contact) || 'the site supervisor';
+      var parts = [];
+
+      if (kind === 'site') {
+        // 1. who for, what, where - and the chain of parties above the subject
+        var s1 = 'This inspection was undertaken on behalf of ' + (p.contractor || p.client || p.pc || 'the client') +
+          ' to provide an independent review of the health, safety and welfare arrangements ' +
+          (p.contractor ? 'applying to their works' : 'in place') + (p.project ? ' at ' + p.project : ' on site') + ' at the time of the visit.';
+        var chain = [];
+        if (p.client && p.client !== p.contractor) chain.push('is being delivered for ' + p.client);
+        if (p.pc && p.pc !== p.contractor) chain.push((chain.length ? 'with ' : 'is under the control of ') + p.pc + ' as Principal Contractor');
+        var s1b = '';
+        if (chain.length) s1b = 'The project ' + chain.join(', ') + (p.contract && p.contractor && p.contract !== p.contractor ? ', and ' + p.contractor + ' are engaged through ' + p.contract : '') + '.';
+        else if (p.contract && p.contractor) s1b = p.contractor + ' are engaged through ' + p.contract + '.';
+        if (p.description) s1b += (s1b ? ' ' : '') + 'The project comprises ' + lc(p.description) + '.';
+        parts.push(s1 + (s1b ? ' ' + s1b : ''));
+
+        // 2. met by, purpose agreed
+        parts.push('On arrival the inspector was met by ' + (p.contact || 'the site supervisor') +
+          '. The purpose of the inspection, the scope of the walk-around and the expected outputs were discussed and agreed prior to commencement.');
+
+        // 3. what was going on, who was there, in what conditions
+        if (clean(v.works_phase)) parts.push('At the time of the inspection ' + p.subject + ' were engaged in ' + lc(noStop(v.works_phase)) + '.');
+        var present = [];
+        if (v.operatives_on_site != null && v.operatives_on_site !== '') present.push(plural(+v.operatives_on_site, 'operative', 'operatives') + (p.contractor ? ' from ' + p.contractor : ''));
+        if (v.contractors_on_site != null && v.contractors_on_site !== '') present.push('approximately ' + v.contractors_on_site + ' contractors in total');
+        if (present.length || clean(v.weather_conditions)) {
+          parts.push((present.length ? cap(join(present)) + ' were on site on a day-to-day basis' : 'The workforce was on site') +
+            (clean(v.weather_conditions) ? ', working in ' + lc(noStop(v.weather_conditions)) + ' conditions' : '') + ' at the time of the visit.');
+        }
+
+        // 4. scope: what was discussed and what the walk-around set out to establish
+        var areas = secNames.map(function (n) { return inSentence(n, p.keep); });
+        var ref = clean(v.focus_areas) ? noStop(v.focus_areas) : (areas.length ? join(areas, '; ') : 'the arrangements in place on site');
+        var s4 = 'Discussions were held with ' + p.who + ' throughout the walk-round regarding the current arrangements for managing health, safety and welfare, with particular reference to ' + ref + '.';
+        s4 += ' The inspection included a walk-around of the site to establish whether the site was in good order, whether ' + (p.contractor ? p.contractor + "'s operatives" : 'the workforce') +
+          ' were provided with safe means of access to their place of work, and whether suitable arrangements were in place for the delivery, loading and storage of materials that avoid manual handling wherever mechanical aids can be used.';
+        if (clean(v.focus_areas) && areas.length) s4 += ' The areas reviewed were ' + join(areas, '; ') + '.';
+        parts.push(s4);
+
+        // 5. the overall picture, set by what was found
+        var jd = '';
+        if (!c.total) jd = '';
+        else if (f.minor.length >= 3 || (f.minor.length && f.advisory.length >= 3)) jd = 'Overall the standard of health and safety management found on this visit was not acceptable: ' + plural(f.minor.length, 'matter requires', 'matters require') + ' corrective action' + (f.advisory.length ? ' and ' + plural(f.advisory.length, 'advisory item was', 'advisory items were') + ' raised' : '') + '. These are set out below and were discussed with ' + whom + ' on the day.';
+        else if (f.minor.length) jd = 'Overall the arrangements were acceptable in most areas, but ' + plural(f.minor.length, 'matter requires', 'matters require') + ' corrective action' + (f.advisory.length ? ', and ' + plural(f.advisory.length, 'advisory item was', 'advisory items were') + ' raised for improvement' : '') + '. These were discussed with ' + whom + ' on the day and are set out below.';
+        else if (f.advisory.length) jd = 'Overall the arrangements were found to be acceptable, with ' + plural(f.advisory.length, 'advisory item', 'advisory items') + ' where improvement is advised before the next visit' + (f.observation.length ? ' and ' + plural(f.observation.length, 'observation', 'observations') + ' recorded for attention' : '') + '.';
+        else if (f.observation.length) jd = 'Overall ' + p.subject + "'s arrangements were found to be well controlled. " + cap(plural(f.observation.length, 'observation is', 'observations are')) + ' recorded below for attention.';
+        else jd = 'Overall ' + p.subject + "'s arrangements were found to be well controlled, and no matters requiring action were identified.";
+        if (jd && pcFails.length && !p.pcMode) {
+          jd += ' A number of the matters raised sit with the Principal Contractor rather than with ' + p.contractor + "'s own work: they go to the planning, managing and monitoring of the construction phase, and to the co-operation and co-ordination between contractors, which CDM 2015 places with " +
+            (p.pc || 'the Principal Contractor') + '. ' + p.contractor + " cannot discharge those duties on the Principal Contractor's behalf, but should raise the matters below formally with " + (p.pc || 'the Principal Contractor') + ' and keep a record of having done so.';
+        }
+        if (jd) parts.push(jd);
+
+        // 6. the good: the inspector's evidence against compliant items, by area
+        if (ev.length) parts.push('There was clear evidence of control in the following areas. ' + ev.map(function (g) { return g.section + ': ' + g.notes.join(' '); }).join(' '));
+        if (okSecs.length) parts.push('All items reviewed under ' + join(okSecs.map(function (n) { return inSentence(n, p.keep); }), '; ') + ' were ' + (ev.length ? 'also ' : '') + 'found to be compliant.');
+
+        // 7. the bad: findings by area, numbered, each followed by the inspector's own comments for that area
+        if (f.all.length) {
+          var hd = [];
+          if (f.minor.length) hd.push(plural(f.minor.length, 'matter requires', 'matters require') + ' corrective action');
+          if (f.advisory.length) hd.push(plural(f.advisory.length, 'advisory item was', 'advisory items were') + ' raised for improvement');
+          if (f.observation.length) hd.push(plural(f.observation.length, 'observation was', 'observations were') + ' noted');
+          parts.push(cap(join(hd)) + '. ' + (f.all.length === 1 ? 'It is' : 'They are') + ' set out by area below' + (Object.keys(own).length ? ", with the inspector's comments" : '') + '.');
+          byArea.forEach(function (a) {
+            var block = a.section + '\n' + a.items.map(findingLine).join('\n');
+            if (own[a.section]) { block += '\n' + own[a.section].join(' '); delete own[a.section]; }
+            parts.push(block);
+          });
+        }
+        // the inspector's comments in areas with no finding
+        var rest = Object.keys(own);
+        if (rest.length) parts.push('The inspector also noted the following. ' + rest.map(function (s) { return s + ': ' + own[s].join(' '); }).join(' '));
+
+        // 8. incidents, open actions, gaps
+        if (inc) parts.push(incidentsText(inc));
+        if (prior.length) parts.push(priorText(prior));
+        if (c.blank) parts.push(plural(c.blank, 'item was', 'items were') + ' not assessed on this visit and ' + (c.blank === 1 ? 'is' : 'are') + ' carried forward to the next.');
+        parts.push('The findings set out below reflect the conditions observed and the discussions held on the date of the inspection only.');
+      } else {
+        var jdg = judgement(c, f);
+        var tally = [];
+        if (c.total) {
+          tally.push(c.compliant + ' were compliant');
+          if (c.advisory) tally.push(plural(c.advisory, 'was advisory', 'were advisory'));
+          if (c.minor) tally.push(c.minor + ' require' + (c.minor === 1 ? 's' : '') + ' corrective action');
+          if (c.observation) tally.push(plural(c.observation, 'was an observation', 'were observations'));
+          if (c.na) tally.push(plural(c.na, 'was', 'were') + ' not applicable');
+          if (c.blank) tally.push(plural(c.blank, 'was', 'were') + ' not assessed');
+        }
+        parts.push('At the time of the inspection ' + p.subject + "'s arrangements were found to be " + jdg + '.' +
+          (c.total ? ' Of the ' + c.total + ' items reviewed across ' + plural(secNames.length, 'area', 'areas') + ', ' + join(tally) + '.' : ''));
+        if (f.minor.length) {
+          parts.push('The following ' + plural(f.minor.length, 'matter requires', 'matters require') + ' corrective action and ' + (f.minor.length === 1 ? 'was' : 'were') + ' discussed with ' + whom +
+            ' on the day. An owner and a target date are to be agreed for each and recorded against the action; they will be checked at the next visit.\n' + f.minor.map(findingLine).join('\n'));
+        }
+        if (pcFails.length && !p.pcMode) {
+          parts.push('Where these matters sit with the Principal Contractor rather than with ' + p.contractor + ', they go to the planning, managing and monitoring of the construction phase that CDM 2015 places with ' +
+            (p.pc || 'the Principal Contractor') + '. ' + p.contractor + ' should raise them formally with ' + (p.pc || 'the Principal Contractor') + ' and keep a record of having done so.');
+        }
+        if (f.advisory.length) parts.push(cap(plural(f.advisory.length, 'advisory item was', 'advisory items were')) + ' raised for ' + p.subject + ' to improve on before the next visit.\n' + f.advisory.map(findingLine).join('\n'));
+        if (f.observation.length) parts.push(cap(plural(f.observation.length, 'observation was', 'observations were')) + ' recorded for attention.\n' + f.observation.map(findingLine).join('\n'));
+        if (!f.all.length && c.total) parts.push('No corrective actions were required on this visit.');
+        if (inc) parts.push(incidentsText(inc));
+        if (prior.length) parts.push(priorText(prior));
+        if (ev.length) parts.push('The areas found to be in good order, in particular ' + join(ev.slice(0, 3).map(function (g) { return inSentence(g.section, p.keep); }), '; ') + ', should be maintained.');
+        parts.push(f.minor.length
+          ? 'A follow-up visit should confirm that the actions above have been closed out. Until then ' + p.subject + ' should treat the items marked for action as the priorities for the site supervisor.'
+          : 'The next visit will review the items above and any change in the works.');
+        var so = [];
+        if (clean(m.inspector)) so.push('Prepared by ' + clean(m.inspector));
+        if (p.contact) so.push('and discussed on site with ' + firstName(p.contact));
+        if (so.length) parts.push(cap(so.join(' ')) + '.');
+      }
+      return parts.filter(Boolean);
+    }
+    return { build: build, findings: findings, counts: counts, annotate: annotate, linesFromHtml: linesFromHtml, index: index, judgement: judgement, voice: voice };
+  })();
+  if (typeof window !== 'undefined') window.AHS_COMPOSE = AHS_COMPOSE;
+  // ── AHS_COMPOSE end ──
   // ── Local summary composer (replaces the old AI drafting) ──
   // Builds the Site Summary and the sign-off from what has already been typed:
   // project info, the visit context and the findings. Entirely local.
   function _fieldTxt(sel){ var e = document.querySelector(sel); return e ? (e.innerText || e.textContent || '').replace(/\s+/g,' ').trim() : ''; }
-  function _cap(s){ return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
-  function _joinList(list){ if(!list.length) return ''; if(list.length===1) return list[0]; return list.slice(0,-1).join(', ') + ' and ' + list[list.length-1]; }
+  // Model for the composer: everything the report holds, in plain text. The
+  // criteria and section-template sentences go with it so the composer can
+  // tell the builder's lines from the inspector's own words.
+  function _composeModel(){
+    var s = collect(); var fx = s.fixed || {};
+    var fp = {}; try{ fp = JSON.parse(localStorage.getItem('FRONTPAGE_DATA_V1') || '{}') || {}; }catch(e){ fp = {}; }
+    var phrases = (typeof SIMPLE_PHRASES !== 'undefined') ? SIMPLE_PHRASES : [];
+    var byId = {}; phrases.forEach(function(p){ byId[p.id] = p.text || ''; });
+    var criteria = phrases.map(function(p){ return p.text || ''; })
+      .concat(((typeof TOPICS !== 'undefined') ? TOPICS : []).map(function(t){ return t.templateHtml || ''; }), ['At the time of the inspection the following was observed:']);
+    var sections = (s.inspections || []).map(function(sec){
+      var name = strip(sec.sectionNameHtml); if(window.stripSectionTitle) name = window.stripSectionTitle(name);
+      return { name: name, lines: AHS_COMPOSE.linesFromHtml(sec.commentsHtml),
+        rows: (sec.rows || []).map(function(r){ return { item: strip(r.itemHtml), status: r.status || '', note: strip(r.commentsHtml), text: r.capPid ? (byId[r.capPid] || '') : '' }; }) };
+    });
+    var prior = []; try{ prior = openActions(); }catch(e){ prior = []; }
+    return { project: fp.projectName || '', description: fp.description || '',
+      client: strip(fx.site), pc: strip(fx.proj), contract: strip(fx.con), contractor: strip(fx.cli),
+      contact: strip(fx.siteContact), inspector: strip(fx.cslt) || strip(fx.ins),
+      visit: CUR.visit || {}, sections: sections, criteria: criteria, prior: prior };
+  }
   function buildLocalSummary(kind){
-    // Built to the same detail as Simon's own "Opening Statement" / "Closing
-    // Summary" snippets: full paragraphs with [INSERT …] cues, and the cues
-    // pre-filled from the visit context, project info and findings wherever
-    // that data exists. [INSERT …] is left only where there is nothing to use.
-    var v = CUR.visit || {};
-    var client = _fieldTxt('#site') || _fieldTxt('#con');
-    var met = v.site_contact_name ? (v.site_contact_name + (v.site_contact_role ? ' (' + v.site_contact_role + ')' : '')) : _fieldTxt('#site-contact');
-    var d = digest(collect());
-    var parts = [];
-    if(kind === 'site'){
-      parts.push('This inspection was undertaken on behalf of ' + (client || '[INSERT client / principal contractor]') + ' to provide an independent review of health, safety and welfare arrangements on site at the time of the visit.');
-      parts.push('On arrival, the inspector was met by ' + (met || '[INSERT name / role]') + ' and a site induction was [INSERT completed / not required as previously inducted]. The purpose of the inspection, the scope of the walk-around, and the expected outputs were discussed and agreed prior to commencement.');
-      parts.push('At the time of the inspection the site was engaged in ' + (v.works_phase || '[INSERT current activities, e.g. groundworks / steel erection / first-fix / internal finishes]') + '. Key forthcoming phases identified by the site team included [INSERT upcoming works, e.g. roofing / lift installation / external landscaping].');
-      var present = [];
-      if(v.operatives_on_site!=null && v.operatives_on_site!=='') present.push(v.operatives_on_site + ' operative' + (+v.operatives_on_site===1?'':'s'));
-      if(v.contractors_on_site!=null) present.push(v.contractors_on_site + ' contractor' + (+v.contractors_on_site===1?'':'s'));
-      if(present.length || v.weather_conditions){
-        parts.push((present.length ? _cap(_joinList(present)) + ' were on site' : 'The workforce present') + (v.weather_conditions ? ', working in ' + v.weather_conditions + ' conditions,' : '') + ' at the time of the visit.');
-      }
-      // Areas covered: read the sections currently in the report, so re-running
-      // the composer after adding sections picks the new ones up.
-      var areaNames = [];
-      document.querySelectorAll('#secs .insp-section').forEach(function(sec){ var f=sec.querySelector(".field .rte[contenteditable='true']"); var n=f?strip(f.innerHTML):''; if(n) areaNames.push(window.stripSectionTitle?window.stripSectionTitle(n):n); });
-      parts.push('Discussions were held with the Site Manager regarding the current arrangements for managing health, safety and welfare, with particular reference to ' + (v.focus_areas || '[INSERT e.g. RAMS / CPP / permit systems / access control]') + '. The inspection included a walk-around covering ' + (areaNames.length ? _joinList(areaNames) : '[INSERT areas covered, e.g. site perimeter / working levels / welfare facilities / storage areas]') + ', supported by a review of the site documentation.');
-      parts.push('The findings set out below reflect the conditions observed and the discussions held on the date of the inspection only.');
-    } else {
-      parts.push('At the time of the inspection the site was found to be [INSERT e.g. generally well managed / compliant with legislation / progressing satisfactorily] and the management team demonstrated a [INSERT e.g. strong / developing / satisfactory] commitment to maintaining health and safety standards.');
-      var secNames = [];
-      document.querySelectorAll('#secs .insp-section').forEach(function(sec){ var f=sec.querySelector(".field .rte[contenteditable='true']"); var n=f?strip(f.innerHTML):''; if(n) secNames.push(window.stripSectionTitle?window.stripSectionTitle(n):n); });
-      parts.push('During the inspection the following arrangements were reviewed: ' + (secNames.length ? _joinList(secNames) : '[INSERT arrangements reviewed]') + '. Operatives were observed [INSERT e.g. working in accordance with site rules / adhering to task-specific RAMS / wearing correct PPE] and the site team was receptive to discussion during the visit.');
-      var actionItems = (d.actions||[]).map(function(a){ return a.item; }).filter(Boolean);
-      var advisoryItems = (d.advisories||[]).map(function(a){ return a.item; }).filter(Boolean);
-      if(actionItems.length){
-        parts.push((actionItems.length===1 ? 'One item was identified as requiring corrective action and was discussed with the Site Manager, who confirmed that corrective actions would be taken and monitored to completion:' : 'The following ' + actionItems.length + ' items were identified as requiring corrective action and were discussed with the Site Manager, who confirmed that corrective actions would be taken and monitored to completion:') + '\n' + actionItems.map(function(t){ return '• ' + t; }).join('\n'));
-      } else {
-        parts.push('No items requiring corrective action were identified at the time of the inspection.');
-      }
-      if(advisoryItems.length){
-        parts.push((advisoryItems.length===1 ? 'One advisory item was noted for the site team to consider' : advisoryItems.length + ' advisory items were noted for the site team to consider') + ':\n' + advisoryItems.map(function(t){ return '• ' + t; }).join('\n'));
-      }
-      parts.push('As the project progresses into [INSERT upcoming phase, e.g. roofing / internal fit-out / external landscaping], continued emphasis on [INSERT e.g. supervision / planning / competence checks] will support the ongoing management of risk.');
-      parts.push('Overall, the inspector considers the site to be ' + (d.counts.action ? '[INSERT e.g. operating to an acceptable standard, with the actions above to be closed out / requiring minor improvement]' : '[INSERT e.g. operating to a good standard / an acceptable standard]') + ' at the time of the visit.');
-      var mgr = _fieldTxt('#mgr'), cslt = _fieldTxt('#cslt'), so = [];
-      if(cslt) so.push('Prepared by ' + cslt);
-      if(mgr) so.push('and discussed on site with ' + mgr);
-      if(so.length) parts.push(so.join(' ') + '.');
-    }
-    return parts.filter(Boolean);
+    // Composed from everything already in the report - the parties, the visit
+    // context, every item's status and the inspector's own notes and comment
+    // lines - by AHS_COMPOSE above. No [INSERT] cues: what is not recorded is left out.
+    return AHS_COMPOSE.build(_composeModel(), kind);
   }
   function composeInto(kind){
     var target = document.querySelector(kind==='site' ? '#siteSummary' : '#signoffSummary');
