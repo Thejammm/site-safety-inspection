@@ -168,7 +168,7 @@ test('findings end with their status letter and the criteria modal has no includ
   // removed: answering an item puts it in, the x on its report row takes it
   // out, answering it again brings it back.
   assert.match(SRC, /var STATUS_LETTER = \{ minor:'A', advisory:'AD', observation:'O' \};/, 'STATUS_LETTER map changed or gone');
-  assert.match(SRC, /findLines\.push\('• ' \+ q\.text \+ \(it\.note \? ' - ' \+ it\.note : ''\) \+ suffix \+ ' \(' \+ STATUS_LETTER\[it\.st\] \+ '\)'\);/, 'highlighted findings no longer end with their status letter');
+  assert.match(SRC, /findLines\.push\('• ' \+ q\.text \+ \(it\.note \? ' - ' \+ it\.note : ''\) \+ suffix \+ ' \(' \+ STATUS_LETTER\[it\.st\] \+ \(basis \? ', ' \+ basis : ''\) \+ '\)'\);/, 'highlighted findings no longer end with their status letter and legal basis');
   assert.doesNotMatch(SRC, /class="cap-inc"|_syncInc|In report</, 'the include switch is back in the criteria modal');
   assert.match(SRC, /if\(it\.inc === false\) delete it\.inc;/, 'answering a removed item no longer brings it back into the report');
 });
@@ -372,6 +372,43 @@ test('syncItem accepts inc so a removed row stays removed', { skip: !CHROME && '
   assert.deepEqual(errs, []);
 });
 
+test('every finding cites a verified regulation from the register, never a free-typed one', () => {
+  // 2026-09-14: Simon wants every check to state the law being measured
+  // against, so a finding is no longer "just me saying it". The only source
+  // of citations is LAW_REGISTER (each statutory entry read on
+  // legislation.gov.uk). This pins: the register and the mapping resolve,
+  // every contractor check is mapped, Action/Advisory cite and Observation
+  // does not, the section anchor line reads correctly, and the PDF appendix exists.
+  const s = SRC.indexOf('// ── AHS_LAW start ──'), e = SRC.indexOf('// ── AHS_LAW end ──');
+  assert.ok(s > 0 && e > s, 'AHS_LAW block (with its start/end markers) not found');
+  const L = new Function(SRC.slice(s, e) + '\nreturn { LAW_REGISTER, CRITERIA_LAW, SECTION_LAW, AHS_LAW };')();
+  const ids = new Set(L.LAW_REGISTER.map(x => x.id));
+  const bad = [];
+  Object.keys(L.CRITERIA_LAW).forEach(pid => L.CRITERIA_LAW[pid].law.forEach(id => { if (!ids.has(id)) bad.push(pid + '->' + id); }));
+  Object.keys(L.SECTION_LAW).forEach(k => L.SECTION_LAW[k].forEach(id => { if (!ids.has(id)) bad.push(k + '->' + id); }));
+  assert.deepEqual(bad, [], 'a check or section cites an id that is not in the register');
+  const noUrl = L.LAW_REGISTER.filter(x => x.kind === 'statutory' && !/^https:\/\/www\.legislation\.gov\.uk\//.test(x.url)).map(x => x.id);
+  assert.deepEqual(noUrl, [], 'a statutory entry has no legislation.gov.uk reference');
+  // every contractor check in SIMPLE_PHRASES is mapped
+  const p0 = SRC.indexOf('const SIMPLE_PHRASES = [');
+  let i = SRC.indexOf('[', p0), d = 0, p1 = -1;
+  for (; i < SRC.length; i++) { const ch = SRC[i]; if (ch === '[') d++; else if (ch === ']') { d--; if (d === 0) { p1 = i; break; } } }
+  const phrases = new Function('return ' + SRC.slice(SRC.indexOf('[', p0), p1 + 1) + ';')();
+  const unmapped = phrases.filter(p => /^\(C - Section \d+\)/.test(p.label || '') && !L.CRITERIA_LAW[p.id]).map(p => p.id);
+  assert.deepEqual(unmapped, [], 'contractor checks with no legal basis');
+  assert.equal(L.AHS_LAW.basisText('c24_3', 'minor'), 'CDM 2015 reg 15(8)');
+  assert.equal(L.AHS_LAW.basisText('c24_3', 'advisory'), 'CDM 2015 reg 15(8)');
+  assert.equal(L.AHS_LAW.basisText('c24_3', 'observation'), '', 'an observation must not cite');
+  assert.equal(L.AHS_LAW.basisText('c24_3', 'compliant'), '');
+  assert.match(L.AHS_LAW.basisText('c41_1', 'minor'), /Construction Phase Plan.*CDM 2015 reg 15\(3\)\(b\)/, 'a CPP-based check must name the regulation that makes the CPP binding');
+  assert.equal(L.AHS_LAW.anchorLine('C24'), 'Assessed against CDM 2015 regs 15(7) and 15(8); MHSWR 1999 reg 13(2).');
+  assert.equal(L.AHS_LAW.holderPhrase('c22_4'), "the Principal Contractor's duty");
+  assert.match(SRC, /if\(anchor\) gen\.push\(\{ text: anchor, hl:false \}\);/, 'the section anchor line is no longer written');
+  assert.match(SRC, /doc\.text\('Legal basis of findings', 20, 20\);/, 'the PDF appendix is gone');
+  assert.match(SRC, /'Requirement: ' \+ f\.basis/, 'Key Findings no longer show the requirement');
+  assert.match(SRC, /class="cap-law"/, 'the criteria modal no longer shows the basis under each check');
+});
+
 test('the summary composer writes from the inspector\'s own words and never leaves [INSERT] cues', () => {
   // 2026-09-14: the composed summaries were template prose with [INSERT] cues
   // that ignored every note typed on site. The composer now takes the whole
@@ -408,7 +445,7 @@ test('the summary composer writes from the inspector\'s own words and never leav
   assert.doesNotMatch(site + closing, /\[INSERT/i, 'a cue was written instead of leaving the unknown out');
   assert.match(site, /No safety meetings taking place on a regular basis/, 'the note against a finding is not in the summary');
   assert.match(site, /Action: The Principal Contractor can improve[^\n]*PC is not participating/, 'the comment lines typed under a section (label + continuation) were lost');
-  assert.match(site, /CDM 2015 places with Henry Boot Construction Ltd/, 'a PC-level failure is not escalated to the Principal Contractor');
+  assert.match(site, /CDM 2015 regulations 13\(1\) and 13\(3\)\(a\) place with Henry Boot Construction Ltd/, 'a PC-level failure is not escalated to the Principal Contractor, naming the regulation');
   assert.match(site, /operative the inspector spoke to knew the RAMS well/, 'words typed onto the end of a criteria line were lost, or left in the first person');
   assert.doesNotMatch(site, /Task-specific RAMS were in place/, 'a criteria sentence the builder wrote was passed off as the inspector\'s words');
   assert.doesNotMatch(site, /…/, 'an unfilled placeholder line reached the summary');
