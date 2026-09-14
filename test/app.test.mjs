@@ -123,6 +123,44 @@ test('a poor site signal degrades to amber and a retry, never a hang or a red ba
   assert.match(sw, /navigator\.onLine === false/, 'offline load waits the full timeout before showing the cached app');
 });
 
+test('rebuilding the report leaves untouched sections and hand-added rows alone', () => {
+  // 2026-09-14, first site visit: 'the inspection comments keep resetting each
+  // time I add another inspection category'. build() rewrote EVERY captured
+  // section from builder state on every run. Each section now keeps the
+  // signature it was built from and is skipped when that has not changed, and
+  // rows the user added by hand (no capKey) are lifted out and put back.
+  assert.match(SRC, /if\(sec\.builtSig === sig && !opts\.force\) continue;/,
+    'build() rewrites unchanged sections again - editing one section and adding another will reset it');
+  assert.match(SRC, /manual\.forEach\(function\(r\)\{ list\.appendChild\(r\); \}\);/,
+    'hand-added item rows are dropped on rebuild again');
+  assert.ok((SRC.match(/sec\.builtSig = sig;/g) || []).length >= 2, 'the built signature is not recorded on both the built and the emptied path');
+});
+
+test('a changed section merges its narrative with what the user typed, instead of regenerating it', () => {
+  // Same visit. Even a section that DID change used to be regenerated from
+  // scratch, wiping the user's own lines and rewordings in that box. The
+  // rebuild now merges: the user's version of a generated line wins, their
+  // own lines are kept after, and lines for switched-off items go.
+  assert.match(SRC, /function _mergeNarrative\(gen, boxHTML, prevKeys\)/,
+    '_mergeNarrative() is gone - a changed section wipes the user\'s comments again');
+  assert.match(SRC, /var html = _mergeNarrative\(gen, boxRte \? boxRte\.innerHTML : \(inst \? inst\.content : ''\), sec\.builtLines \|\| \[\]\);/,
+    'the narrative is no longer merged with the box');
+  assert.match(SRC, /sec\.builtLines = gen\.map\(function\(g\)\{ return g\.key; \}\);/,
+    'generated lines are not remembered, so switched-off items leave their edited lines behind');
+});
+
+test('removing an item row takes the selected row, never blindly the last one', () => {
+  // Same visit: '- Remove Item Row' always deleted the LAST row. Each row now
+  // has its own x, and the button removes the row last edited.
+  const add = SRC.match(/function addItemRow\(itemsList\) \{([\s\S]*?)\r?\n\}/);
+  assert.ok(add, 'addItemRow not found');
+  assert.match(add[1], /class="item-del"/, 'rows have no per-row delete');
+  assert.match(add[1], /removeItemRow\(itemsList, itemRow\)/, 'the per-row x does not remove its own row');
+  assert.match(SRC, /function rowToRemove\(itemsList\)/, 'rowToRemove() is gone');
+  assert.ok(!/removeItemRow\(itemsList, rows\[rows\.length - 1\]\)/.test(SRC), 'a remove button still deletes the last row unconditionally');
+  assert.match(SRC, /@media print\{ \.item-del\{ display:none !important; \} \}/, 'the x would print on the client report');
+});
+
 test('the photo store is only ever wiped wholesale from the confirmed device wipe', () => {
   // Clearing this store loses every photo for every report on the device.
   // Per-report clears must delete their own ids. One legitimate caller.

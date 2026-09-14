@@ -726,7 +726,7 @@ body {
 /* Items header + rows inside inspection sections */
 .items-header {
   display: grid !important;
-  grid-template-columns: 2.2fr 0.9fr 2.4fr !important;
+  grid-template-columns: 2.2fr 0.9fr 2.4fr 30px !important;
   gap: 0.4rem !important;
   align-items: center !important;
   padding: 0.45rem 0.6rem !important;
@@ -743,7 +743,7 @@ body {
 .item,
 .item-row {
   display: grid !important;
-  grid-template-columns: 2.2fr 0.9fr 2.4fr !important;
+  grid-template-columns: 2.2fr 0.9fr 2.4fr 30px !important;
   gap: 0.4rem !important;
   align-items: start !important;
   padding: 0.3rem 0.6rem !important;
@@ -766,6 +766,10 @@ body {
   overflow-x: hidden !important;
   height: auto !important;
 }
+
+.item-del{ width:30px; height:32px; border:1px solid var(--border); background:var(--surface); color:var(--danger,#b91c1c); border-radius:6px; font-size:18px; line-height:1; cursor:pointer; padding:0; }
+.item-del:hover{ background:#fee2e2; }
+@media print{ .item-del{ display:none !important; } }
 
 /* Status select colors PRESERVED (legacy pass/fail shorthand) */
 .item select.pass {
@@ -2244,8 +2248,8 @@ function createInspectionSection() {
   };
   section.querySelector('.btn-remove-row-btn').onclick = function() {
     const itemsList = section.querySelector('.items-list');
-    const rows = itemsList.querySelectorAll('.item-row');
-    if (rows.length > 0) removeItemRow(itemsList, rows[rows.length - 1]);
+    const row = rowToRemove(itemsList);
+    if (row) removeItemRow(itemsList, row);
   };
   return section;
 }
@@ -2282,12 +2286,26 @@ function addItemRow(itemsList) {
       <option value="na" style="background:#fce7f3;color:#a21caf;border:2px solid #f9a8d4;">N/A</option>
     </select>
     <div class="rte" contenteditable="true" style="min-width:100%;max-width:100%;min-height:32px;resize:none;overflow:auto;border:2px solid #e5e7eb;border-radius:6px;padding:.5rem;box-sizing:border-box;"></div>
+    <button type="button" class="item-del" title="Remove this item" aria-label="Remove this item">&times;</button>
   `;
   itemRow.querySelector('.status-select').addEventListener('change', function() {
     updateStatusSelectColors();
   });
+  // Delete THIS row, not the last one in the list.
+  itemRow.querySelector('.item-del').onclick = function() { removeItemRow(itemsList, itemRow); };
+  // Remember the row being edited, so "- Remove Item Row" takes that one.
+  itemRow.addEventListener('focusin', function() { itemsList._lastRow = itemRow; });
   itemsList.appendChild(itemRow);
   updateStatusSelectColors();
+}
+// The row to remove when the section button is pressed: the one last edited,
+// if it is still there; otherwise the last in the list.
+function rowToRemove(itemsList) {
+  const rows = itemsList.querySelectorAll('.item-row');
+  if (!rows.length) return null;
+  const last = itemsList._lastRow;
+  if (last && last.parentNode === itemsList) return last;
+  return rows[rows.length - 1];
 }
 
 // --- Attach logic to initial section ---
@@ -2300,8 +2318,8 @@ if (initialSection) {
   };
   if (removeBtn) removeBtn.onclick = function() {
     const itemsList = initialSection.querySelector('.items-list');
-    const rows = itemsList.querySelectorAll('.item-row');
-    if (rows.length > 0) removeItemRow(itemsList, rows[rows.length - 1]);
+    const row = rowToRemove(itemsList);
+    if (row) removeItemRow(itemsList, row);
   };
 }
 
@@ -7891,6 +7909,41 @@ function addPageFooter(doc, pageNum, totalPages) {
   }
 
   // ── Build: write ordinary sections + item rows + photos ──
+  // First 40 characters of a line's plain text: enough to recognise a
+  // criteria sentence after the user has reworded its tail.
+  function _lineKey(text){ return String(text||'').replace(/\s+/g,' ').trim().toLowerCase().slice(0, 40); }
+  function _boxLines(innerHTML){
+    // The generator joins with <br>; typing Enter in a contenteditable adds
+    // <div>/<br>. Split on both and keep each fragment's raw HTML.
+    var frags = String(innerHTML||'').replace(/<div[^>]*>/gi, '<br>').replace(/<\/div>/gi, '').replace(/<p[^>]*>/gi, '<br>').replace(/<\/p>/gi, '').split(/<br\s*\/?>/i);
+    var out = [];
+    frags.forEach(function(f){
+      var tmp = document.createElement('div'); tmp.innerHTML = f;
+      var text = (tmp.textContent||'').replace(/\u00a0/g,' ').trim();
+      if(text) out.push({ html: f.trim(), key: _lineKey(text) });
+    });
+    return out;
+  }
+  function _mergeNarrative(gen, boxHTML, prevKeys){
+    var box = _boxLines(boxHTML);
+    var genKeys = {}; gen.forEach(function(g){ genKeys[g.key] = true; });
+    var prev = {}; (prevKeys||[]).forEach(function(k){ prev[k] = true; });
+    var used = {};
+    var lines = gen.map(function(g){
+      var c = null;
+      for(var i = 0; i < box.length; i++){ if(!used[i] && box[i].key === g.key){ c = box[i]; used[i] = true; break; } }
+      if(!c) return g.html;
+      // the user's version wins; add the finding highlight if it lost it
+      return (g.hl && !/background-color/i.test(c.html)) ? '<span style="background-color:#FFE58A">' + c.html + '</span>' : c.html;
+    });
+    box.forEach(function(c, i){
+      if(used[i]) return;
+      if(genKeys[c.key] || prev[c.key]) return;   // ours (now or previously): not carried
+      lines.push(c.html);                          // the user's own line: kept
+    });
+    return lines.join('<br>');
+  }
+
   async function build(opts){
     opts = opts || {};
     var built = 0, photosAdded = 0;
@@ -7899,6 +7952,14 @@ function addPageFooter(doc, pageNum, totalPages) {
       var t = ts[i], sec = S.sections[t.key];
       if(!sec) continue;
       var qs = bank()[t.key];
+      // What this section would be built from. If it is what the section was
+      // last built from, leave the section alone: the user may have edited its
+      // comments or added rows by hand, and adding ANOTHER category must not
+      // reset this one.
+      var sig = JSON.stringify(qs.filter(function(q){ return included(sec.items[q.id]); }).map(function(q){
+        var it = sec.items[q.id]; return [q.id, it.st||'', it.note||'', (it.photos||[]).join(',')];
+      }));
+      if(sec.builtSig === sig && !opts.force) continue;
       var anyIn = qs.some(function(q){ return included(sec.items[q.id]); });
       if(!anyIn){
         // everything switched off (or nothing answered): empty the section this
@@ -7910,6 +7971,7 @@ function addPageFooter(doc, pageNum, totalPages) {
             if(gn){ var gf = gn.querySelectorAll(".field .rte[contenteditable='true']"); if(gf[1]) gf[1].innerHTML=''; var gl = gn.querySelector('.items-list'); if(gl) gl.innerHTML=''; }
           }
         }
+        sec.builtSig = sig;
         continue;
       }
 
@@ -7949,16 +8011,23 @@ function addPageFooter(doc, pageNum, totalPages) {
       // Observed items render plain; findings are wrapped in a highlight span that
       // both shows amber on screen and is picked up as a highlight in the PDF.
       var _esc = _escapeHtml;
-      var parts = [_esc('At the time of the inspection the following was observed:')];
-      okLines.forEach(function(l){ parts.push(_esc(l)); });
-      findLines.forEach(function(l){ parts.push('<span style="background-color:#FFE58A">' + _esc(l) + '</span>'); });
-      var html = parts.join('<br>');
+      var gen = [{ text:'At the time of the inspection the following was observed:', hl:false }];
+      okLines.forEach(function(l){ gen.push({ text:l, hl:false }); });
+      findLines.forEach(function(l){ gen.push({ text:l, hl:true }); });
+      gen.forEach(function(g){ g.html = g.hl ? '<span style="background-color:#FFE58A">' + _esc(g.text) + '</span>' : _esc(g.text); g.key = _lineKey(g.text); });
 
       // one instance per captured section, reused on rebuild. Match first by
       // the capture section's own id, then by topicId - so the same criteria
       // can never produce two sections (the old duplication bug).
       var inst = sec.instanceId ? instances.find(function(x){ return x.instanceId === sec.instanceId; }) : null;
       if(!inst && t.topicId){ inst = instances.find(function(x){ return x.topicId && x.topicId === t.topicId; }); if(inst) sec.instanceId = inst.instanceId; }
+      // Merge with the box as it stands, so the user's own lines and rewordings
+      // survive this section changing. Lines we generated last time that are no
+      // longer generated (item switched off) are dropped even if edited.
+      var boxNode = inst ? document.querySelector('.insp-section[data-instance-id="' + inst.instanceId + '"]') : null;
+      var boxRte = boxNode ? boxNode.querySelectorAll(".field .rte[contenteditable='true']")[1] : null;
+      var html = _mergeNarrative(gen, boxRte ? boxRte.innerHTML : (inst ? inst.content : ''), sec.builtLines || []);
+      sec.builtLines = gen.map(function(g){ return g.key; });
       if(!inst){
         inst = { instanceId: _uid(), topicId: t.topicId, title: t.title, content: html };
         instances.push(inst);
@@ -7973,6 +8042,9 @@ function addPageFooter(doc, pageNum, totalPages) {
         if(fields[1]) fields[1].innerHTML = html;
         var list = node.querySelector('.items-list');
         if(list){
+          // Rows the user added by hand carry no capKey. They are not ours to
+          // regenerate, so lift them out and put them back after the criteria rows.
+          var manual = Array.prototype.filter.call(list.querySelectorAll('.item-row'), function(r){ return !(r.dataset && r.dataset.capKey); });
           list.innerHTML = '';
           rows.forEach(function(r){
             addItemRow(list);
@@ -7987,8 +8059,10 @@ function addPageFooter(doc, pageNum, totalPages) {
             if(sel) sel.value = r.status;
             if(rtes[1]) rtes[1].textContent = r.note;
           });
+          manual.forEach(function(r){ list.appendChild(r); });
         }
       }
+      sec.builtSig = sig;
       built++;
     }
     if(photosAdded && typeof renderImages === 'function') await renderImages();
