@@ -1966,6 +1966,10 @@ button.r3-ai:hover{ background:var(--muted-bg); }
           </div>
         </div>
         <div class="frontpage-field">
+          <label for="fp-client-contract">Client (Contract):</label>
+          <input type="text" id="fp-client-contract" placeholder="Who the works are contracted to">
+        </div>
+        <div class="frontpage-field">
           <label for="fp-description">Project description:</label>
           <textarea id="fp-description" placeholder="What is being built, scale, programme"></textarea>
         </div>
@@ -2032,6 +2036,7 @@ function loadFrontPageData() {
     address2: '', 
     address3: '',
    providedFor: '',
+   clientContract: '',
     reportDate: '',
     client: '',
     principalContractor: '',
@@ -2053,6 +2058,7 @@ function saveFrontPageData() {
     reportDate: document.getElementById('fp-report-date').value,
     client: document.getElementById('fp-client').value,
     principalContractor: document.getElementById('fp-pc').value,
+    clientContract: document.getElementById('fp-client-contract').value,
     description: document.getElementById('fp-description').value,
     hazards: document.getElementById('fp-hazards').value,
     notes: document.getElementById('fp-notes').value
@@ -2079,7 +2085,7 @@ function saveFrontPageData() {
       };
       setBox('site', data.client);              // Client (CDM)
       setBox('proj', data.principalContractor); // Principal Contractor
-      setBox('con',  data.providedFor);         // Client (Contract)
+      setBox('con',  data.clientContract);      // Client (Contract) - NOT providedFor,
       const rd = document.getElementById('report-date');
       if (rd && data.reportDate) rd.value = data.reportDate;
       if (window.AHS_DRAFT && window.AHS_DRAFT.saveNow) window.AHS_DRAFT.saveNow();
@@ -2116,6 +2122,7 @@ function openFrontPageEditor() {
   document.getElementById('fp-provided-for').value = data.providedFor;
   document.getElementById('fp-client').value = data.client || '';
   document.getElementById('fp-pc').value = data.principalContractor || '';
+  document.getElementById('fp-client-contract').value = data.clientContract || '';
   document.getElementById('fp-description').value = data.description || '';
   document.getElementById('fp-hazards').value = data.hazards || '';
   document.getElementById('fp-notes').value = data.notes || '';
@@ -8531,8 +8538,8 @@ function addPageFooter(doc, pageNum, totalPages) {
     var v = CUR.visit;
     if(!hasVisit(v)){
       host.innerHTML = '<div class="vc-panel vc-empty"><span class="vc-title">Visit context</span>' +
-        '<span>No visit context recorded for this inspection.</span>' +
-        '<button type="button" class="vc-edit" id="vcAdd">Add visit context</button></div>';
+        '<span>Not recorded yet - fill this in when you get on site.</span>' +
+        '<button type="button" class="vc-edit" id="vcAdd">Add visit details</button></div>';
       $('vcAdd').onclick = function(){ openStart({ edit:true }); };
       return;
     }
@@ -9011,8 +9018,12 @@ function addPageFooter(doc, pageNum, totalPages) {
   // first edit if it was cancelled.
   var gateArmed = false;
   function gate(){
-    if(hasVisit(CUR.visit)) return;
-    if(!reportHasContent(collect())){ openStart({ adopt:true }); gateArmed = true; }
+    // Deliberately does NOT open the start form any more. A project is set up
+    // at home or in the office, where none of the on-site answers (operatives,
+    // contractors, weather, phase) are known yet - demanding them up front
+    // blocked the only job being done. The visit-context panel carries the
+    // prompt instead, and its button opens this form once you are on site.
+    renderPanel();
   }
   document.addEventListener('input', function(e){
     if(!gateArmed || hasVisit(CUR.visit)) return;
