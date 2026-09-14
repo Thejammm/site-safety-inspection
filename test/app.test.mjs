@@ -83,6 +83,22 @@ test('switching project saves the one you are leaving before clearing the device
   }
 });
 
+test('photos can be written out as real files, and the store asks to persist', () => {
+  // 2026-09-14: 'i lost them a few weeks ago'. Browser storage had been the only
+  // copy on the device. Two things must stay: the origin asks the browser to
+  // persist its storage (iOS evicts script storage it thinks is idle), and the
+  // Save-photos button that hands the user real image files (share sheet to
+  // Photos on iPad, downloads elsewhere). Neither shows on screen when lost.
+  assert.match(SRC, /navigator\.storage\.persist\(\)/, 'the persistent-storage request is gone');
+  assert.match(SRC, /AHS_PHOTOS\.persist\(\)/, 'persist() is defined but no longer called at load');
+  assert.match(SRC, /id="savePhotos"/, 'the Save photos to device button is gone');
+  const h = SRC.match(/async function savePhotosToDevice\(\)\s*\{([\s\S]*?)\r?\n\}/);
+  assert.ok(h, 'savePhotosToDevice() not found');
+  assert.match(h[1], /navigator\.share\(/, 'the share-sheet path (Photos on iPad) is gone');
+  assert.match(h[1], /\.download = /, 'the download fallback is gone - desktop users get nothing');
+  assert.match(h[1], /AHS_PHOTOS\.get\(/, 'photos not yet in memory are skipped instead of read from the store');
+});
+
 test('the photo store is only ever wiped wholesale from the confirmed device wipe', () => {
   // Clearing this store loses every photo for every report on the device.
   // Per-report clears must delete their own ids. One legitimate caller.

@@ -1856,6 +1856,7 @@ button.r3-ai:hover{ background:var(--muted-bg); }
         <input type="file" id="imgs" accept="image/*" multiple style="display:none" />
         <label for="imgs" class="btn btn-primary" style="display:inline-block;">Add Images</label>
         <button class="btn btn-secondary btn-small" id="clri" style="margin-left:1rem;">Clear</button>
+        <button class="btn btn-secondary btn-small" id="savePhotos" style="margin-left:0.5rem;" title="Write every photo in this inspection to this device as real image files (Photos on iPad, Downloads elsewhere)">Save photos to device</button>
 
         <div class="field" style="margin-top:1rem;">
           <label>Summary</label>
@@ -2761,6 +2762,17 @@ window.AHS_PHOTOS = (function () {
       return (rows || []).length;
     },
 
+    // Ask the browser to treat this origin as persistent, so the photo store
+    // is not silently evicted under storage pressure (iOS Safari purges
+    // script storage for sites it thinks you have stopped using). Best-effort:
+    // some browsers say no, and the result is only advisory.
+    persist() {
+      try {
+        if (navigator.storage && navigator.storage.persist) return navigator.storage.persist().catch(() => false);
+      } catch (e) {}
+      return Promise.resolve(false);
+    },
+
     // Is the store usable at all? Falls back to the old inline behaviour if not.
     async available() {
       try { await open(); return true; } catch (e) { return false; }
@@ -2854,6 +2866,70 @@ const imgPreview = document.getElementById('imgp');
 const imgClearBtn = document.getElementById('clri');
 let allImages = []; // Store objects: { id, file, dataUrl, caption }
 let imagesLoadingCount = 0;
+
+// Save photos to device: real files, not browser storage. On iPad the share
+// sheet offers "Save N Images" straight into Photos; where the browser cannot
+// share files it falls back to plain downloads (Files / Downloads folder).
+function _dataUrlToBlob(u) {
+  const m = /^data:([^;,]+)?(;base64)?,([\s\S]*)$/i.exec(String(u || ''));
+  if (!m) return null;
+  const mime = m[1] || 'image/jpeg';
+  const raw = m[2] ? atob(m[3]) : decodeURIComponent(m[3]);
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+function _photoFileName(idx, caption, mime) {
+  const projEl = document.getElementById('fp-display-project-name');
+  let proj = (projEl && projEl.textContent || '').trim();
+  if (!proj || /^x+\/?x*$/i.test(proj)) proj = 'inspection';
+  const slug = t => String(t || '').replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+  const ext = /png/i.test(mime) ? 'png' : /webp/i.test(mime) ? 'webp' : 'jpg';
+  const n = String(idx + 1).padStart(2, '0');
+  return slug(proj) + '-' + n + (caption ? '-' + slug(caption) : '') + '.' + ext;
+}
+async function savePhotosToDevice() {
+  const btn = document.getElementById('savePhotos');
+  const label = btn ? btn.textContent : '';
+  const setBtn = t => { if (btn) btn.textContent = t; };
+  const files = [];
+  for (let i = 0; i < allImages.length; i++) {
+    const im = allImages[i];
+    let dataUrl = im.dataUrl;
+    if (!dataUrl && im.id && window.AHS_PHOTOS) { try { dataUrl = await window.AHS_PHOTOS.get(im.id); } catch (e) {} }
+    const blob = dataUrl ? _dataUrlToBlob(dataUrl) : null;
+    if (!blob) continue;
+    files.push(new File([blob], _photoFileName(i, im.caption, blob.type), { type: blob.type }));
+  }
+  if (!files.length) { alert('There are no photos in this inspection yet.'); return; }
+  if (btn) btn.disabled = true;
+  setBtn('Saving' + String.fromCharCode(8230));
+  try {
+    if (navigator.canShare && navigator.canShare({ files }) && navigator.share) {
+      // iPad / phone: share sheet -> "Save Images" puts them in Photos
+      await navigator.share({ files, title: files.length + ' inspection photo' + (files.length === 1 ? '' : 's') });
+    } else {
+      // desktop / no file sharing: plain downloads, one per photo
+      for (const f of files) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(f); a.download = f.name; a.style.display = 'none';
+        document.body.appendChild(a); a.click();
+        await new Promise(r => setTimeout(r, 250));
+        URL.revokeObjectURL(a.href); a.remove();
+      }
+    }
+    setBtn('Saved ' + files.length + ' ' + String.fromCharCode(10003));
+  } catch (e) {
+    // The user closing the share sheet is not an error worth shouting about
+    if (!(e && e.name === 'AbortError')) alert('Could not save the photos to this device: ' + (e && e.message ? e.message : e));
+    setBtn(label);
+  }
+  setTimeout(() => { setBtn(label); if (btn) btn.disabled = false; }, 2500);
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const b = document.getElementById('savePhotos'); if (b) b.onclick = savePhotosToDevice;
+  if (window.AHS_PHOTOS && window.AHS_PHOTOS.persist) window.AHS_PHOTOS.persist();
+});
 
 // Helper: Convert File to DataURL Promise with high quality
 function fileToDataUrl(file) {
