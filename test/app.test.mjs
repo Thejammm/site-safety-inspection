@@ -168,7 +168,10 @@ test('findings end with their status letter and the criteria modal has no includ
   // removed: answering an item puts it in, the x on its report row takes it
   // out, answering it again brings it back.
   assert.match(SRC, /var STATUS_LETTER = \{ minor:'A', advisory:'AD', observation:'O' \};/, 'STATUS_LETTER map changed or gone');
-  assert.match(SRC, /findLines\.push\('• ' \+ q\.text \+ \(it\.note \? ' - ' \+ it\.note : ''\) \+ suffix \+ ' \(' \+ STATUS_LETTER\[it\.st\] \+ \(basis \? ', ' \+ basis : ''\) \+ '\)'\);/, 'highlighted findings no longer end with their status letter and legal basis');
+  assert.match(SRC, /var ref = '\(' \+ STATUS_LETTER\[it\.st\] \+ \(basis \? ', ' \+ basis : ''\) \+ '\)';/, 'findings no longer end with their status letter and legal basis');
+  // 2026-09-15: only the reference is highlighted - a whole highlighted line cannot be edited on the iPad
+  assert.match(SRC, /g\.html = \(g\.hl && g\.ref\) \? _esc\(g\.text\.slice\(0, g\.text\.length - g\.ref\.length\)\) \+ '<span style="background-color:#FFE58A">' \+ _esc\(g\.ref\) \+ '<\/span>'/, 'the whole finding line is highlighted again');
+  assert.doesNotMatch(SRC, /'<span style="background-color:#FFE58A">' \+ c\.html \+ '<\/span>'/, 'the merge wraps the whole user line in the highlight again');
   assert.doesNotMatch(SRC, /class="cap-inc"|_syncInc|In report</, 'the include switch is back in the criteria modal');
   assert.match(SRC, /if\(it\.inc === false\) delete it\.inc;/, 'answering a removed item no longer brings it back into the report');
 });
