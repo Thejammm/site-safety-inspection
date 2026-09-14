@@ -399,6 +399,13 @@ test('every finding cites a verified regulation from the register, never a free-
   assert.equal(L.AHS_LAW.anchorLine('PC16'), 'Assessed against CDM 2015 reg 13(4)(c); CDM 2015 Schedule 2.');
   assert.equal(L.AHS_LAW.basisText('s11_9', 'minor'), 'CDM 2015 reg 19(2)', 'temporary works must rest on the regulation, with BS 5975 as the standard behind it');
   assert.equal(L.AHS_LAW.holderPhrase('s17_5'), "the Principal Contractor's duty");
+  // the HSE construction pages are the cornerstone: every check carries its section's page as supporting basis
+  assert.ok(L.AHS_LAW.forItem('s7_1').law.some(x => x.id === 'g_hse_excavations' && /hse\.gov\.uk\/construction\//.test(x.url)), 'the HSE Excavations page is no longer behind the excavation checks');
+  assert.ok(L.AHS_LAW.forItem('d7').law.some(x => x.id === 'g_hse_admin'), 'Documentation checks carry no HSE page');
+  assert.equal(L.AHS_LAW.basisText('d7', 'minor'), 'CDM 2015 reg 12(1)', 'Documentation items are not mapped to the CPP duty');
+  assert.match(L.AHS_LAW.anchorLine('PC3'), /^Assessed against CDM 2015 regs 12\(1\), 12\(4\), 13\(3\)\(c\) and 15\(7\); MHSWR 1999 reg 3\(1\)\.$/);
+  const docsInBuilder = phrases.filter(p => /^d\d+$/.test(p.id) && !/^\(PC - Section 3\) /.test(p.label || '')).map(p => p.id);
+  assert.deepEqual(docsInBuilder, [], 'Documentation items have lost the section label that puts them in the criteria builder');
   assert.equal(L.AHS_LAW.basisText('c24_3', 'minor'), 'CDM 2015 reg 15(8)');
   assert.equal(L.AHS_LAW.basisText('c24_3', 'advisory'), 'CDM 2015 reg 15(8)');
   assert.equal(L.AHS_LAW.basisText('c24_3', 'observation'), '', 'an observation must not cite');
