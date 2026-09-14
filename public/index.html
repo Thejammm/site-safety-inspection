@@ -7088,14 +7088,17 @@ function addPageFooter(doc, pageNum, totalPages) {
       clearTimeout(_saveTimer);
       _saveTimer = setTimeout(push, 800);
     }
+    // Returns true only if the state is safely on the server. Callers that are
+    // about to clear this device depend on that answer.
     async function push(){
-      if(!_user) return;
+      if(!_user) return false;
       var blob = await collectState();
-      if(!Object.keys(blob).length) return;
+      if(!Object.keys(blob).length) return true;   // nothing to save is not a failure
       try{
         await api('/api/state',{method:'POST',body:JSON.stringify({tenantId:TENANT,project:project(),state:blob})});
         setStatus('saved');
         window.AHS_SAVE_STATUS.ok('server');
+        return true;
       }
       catch(e){
         setStatus('error');
@@ -7104,6 +7107,7 @@ function addPageFooter(doc, pageNum, totalPages) {
         window.AHS_SAVE_STATUS.fail('server',
           e.status === 413 ? 'this report is too large for the server'
                            : 'your report could not be saved online', e);
+        return false;
       }
     }
     async function pull(){
@@ -7157,6 +7161,18 @@ function addPageFooter(doc, pageNum, totalPages) {
       }catch(_){}
     }
 
+    // Put the CURRENT project on the server right now, before anything
+    // switches target or clears this device. Forces the page into the draft
+    // first (the draft has its own debounce) and cancels any pending push so
+    // it cannot fire later under a different project name. Returns false if
+    // the work is NOT safely saved - callers must then clear nothing.
+    async function _flushCurrent(){
+      clearTimeout(_saveTimer);
+      try{ if(window.AHS_DRAFT && window.AHS_DRAFT.saveNow) window.AHS_DRAFT.saveNow(); }catch(_){}
+      if(!_user) return false;            // signed out: nothing to save to
+      return (await push()) !== false;
+    }
+
     // ── Project management (DRM-style): list / open / save-as / rename / delete ──
     function _esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
     function _clearSyncedKeys(){
@@ -7185,6 +7201,13 @@ function addPageFooter(doc, pageNum, totalPages) {
     }
     async function openProject(name){
       if(!name) return;
+      if(name === project()) return;                 // already open
+      if(!(await _flushCurrent())){
+        alert('Could not save "' + project() + '" to the cloud, so nothing has been switched.' +
+              String.fromCharCode(10,10) +
+              'Check you are online and signed in, then try again. Your work is still here.');
+        return;
+      }
       setProject(name);
       try{
         var r = await api('/api/state?tenantId='+encodeURIComponent(TENANT)+'&project='+encodeURIComponent(name));
@@ -7196,12 +7219,20 @@ function addPageFooter(doc, pageNum, totalPages) {
     }
     async function saveAsProject(name){
       if(!name) return;
+      try{ if(window.AHS_DRAFT && window.AHS_DRAFT.saveNow) window.AHS_DRAFT.saveNow(); }catch(_){}
       setProject(name);
-      await push();
-      setStatus('saved');
+      if(await push()){ setStatus('saved'); }
+      else { alert('Could not save "' + name + '" to the cloud.' + String.fromCharCode(10,10) +
+                   'Check you are online and try again - your work is still here.'); }
     }
-    function newBlankProject(name){
+    async function newBlankProject(name){
       if(!name) return;
+      if(!(await _flushCurrent())){
+        alert('Could not save "' + project() + '" to the cloud, so nothing has been started.' +
+              String.fromCharCode(10,10) +
+              'Check you are online and signed in, then try again. Your work is still here.');
+        return;
+      }
       setProject(name);
       _clearSyncedKeys();
       try{ sessionStorage.setItem('ahsSyncHydrated','1'); }catch(_){}
@@ -7305,10 +7336,25 @@ function addPageFooter(doc, pageNum, totalPages) {
       statusEl = el('span',{style:'color:#555;white-space:nowrap'});
       var btn = el('button',{type:'button',style:'border:0;background:#4BBFD6;color:#fff;border-radius:6px;padding:6px 11px;cursor:pointer;font:inherit;white-space:nowrap'});
       var projBtn = el('button',{type:'button',title:'Open, save-as or start a project',style:'border:1px solid #bfe3ec;background:#eef6f8;color:#0b6b7f;border-radius:6px;padding:6px 11px;cursor:pointer;font:inherit;white-space:nowrap'}, '📁 Projects'); projBtn.onclick=openProjects;
-      bar.appendChild(statusEl); bar.appendChild(projBtn); bar.appendChild(btn); (slot||document.body).appendChild(bar);
+      // Manual save. The app saves on its own, but on site you want to press
+      // something and be told it is safe rather than trust a debounce.
+      var saveBtn = el('button',{type:'button',title:'Save this inspection to the cloud now',style:'border:1px solid #bfe3ec;background:#eef6f8;color:#0b6b7f;border-radius:6px;padding:6px 11px;cursor:pointer;font:inherit;white-space:nowrap'}, 'Save');
+      saveBtn.onclick = async function(){
+        if(saveBtn.disabled) return;
+        var label = saveBtn.textContent;
+        saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+        var ok = false;
+        try{ ok = await _flushCurrent(); }catch(_){ ok = false; }
+        saveBtn.textContent = ok ? 'Saved ✓' : 'Not saved';
+        saveBtn.style.color = ok ? '#0b6b7f' : '#b91c1c';
+        if(!ok) alert('Could not save "' + project() + '" to the cloud.' + String.fromCharCode(10,10) +
+                      'Check you are online and signed in, then press Save again. Your work is still on this device.');
+        setTimeout(function(){ saveBtn.disabled = false; saveBtn.textContent = label; saveBtn.style.color = '#0b6b7f'; }, 2000);
+      };
+      bar.appendChild(statusEl); bar.appendChild(saveBtn); bar.appendChild(projBtn); bar.appendChild(btn); (slot||document.body).appendChild(bar);
       bar._refresh = function(){
-        if(_user){ statusEl.textContent='Cloud: '+(_user.email||'on'); btn.textContent='Sign out'; btn.onclick=doLogout; projBtn.style.display=''; }
-        else { statusEl.textContent='Local only'; btn.textContent='Sign in to save online'; btn.onclick=openLogin; projBtn.style.display='none'; }
+        if(_user){ statusEl.textContent='Cloud: '+(_user.email||'on'); btn.textContent='Sign out'; btn.onclick=doLogout; projBtn.style.display=''; saveBtn.style.display=''; }
+        else { statusEl.textContent='Local only'; btn.textContent='Sign in to save online'; btn.onclick=openLogin; projBtn.style.display='none'; saveBtn.style.display='none'; }
       };
       bar._refresh();
     }

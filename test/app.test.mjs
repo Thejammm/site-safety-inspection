@@ -55,6 +55,34 @@ test('"New inspection" adopts a report that has no visit context instead of wipi
     'New inspection takes the archive-and-clear path without confirming');
 });
 
+test('switching project saves the one you are leaving before clearing the device', () => {
+  // 2026-09-14: 'the app doesnt save what i have done when i change to another
+  // inspection'. openProject()/newBlankProject() called setProject() and then
+  // _clearSyncedKeys() without ever pushing the project being left, so any work
+  // newer than the 800ms debounce was wiped off the device having never reached
+  // the server - and if the push failed they switched anyway, leaving it blank.
+  // Both must flush FIRST, and both must abort when the flush reports failure.
+  const flush = SRC.match(/async function _flushCurrent\(\)\s*\{([\s\S]*?)\r?\n {4}\}/);
+  assert.ok(flush, '_flushCurrent() is gone - switching can silently drop work again');
+  assert.match(flush[1], /clearTimeout\(\s*_saveTimer\s*\)/,
+    'a debounced push can still fire after the project name has changed');
+  assert.match(flush[1], /saveNow/,
+    'the page is not forced into the draft, so the push sends stale content');
+
+  for (const fn of ['openProject', 'newBlankProject']) {
+    const m = SRC.match(new RegExp('async function ' + fn + '\\(name\\)\\s*\\{([\\s\\S]*?)\\r?\\n {4}\\}'));
+    assert.ok(m, fn + '() not found, or no longer async - it must await the flush');
+    const body = m[1];
+    const flushAt = body.indexOf('_flushCurrent');
+    const setAt = body.indexOf('setProject(');
+    assert.ok(flushAt !== -1, fn + ' no longer saves the project being left');
+    assert.ok(setAt !== -1, fn + ' no longer sets the project');
+    assert.ok(flushAt < setAt, fn + ' changes the target before saving - the push lands under the wrong project');
+    assert.match(body, /if\(!\(await _flushCurrent\(\)\)\)/,
+      fn + ' does not abort when the save fails - it will clear the device anyway');
+  }
+});
+
 test('the photo store is only ever wiped wholesale from the confirmed device wipe', () => {
   // Clearing this store loses every photo for every report on the device.
   // Per-report clears must delete their own ids. One legitimate caller.
