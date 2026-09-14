@@ -394,8 +394,11 @@ test('every finding cites a verified regulation from the register, never a free-
   let i = SRC.indexOf('[', p0), d = 0, p1 = -1;
   for (; i < SRC.length; i++) { const ch = SRC[i]; if (ch === '[') d++; else if (ch === ']') { d--; if (d === 0) { p1 = i; break; } } }
   const phrases = new Function('return ' + SRC.slice(SRC.indexOf('[', p0), p1 + 1) + ';')();
-  const unmapped = phrases.filter(p => /^\(C - Section \d+\)/.test(p.label || '') && !L.CRITERIA_LAW[p.id]).map(p => p.id);
-  assert.deepEqual(unmapped, [], 'contractor checks with no legal basis');
+  const unmapped = phrases.filter(p => /^\((?:PC|C) - Section \d+\)/.test(p.label || '') && !L.CRITERIA_LAW[p.id]).map(p => p.id);
+  assert.deepEqual(unmapped, [], 'checks with no legal basis (contractor and Principal Contractor sections)');
+  assert.equal(L.AHS_LAW.anchorLine('PC16'), 'Assessed against CDM 2015 reg 13(4)(c); CDM 2015 Schedule 2.');
+  assert.equal(L.AHS_LAW.basisText('s11_9', 'minor'), 'CDM 2015 reg 19(2)', 'temporary works must rest on the regulation, with BS 5975 as the standard behind it');
+  assert.equal(L.AHS_LAW.holderPhrase('s17_5'), "the Principal Contractor's duty");
   assert.equal(L.AHS_LAW.basisText('c24_3', 'minor'), 'CDM 2015 reg 15(8)');
   assert.equal(L.AHS_LAW.basisText('c24_3', 'advisory'), 'CDM 2015 reg 15(8)');
   assert.equal(L.AHS_LAW.basisText('c24_3', 'observation'), '', 'an observation must not cite');
