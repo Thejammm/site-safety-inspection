@@ -36,6 +36,25 @@ test('saveNow refuses to write until the first restore has finished, and during 
   assert.match(m[1], /AHS_SYNC_RELOADING/, 'saveNow no longer stands down during a sync reload');
 });
 
+test('"New inspection" adopts a report that has no visit context instead of wiping it', () => {
+  // 2026-09-14: setting an inspection up in the office and then pressing the
+  // obvious button destroyed it. The button opened the start form in 'new'
+  // mode, which archives the report and runs resetForNewVisit() - clearing
+  // sections, item rows, criteria answers, photos and summaries. A report that
+  // has never been through the start form IS the inspection being set up, so
+  // the handler must branch on hasVisit() and adopt, and must confirm before
+  // it ever takes the destructive path.
+  const m = SRC.match(/nb\.onclick = function\(\)\s*\{([\s\S]{0,1400}?)\n      \};/);
+  assert.ok(m, 'the New inspection button handler was not found - has it been rewired?');
+  const body = m[1];
+  assert.match(body, /hasVisit\(\s*CUR\.visit\s*\)/,
+    'New inspection no longer checks for a visit context - it will wipe the setup again');
+  assert.match(body, /adopt\s*:\s*true/,
+    'New inspection no longer adopts the report being set up');
+  assert.match(body, /confirm\(/,
+    'New inspection takes the archive-and-clear path without confirming');
+});
+
 test('the photo store is only ever wiped wholesale from the confirmed device wipe', () => {
   // Clearing this store loses every photo for every report on the device.
   // Per-report clears must delete their own ids. One legitimate caller.
