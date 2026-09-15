@@ -168,8 +168,12 @@ test('findings end with their status letter and the criteria modal has no includ
   // removed: answering an item puts it in, the x on its report row takes it
   // out, answering it again brings it back.
   assert.match(SRC, /var STATUS_LETTER = \{ minor:'A', advisory:'AD', observation:'O' \};/, 'STATUS_LETTER map changed or gone');
-  assert.match(SRC, /findLines\.push\('• ' \+ q\.text \+ \(it\.note \? ' - ' \+ it\.note : ''\) \+ suffix \+ ' \(' \+ STATUS_LETTER\[it\.st\] \+ '\)'\);/,
-    'findings no longer end with their status letter');
+  // 2026-09-15, Simon's review: a finding carries the CHECK'S NAME. The criteria
+  // sentence is written as a pass, so printing it under the opportunities heading
+  // stated the pass and the failure in one line - the contradictory findings text
+  // he found in Site Set-Up and Accidents.
+  assert.match(SRC, /findLines\.push\('• ' \+ q\.check \+ \(it\.note \? ' - ' \+ it\.note : ''\) \+ suffix \+ ' \(' \+ STATUS_LETTER\[it\.st\] \+ '\)'\);/,
+    'a finding is back to the criteria sentence, which reads as a pass, or lost its status letter');
   // 2026-09-15: the regulation is named once, in the conclusion. The box says so.
   assert.doesNotMatch(SRC, /AHS_LAW\.basisText\(q\.id, it\.st\)/, 'the regulation is back on the end of every line in the comments box');
   assert.match(SRC, /gen\.push\(\{ text: OPPORTUNITIES_NOTE, hl:false \}\);/, 'the box no longer points to the conclusion for the regulations');
@@ -419,7 +423,23 @@ test('every finding cites a verified regulation from the register, never a free-
   assert.ok(L.AHS_LAW.forItem('s7_1').law.some(x => x.id === 'g_hse_excavations' && /hse\.gov\.uk\/construction\//.test(x.url)), 'the HSE Excavations page is no longer behind the excavation checks');
   assert.ok(L.AHS_LAW.forItem('d7').law.some(x => x.id === 'g_hse_admin'), 'Documentation checks carry no HSE page');
   assert.equal(L.AHS_LAW.basisText('d7', 'minor'), 'CDM 2015 reg 12(1)', 'Documentation items are not mapped to the CPP duty');
-  assert.match(L.AHS_LAW.anchorLine('PC3'), /^Assessed against CDM 2015 regs 12\(1\), 12\(4\), 13\(3\)\(c\) and 15\(7\); MHSWR 1999 reg 3\(1\)\.$/);
+  // 2026-09-15: the five "Assessed against" lines Simon rewrote in his review.
+  // CDM 2015 reg 31(3), 15(9)(a), 15(9)(b) and MHSWR 1999 reg 11 were read on
+  // legislation.gov.uk before being added to the register.
+  assert.equal(L.AHS_LAW.anchorLine('PC3'), 'Assessed against CDM 2015 reg 15(7); MHSWR 1999 reg 3(1).', 'Documentation citations changed');
+  assert.equal(L.AHS_LAW.anchorLine('C22'), 'Assessed against CDM 2015 regs 12(1), 12(4), 15(3)(b), 15(9)(a), 15(9)(b) and 30(1).', 'Construction Phase Plan citations changed');
+  assert.equal(L.AHS_LAW.anchorLine('C26'), 'Assessed against CDM 2015 regs 17(1), 17(2), 18(1), 22(2), 32(1) and 35(1); WAHR 2005 regs 4(1), 6(2) and 6(3).', 'Site Set-Up & Housekeeping citations changed');
+  assert.equal(L.AHS_LAW.anchorLine('C38'), 'Assessed against RIDDOR 2013 regs 4, 7 and 12; MHSWR 1999 regs 5(1) and 11.', 'Accidents citations changed');
+  assert.equal(L.AHS_LAW.anchorLine('C40'), 'Assessed against CDM 2015 regs 15(10), 17(1), 27(3)(d), 27(4), 30(1) and 31(3); MHOR 1992 reg 4(1)(a).', 'Access & Egress citations changed');
+  assert.equal(L.AHS_LAW.get('cdm31_3').cite, 'CDM 2015 reg 31(3)');
+  assert.equal(L.AHS_LAW.get('mhswr11').cite, 'MHSWR 1999 reg 11');
+  assert.match(L.AHS_LAW.get('cdm15_9a').requirement, /suitable site induction/, 'reg 15(9)(a) is not the induction duty');
+  assert.match(L.AHS_LAW.get('cdm15_9b').requirement, /serious and imminent danger/, 'reg 15(9)(b) is not the emergency-procedures duty');
+  // the closing paragraph of the conclusion is built from the same section list
+  // as the "Assessed against" lines, so the two can never disagree
+  assert.match(SRC, /function summaryForSections\(keys\)\{/, 'the conclusion no longer names the regulations the sections were assessed against');
+  assert.match(SRC, /var legal = \(hasLaw && findKeys\.length\) \? AHS_LAW\.summaryForSections\(findKeys\) : null;/,
+    'the conclusion is back to citing only the regulation behind each finding, which drifts from the section lines');
   const docsInBuilder = phrases.filter(p => /^d\d+$/.test(p.id) && !/^\(PC - Section 3\) /.test(p.label || '')).map(p => p.id);
   assert.deepEqual(docsInBuilder, [], 'Documentation items have lost the section label that puts them in the criteria builder');
   assert.equal(L.AHS_LAW.basisText('c24_3', 'minor'), 'CDM 2015 reg 15(8)');
@@ -450,8 +470,13 @@ test('the report is square and flat, and a section never leaves its heading behi
   // that follows ends soft.
   const dial = SRC.match(/function drawTachographDial\(([\s\S]*?)\n\}/);
   assert.ok(dial, 'the tachograph dials are gone - they were liked');
-  assert.match(dial[1], /setLineCap\('round'\)[\s\S]*setLineCap\('butt'\)/, 'the dial leaves round stroke caps on for the rest of the report');
-  assert.equal((SRC.match(/setLineCap\('round'\)/g) || []).length, 1, 'round stroke caps are used somewhere other than the dial');
+  // 2026-09-15: the dials got the square treatment too - a square plate, a
+  // scale of straight ticks and a needle. Nothing in the report is curved now,
+  // so there is no round stroke cap left anywhere in it.
+  assert.equal((SRC.match(/setLineCap\('round'\)/g) || []).length, 0, 'a round stroke cap is back in the report');
+  assert.match(dial[1], /doc\.rect\(px, py, pw, ph\)/, 'the speedo lost its square plate');
+  assert.match(dial[1], /const TICKS = 25;/, 'the speedo scale of straight ticks is gone');
+  assert.match(dial[1], /the needle and its square hub/, 'the speedo lost its needle');
   // the criteria tiles are square and flat
   assert.match(SRC, /doc\.rect\(xPos, yPos, badgeWidth, badgeHeight, 'F'\)/, 'the criteria tiles are no longer square and flat');
 
@@ -579,8 +604,14 @@ test('the report is structured: scene setting, then an outcome organised under t
   // ── the conclusion is organised under the criteria ──
   assert.match(closing, /## CDM Roles, Cooperation & Communication\n### What needs attention/, 'the conclusion is not organised under the criteria');
   assert.match(closing, /## Risk Assessments & Method Statements\n### What went well/, 'What went well is missing under a criterion with compliant items');
-  assert.match(closing, /• Understanding of CDM duties - No safety meetings taking place on a regular basis\./,
-    'a matter needing attention lost the finding or the words recorded against it');
+  // 2026-09-15: the section comments box is the report text. Where the inspector
+  // has written his own account of a section there, the conclusion carries that
+  // account and lists the items by name. The raw note captured on the row is not
+  // repeated underneath it - that was the same finding stated twice.
+  assert.match(closing, /### What needs attention\n• Understanding of CDM duties\n/,
+    'an item is not listed by name where the box carries the inspector own account');
+  assert.doesNotMatch(closing, /No safety meetings taking place on a regular basis/,
+    'the raw note on the row is repeated under the account written in the box');
   // 2026-09-15: the regulations are named once, in the closing paragraph. Nothing
   // is cited against an item, and A1/AD1/O1 are working marks for the app only.
   assert.doesNotMatch(closing, /\(CDM 2015 reg[^)]*duty\)/, 'a regulation is being printed against an individual matter again');
