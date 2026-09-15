@@ -427,6 +427,34 @@ test('every finding cites a verified regulation from the register, never a free-
   assert.match(SRC, /class="cap-law"/, 'the criteria modal no longer shows the basis under each check');
 });
 
+test('accidents and incidents is a criteria section on both visit types', () => {
+  // 2026-09-15: Simon asked for a simple accidents and incidents section on the
+  // PC and the contractor visit. A section needs BOTH halves to surface as a
+  // tile: the checks, labelled with its section number, and the section
+  // template in SIMPLE_SNIPPETS that gives it its title. Lose either half and
+  // the tile vanishes without a word.
+  function literal(name) {
+    const p0 = SRC.indexOf('const ' + name + ' = [');
+    assert.ok(p0 > 0, name + ' not found');
+    let i = SRC.indexOf('[', p0), d = 0, p1 = -1;
+    for (; i < SRC.length; i++) { const ch = SRC[i]; if (ch === '[') d++; else if (ch === ']') { d--; if (d === 0) { p1 = i; break; } } }
+    return new Function('return ' + SRC.slice(SRC.indexOf('[', p0), p1 + 1) + ';')();
+  }
+  const phrases = literal('SIMPLE_PHRASES');
+  const snippets = literal('SIMPLE_SNIPPETS');
+  for (const [mode, num] of [['PC', 19], ['C', 38]]) {
+    const label = new RegExp('^\\(' + mode + ' - Section ' + num + '\\)');
+    const checks = phrases.filter(p => label.test(p.label || ''));
+    assert.equal(checks.length, 5, mode + ' accidents section should have 5 checks, found ' + checks.length);
+    assert.ok(checks.every(c => (c.text || '').length > 40), mode + ' accidents checks must each carry a full report sentence');
+    const tmpl = snippets.find(s => new RegExp('^\\s*' + mode + '\\s*-\\s*Section\\s*' + num + '\\b').test(s.title || ''));
+    assert.ok(tmpl, mode + ' Section ' + num + ' template is gone - the tile would lose its title and never appear');
+    assert.match(tmpl.title, /Accidents/i, mode + ' Section ' + num + ' is no longer the accidents section');
+  }
+  // and the builder gives both the same three-letter code
+  assert.match(SRC, /'accidents incidents & near misses':'INC'/, 'the accidents sections lost their INC code');
+});
+
 test('the report is structured: scene setting, then an outcome organised under the criteria', () => {
   // Simon's spec, 15 September. The first summary sets the scene and carries no
   // findings; the second is the Inspection Outcome / Conclusion, organised under
