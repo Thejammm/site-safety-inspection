@@ -8068,6 +8068,14 @@ function addPageFooter(doc, pageNum, totalPages) {
     });
     return out;
   }
+  // The builder used to paint a finding's reference amber. That has gone, so a
+  // line carried over on rebuild loses the amber too. Only OUR colour is
+  // stripped: the toolbar highlight uses the colour picker, so the user's own
+  // highlights survive untouched.
+  function _unhighlight(html){
+    return String(html || '').replace(
+      /<span[^>]*background(?:-color)?\s*:\s*(?:#FFE58A|rgb\(\s*255\s*,\s*229\s*,\s*138\s*\))[^>]*>([\s\S]*?)<\/span>/gi, '$1');
+  }
   function _mergeNarrative(gen, boxHTML, prevKeys, prevText){
     var box = _boxLines(boxHTML);
     var genKeys = {}; gen.forEach(function(g){ genKeys[g.key] = true; });
@@ -8080,17 +8088,12 @@ function addPageFooter(doc, pageNum, totalPages) {
       // Exactly what the last build wrote, never hand-edited: the new version
       // wins, so a changed status letter or note reaches the report.
       if(prevText && prevText[g.key] != null && c.text === String(prevText[g.key]).replace(/\s+/g, ' ').trim()) return g.html;
-      // the user's version wins; if it lost the highlight, put it back on the reference only
-      if(g.hl && g.ref && !/background-color/i.test(c.html)){
-        var refHtml = _escapeHtml(g.ref), at = c.html.lastIndexOf(refHtml);
-        if(at >= 0) return c.html.slice(0, at) + '<span style="background-color:#FFE58A">' + refHtml + '</span>' + c.html.slice(at + refHtml.length);
-      }
-      return c.html;
+      return _unhighlight(c.html);   // the user's version wins, minus the amber we used to add
     });
     box.forEach(function(c, i){
       if(used[i]) return;
       if(genKeys[c.key] || prev[c.key]) return;   // ours (now or previously): not carried
-      lines.push(c.html);                          // the user's own line: kept
+      lines.push(_unhighlight(c.html));            // the user's own line: kept
     });
     return lines.join('<br>');
   }
@@ -8157,12 +8160,12 @@ function addPageFooter(doc, pageNum, totalPages) {
           // HIGHLIGHTED so it stands out for you to reword into the actual finding.
           var basis = (typeof AHS_LAW !== 'undefined') ? AHS_LAW.basisText(q.id, it.st) : '';
           var ref = '(' + STATUS_LETTER[it.st] + (basis ? ', ' + basis : '') + ')';
-          findLines.push({ text: '• ' + q.text + (it.note ? ' - ' + it.note : '') + suffix + ' ' + ref, ref: ref });
+          findLines.push('• ' + q.text + (it.note ? ' - ' + it.note : '') + suffix + ' ' + ref);
         }
         rows.push({ item: q.check, status: it.st || '', note: it.note || '', capKey: t.key, capPid: q.id });
       }
-      // Observed items render plain; findings end with a highlighted reference,
-      // "(A, CDM 2015 reg 15(8))", that shows amber on screen and in the PDF.
+      // Observed items and findings both render as plain text; a finding ends
+      // with its reference, "(A, CDM 2015 reg 15(8))".
       var _esc = _escapeHtml;
       var gen = [];
       // the legal frame for the section, first: "Assessed against CDM 2015 regs ..."
@@ -8177,15 +8180,12 @@ function addPageFooter(doc, pageNum, totalPages) {
       if(findLines.length){
         if(okLines.length) gen.push({ text:'', hl:false });      // a clear break between the two
         gen.push({ text: OPPORTUNITIES_HEADING, hl:false, head:true });
-        findLines.forEach(function(l){ gen.push({ text:l.text, hl:true, ref:l.ref }); });
+        findLines.forEach(function(l){ gen.push({ text:l, hl:false }); });
       }
-      // Findings: the sentence stays plain text and only the reference at the end
-      // - "(A, CDM 2015 reg 15(8))" - is highlighted, so the line can be edited on
-      // an iPad without fighting the span. The PDF picks the same highlight up.
+      // Nothing is highlighted: a finding is already under its own heading and
+      // ends with its reference, "(A, CDM 2015 reg 15(8))", in plain text.
       gen.forEach(function(g){
-        g.html = g.head ? '<strong>' + _esc(g.text) + '</strong>'
-          : (g.hl && g.ref) ? _esc(g.text.slice(0, g.text.length - g.ref.length)) + '<span style="background-color:#FFE58A">' + _esc(g.ref) + '</span>'
-          : _esc(g.text);
+        g.html = g.head ? '<strong>' + _esc(g.text) + '</strong>' : _esc(g.text);
         g.key = _lineKey(g.text);
       });
 

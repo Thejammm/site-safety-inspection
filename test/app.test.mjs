@@ -169,9 +169,14 @@ test('findings end with their status letter and the criteria modal has no includ
   // out, answering it again brings it back.
   assert.match(SRC, /var STATUS_LETTER = \{ minor:'A', advisory:'AD', observation:'O' \};/, 'STATUS_LETTER map changed or gone');
   assert.match(SRC, /var ref = '\(' \+ STATUS_LETTER\[it\.st\] \+ \(basis \? ', ' \+ basis : ''\) \+ '\)';/, 'findings no longer end with their status letter and legal basis');
-  // 2026-09-15: only the reference is highlighted - a whole highlighted line cannot be edited on the iPad
-  assert.match(SRC, /: \(g\.hl && g\.ref\) \? _esc\(g\.text\.slice\(0, g\.text\.length - g\.ref\.length\)\) \+ '<span style="background-color:#FFE58A">' \+ _esc\(g\.ref\) \+ '<\/span>'/, 'the whole finding line is highlighted again');
-  assert.doesNotMatch(SRC, /'<span style="background-color:#FFE58A">' \+ c\.html \+ '<\/span>'/, 'the merge wraps the whole user line in the highlight again');
+  // 2026-09-15: the builder highlights nothing. Findings sit under their own
+  // heading and end with their reference, so the amber only got in the way of
+  // editing. Ours is stripped from any line carried over; the toolbar
+  // highlight (the colour picker) is the user's and must survive.
+  assert.doesNotMatch(SRC, /background-color:#FFE58A/, 'the builder is painting findings amber again');
+  assert.match(SRC, /function _unhighlight\(html\)\{/, 'the amber is no longer stripped from lines carried over on rebuild');
+  assert.match(SRC, /return _unhighlight\(c\.html\);/, 'a hand-edited line keeps the old amber on rebuild');
+  assert.match(SRC, /hiliteColor/, "the toolbar highlight button is gone - that one is the user's own");
   assert.doesNotMatch(SRC, /class="cap-inc"|_syncInc|In report</, 'the include switch is back in the criteria modal');
   assert.match(SRC, /if\(it\.inc === false\) delete it\.inc;/, 'answering a removed item no longer brings it back into the report');
 });
