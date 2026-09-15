@@ -6499,8 +6499,8 @@ if (inspectionSections.length > 0) {
         const cardW     = 170;
         const contentX  = cardX + 10;              // 4mm stripe + 6mm padding
         const contentW  = cardW - 14;              // leaves right padding
-        const padTop    = 6;
-        const padBottom = 6;
+        const padTop    = 3.4;
+        const padBottom = 3.4;
 
         doc.setFontSize(10);
         doc.setFont(undefined, 'normal');
@@ -6518,14 +6518,14 @@ if (inspectionSections.length > 0) {
           doc.setFontSize(8);
           lawLines = doc.splitTextToSize('Requirement: ' + cardBasis + (AHS_LAW.holderPhrase(row.dataset.capPid) ? ', ' + AHS_LAW.holderPhrase(row.dataset.capPid) : ''), contentW - 4);
         }
-        const lawH = lawLines.length ? 2.5 + lawLines.length * 4.4 : 0;
+        const lawH = lawLines.length ? 1.6 + lawLines.length * 4.1 : 0;
 
         // Status label + item + optional comments (with gaps)
-        const statusH  = 5;               // status label line
-        const gapS2I   = 2.5;              // space between status and item
-        const itemH    = itemLines.length * 5.3;
-        const gapI2C   = 3;
-        const commH    = commentLines.length * 4.8;
+        const statusH  = 4;               // status label line
+        const gapS2I   = 1.4;             // space between status and item
+        const itemH    = itemLines.length * 4.9;
+        const gapI2C   = 1.8;
+        const commH    = commentLines.length * 4.3;
         const cardH    = padTop + statusH + gapS2I + itemH + (commentLines.length ? gapI2C + commH : 0) + lawH + padBottom;
 
         const cardY = y - 2;
@@ -6546,14 +6546,14 @@ if (inspectionSections.length > 0) {
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(...statusColor);
         try { doc.setCharSpace(1.4); } catch (e) {}
-        doc.text(statusText, contentX, cardY + padTop + 2);
+        doc.text(statusText, contentX, cardY + padTop + 2.6);
         try { doc.setCharSpace(0); } catch (e) {}
 
         // --- Item text ----------------------------------------------------
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(31, 41, 55);
-        const itemY = cardY + padTop + statusH + gapS2I + 2;
+        const itemY = cardY + padTop + statusH + gapS2I + 2.4;
         doc.text(itemLines, contentX, itemY);
 
         // --- Comments (italic, muted, indented) ---------------------------
@@ -6567,10 +6567,10 @@ if (inspectionSections.length > 0) {
           doc.setFontSize(8);
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(11, 107, 127);
-          doc.text(lawLines, contentX + 2, itemY + itemH + (commentLines.length ? gapI2C + commH : 0) + 3.5);
+          doc.text(lawLines, contentX + 2, itemY + itemH + (commentLines.length ? gapI2C + commH : 0) + 2.6);
         }
 
-        y = cardY + cardH + 5;
+        y = cardY + cardH + 3;
       }
     });
     
@@ -6892,50 +6892,94 @@ if (images.length > 0) {
 // ========================================
 
 /**
- * The counts, as a ruled band: one cell per category, a flat colour rule over
- * each, the count beneath it and an uppercase label under that, closed by a
- * single hairline. Square and flat throughout - no dials, no rounded caps.
- * Returns the y cursor below the band.
+ * Draw tachograph-style (semicircular) dials - one per category, all in a row.
+ * Returns the y cursor below the dials (with labels + breathing room).
  */
 function drawFilledGauges(doc, startY, compliant, advisory, action, observation, na, totalItems) {
-  const cells = [
-    { label: 'COMPLIANT',   value: compliant,   color: [16, 185, 129] },
-    { label: 'ADVISORY',    value: advisory,    color: [234, 179, 8]  },
-    { label: 'ACTION',      value: action,      color: [220, 38, 38]  },
-    { label: 'OBSERVATION', value: observation, color: [56, 189, 248] },
-    { label: 'N/A',         value: na,          color: [156, 163, 175] }
+  const dials = [
+    { label: 'Compliant',   value: compliant,   color: [16, 185, 129] },
+    { label: 'Advisory',    value: advisory,    color: [234, 179, 8]  },
+    { label: 'Action',      value: action,      color: [220, 38, 38]  },
+    { label: 'Observation', value: observation, color: [56, 189, 248] },
+    { label: 'N/A',         value: na,          color: [156, 163, 175]}
   ];
-  const left = 20, right = 190, gap = 4;
-  const cellW = (right - left - gap * (cells.length - 1)) / cells.length;
-  const ruleH = 2.2;                    // the colour rule over each cell
-  const numY  = startY + ruleH + 9.5;   // baseline of the count
-  const labY  = numY + 5.4;             // baseline of the label
-  const base  = labY + 3.4;             // hairline closing the band
 
-  cells.forEach(function (c, i) {
-    const x = left + i * (cellW + gap);
+  const leftX = 16, rightX = 194;           // span the full printable width
+  const colW  = (rightX - leftX) / dials.length;
+  const radius  = 15;                       // outer radius (mm)
+  const centerY = startY + radius + 2;      // baseline sits just below the arc
 
-    doc.setFillColor(c.color[0], c.color[1], c.color[2]);
-    doc.rect(x, startY, cellW, ruleH, 'F');
-
-    doc.setFontSize(19);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(31, 41, 55);
-    doc.text(String(c.value), x, numY);
-
-    doc.setFontSize(7.5);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(107, 114, 128);
-    try { doc.setCharSpace(0.5); } catch (e) {}
-    doc.text(c.label, x, labY);
-    try { doc.setCharSpace(0); } catch (e) {}
+  dials.forEach((d, i) => {
+    const cx = leftX + colW * i + colW / 2;
+    drawTachographDial(doc, cx, centerY, radius, d.value, totalItems, d.color, d.label);
   });
 
-  doc.setDrawColor(209, 213, 219);
-  doc.setLineWidth(0.3);
-  doc.line(left, base, right, base);
+  return centerY + 16; // room for value + label underneath
+}
 
-  return base + 9;
+/**
+ * Draw one tachograph dial: muted track arc + coloured value arc, big value
+ * in the dial, small label below. The round cap belongs to the arc and is put
+ * back to square immediately - every other rule in the report ends square.
+ */
+function drawTachographDial(doc, cx, cy, r, value, total, color, label) {
+  const thickness = 3.6;            // stroke thickness of the arc (mm)
+  const rMid      = r - thickness / 2;
+  const ratio     = total > 0 ? Math.min(1, value / total) : 0;
+  const steps     = 48;
+  const startA    = Math.PI;        // left side of the semicircle
+  const endA      = 0;              // right side
+  const valueA    = startA - Math.PI * ratio; // sweep clockwise across the top
+
+  try { doc.setLineCap('round'); } catch (e) {}
+
+  // A light tint of the category colour for the empty track and a darkened one
+  // for the number and label, so each dial reads as its category even at zero.
+  var tint = color.map(function(c){ return Math.round(c + (255 - c) * 0.82); });
+  var dark = color.map(function(c){ return Math.round(c * 0.72); });
+
+  doc.setDrawColor(tint[0], tint[1], tint[2]);
+  doc.setLineWidth(thickness);
+  let prev = null;
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const a = startA + (endA - startA) * t;
+    const x = cx + rMid * Math.cos(a);
+    const y = cy - rMid * Math.sin(a);
+    if (prev) doc.line(prev.x, prev.y, x, y);
+    prev = { x, y };
+  }
+
+  if (ratio > 0) {
+    doc.setDrawColor(color[0], color[1], color[2]);
+    doc.setLineWidth(thickness);
+    prev = null;
+    const vSteps = Math.max(2, Math.round(steps * ratio));
+    for (let i = 0; i <= vSteps; i++) {
+      const t = i / vSteps;
+      const a = startA + (valueA - startA) * t;
+      const x = cx + rMid * Math.cos(a);
+      const y = cy - rMid * Math.sin(a);
+      if (prev) doc.line(prev.x, prev.y, x, y);
+      prev = { x, y };
+    }
+  }
+
+  try { doc.setLineCap('butt'); } catch (e) {}   // square again for everything else
+
+  doc.setDrawColor(229, 231, 235);
+  doc.setLineWidth(0.25);
+  doc.line(cx - r + 1, cy + 0.6, cx + r - 1, cy + 0.6);
+
+  doc.setFontSize(15);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(dark[0], dark[1], dark[2]);
+  doc.text(String(value), cx, cy - 1.5, { align: 'center' });
+
+  doc.setFontSize(9.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(dark[0], dark[1], dark[2]);
+  doc.text(label, cx, cy + 9, { align: 'center' });
 }
 
 /**
@@ -7810,6 +7854,9 @@ function addPageFooter(doc, pageNum, totalPages) {
   // recognises them as ours, so they never come back as the inspector's words.
   var OBSERVED_HEADING = 'At the time of the inspection the following was observed:';
   var OPPORTUNITIES_HEADING = 'The following opportunities were identified and should be considered for rectification by the owner:';
+  // The regulations live in the conclusion, once. The box points to them rather
+  // than repeating one on the end of every line.
+  var OPPORTUNITIES_NOTE = 'The regulations that these opportunities relate to are set out in the conclusion.';
   function answeredItem(it){ return !!(it && (it.st || it.note || (it.photos||[]).length)); }
   function included(it){ if(!it) return false; if(it.inc === true) return true; if(it.inc === false) return false; return answeredItem(it); }
   var _liveT = null;
@@ -8159,9 +8206,8 @@ function addPageFooter(doc, pageNum, totalPages) {
         } else {
           // Advisory / Action required / Observation: a finding - the item text is
           // HIGHLIGHTED so it stands out for you to reword into the actual finding.
-          var basis = (typeof AHS_LAW !== 'undefined') ? AHS_LAW.basisText(q.id, it.st) : '';
-          var ref = '(' + STATUS_LETTER[it.st] + (basis ? ', ' + basis : '') + ')';
-          findLines.push('• ' + q.text + (it.note ? ' - ' + it.note : '') + suffix + ' ' + ref);
+          // the letter only: the regulation is named once, in the conclusion
+          findLines.push('• ' + q.text + (it.note ? ' - ' + it.note : '') + suffix + ' (' + STATUS_LETTER[it.st] + ')');
         }
         rows.push({ item: q.check, status: it.st || '', note: it.note || '', capKey: t.key, capPid: q.id });
       }
@@ -8182,6 +8228,7 @@ function addPageFooter(doc, pageNum, totalPages) {
         if(okLines.length) gen.push({ text:'', hl:false });      // a clear break between the two
         gen.push({ text: OPPORTUNITIES_HEADING, hl:false, head:true });
         findLines.forEach(function(l){ gen.push({ text:l, hl:false }); });
+        gen.push({ text: OPPORTUNITIES_NOTE, hl:false });
       }
       // Nothing is highlighted: a finding is already under its own heading and
       // ends with its reference, "(A, CDM 2015 reg 15(8))", in plain text.
@@ -9293,9 +9340,12 @@ function addPageFooter(doc, pageNum, totalPages) {
     // the inspector's words, so the composer must not read them back as comments.
     var OBSERVED = 'At the time of the inspection the following was observed:';
     var OPPORTUNITIES = 'The following opportunities were identified and should be considered for rectification by the owner:';
+    // The regulations are named once, in the conclusion; the box points to them.
+    var OPPORTUNITIES_NOTE = 'The regulations that these opportunities relate to are set out in the conclusion.';
     function isBuilderHeading(t) {
       return /^at the time of the inspection the following was observed:?$/i.test(t) ||
         /^the following opportunities were identified/i.test(t) ||
+        /^the regulations that these opportunities relate to/i.test(t) ||
         /^assessed against\b/i.test(t);
     }
 
@@ -9590,11 +9640,11 @@ function addPageFooter(doc, pageNum, totalPages) {
           ' were provided with safe means of access to their place of work, and whether suitable arrangements were in place for the delivery, loading and storage of materials that avoid manual handling wherever mechanical aids can be used.';
         parts.push(s4);
 
-        // the scope, as a concise list: which criteria were covered
+        // the scope: the size of the inspection first, then the criteria it covered
         if (secNames.length) {
+          if (c.total) parts.push(plural(c.total, 'individual check was', 'individual checks were') + ' reviewed across ' + plural(secNames.length, 'criterion', 'criteria') + '.');
           parts.push(head('Inspection criteria covered') + '\n' +
             secNames.map(function (n) { return '\u2022 ' + n; }).join('\n'));
-          if (c.total) parts.push(plural(c.total, 'individual check was', 'individual checks were') + ' reviewed across ' + plural(secNames.length, 'criterion', 'criteria') + '.');
         }
         // and the law those criteria are assessed against, named but not recited:
         // the paragraph behind a particular matter is given against that matter.
@@ -9673,7 +9723,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     return {
       build: build, findings: findings, counts: counts, annotate: annotate, linesFromHtml: linesFromHtml,
       index: index, judgement: judgement, voice: voice, isBuilderHeading: isBuilderHeading,
-      OBSERVED: OBSERVED, OPPORTUNITIES: OPPORTUNITIES
+      OBSERVED: OBSERVED, OPPORTUNITIES: OPPORTUNITIES, OPPORTUNITIES_NOTE: OPPORTUNITIES_NOTE
     };
   })();
   if (typeof window !== 'undefined') window.AHS_COMPOSE = AHS_COMPOSE;
@@ -9682,6 +9732,9 @@ function addPageFooter(doc, pageNum, totalPages) {
   // Builds the Site Summary and the sign-off from what has already been typed:
   // project info, the visit context and the findings. Entirely local.
   function _fieldTxt(sel){ var e = document.querySelector(sel); return e ? (e.innerText || e.textContent || '').replace(/\s+/g,' ').trim() : ''; }
+  // Model for the composer: everything the report holds, in plain text. The
+  // criteria and section-template sentences go with it so the composer can
+  // tell the builder's lines from the inspector's own words.
   // Model for the composer: everything the report holds, in plain text. The
   // criteria and section-template sentences go with it so the composer can
   // tell the builder's lines from the inspector's own words.

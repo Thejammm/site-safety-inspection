@@ -168,7 +168,11 @@ test('findings end with their status letter and the criteria modal has no includ
   // removed: answering an item puts it in, the x on its report row takes it
   // out, answering it again brings it back.
   assert.match(SRC, /var STATUS_LETTER = \{ minor:'A', advisory:'AD', observation:'O' \};/, 'STATUS_LETTER map changed or gone');
-  assert.match(SRC, /var ref = '\(' \+ STATUS_LETTER\[it\.st\] \+ \(basis \? ', ' \+ basis : ''\) \+ '\)';/, 'findings no longer end with their status letter and legal basis');
+  assert.match(SRC, /findLines\.push\('• ' \+ q\.text \+ \(it\.note \? ' - ' \+ it\.note : ''\) \+ suffix \+ ' \(' \+ STATUS_LETTER\[it\.st\] \+ '\)'\);/,
+    'findings no longer end with their status letter');
+  // 2026-09-15: the regulation is named once, in the conclusion. The box says so.
+  assert.doesNotMatch(SRC, /AHS_LAW\.basisText\(q\.id, it\.st\)/, 'the regulation is back on the end of every line in the comments box');
+  assert.match(SRC, /gen\.push\(\{ text: OPPORTUNITIES_NOTE, hl:false \}\);/, 'the box no longer points to the conclusion for the regulations');
   // 2026-09-15: the builder highlights nothing. Findings sit under their own
   // heading and end with their reference, so the amber only got in the way of
   // editing. Ours is stripped from any line carried over; the toolbar
@@ -437,14 +441,13 @@ test('the report is square and flat, and a section never leaves its heading behi
   // ruled, uppercase labels. No rounded rectangles and no rounded stroke caps -
   // a rounded cap softens the end of every rule it touches.
   assert.doesNotMatch(SRC, /roundedRect/, 'a rounded rectangle is back in the report');
-  assert.doesNotMatch(SRC, /setLineCap\(\s*'round'\s*\)/, 'rounded stroke caps are back in the report');
-  assert.doesNotMatch(SRC, /drawTachographDial/, 'the semicircular dials are back');
-  // the counts are a ruled band: a colour rule over each cell, uppercase label
-  const band = SRC.match(/function drawFilledGauges\(([\s\S]*?)\n\}/);
-  assert.ok(band, 'drawFilledGauges() not found');
-  assert.match(band[1], /doc\.rect\(x, startY, cellW, ruleH, 'F'\)/, 'the count cells lost their colour rule');
-  assert.match(band[1], /label: 'OBSERVATION'/, 'the count labels are no longer uppercase');
-  assert.match(band[1], /doc\.line\(left, base, right, base\)/, 'the count band lost the hairline that closes it');
+  // The dials are the one curve in the report - Simon asked for them back.
+  // Their round cap must be returned to square straight after, or every rule
+  // that follows ends soft.
+  const dial = SRC.match(/function drawTachographDial\(([\s\S]*?)\n\}/);
+  assert.ok(dial, 'the tachograph dials are gone - they were liked');
+  assert.match(dial[1], /setLineCap\('round'\)[\s\S]*setLineCap\('butt'\)/, 'the dial leaves round stroke caps on for the rest of the report');
+  assert.equal((SRC.match(/setLineCap\('round'\)/g) || []).length, 1, 'round stroke caps are used somewhere other than the dial');
   // the criteria tiles are square and flat
   assert.match(SRC, /doc\.rect\(xPos, yPos, badgeWidth, badgeHeight, 'F'\)/, 'the criteria tiles are no longer square and flat');
 
