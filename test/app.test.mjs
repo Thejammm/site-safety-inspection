@@ -432,6 +432,27 @@ test('every finding cites a verified regulation from the register, never a free-
   assert.match(SRC, /class="cap-law"/, 'the criteria modal no longer shows the basis under each check');
 });
 
+test('the alert bar never traps you inside a full-screen panel', () => {
+  // 2026-09-15: an amber photo note left Simon stuck in the criteria modal.
+  // The bar is fixed at the top on the maximum z-index - which it must be, it
+  // is what tells him a save has failed - so it covered the modal's own header
+  // and its Back button. The panels now start below it, and an amber note
+  // (nothing lost) can be dismissed. A save failure must never be dismissible.
+  assert.match(SRC, /'z-index:2147483647'/, 'the alert bar no longer sits above everything - a failed save could be hidden');
+  assert.match(SRC, /#capOverlay\{position:fixed;inset:0;top:var\(--ahs-alert-h,0px\)/,
+    'the criteria modal is back under the alert bar - its Back button would be unreachable');
+  assert.match(SRC, /#psOverlay\{position:fixed;inset:0;top:var\(--ahs-alert-h,0px\)/,
+    'the photo panel is back under the alert bar');
+  assert.match(SRC, /function publishHeight\(px\)/, 'the bar no longer publishes its height, so the panels cannot clear it');
+  assert.match(SRC, /publishHeight\(b\.offsetHeight\);/, 'the published height is never set from the bar itself');
+  assert.match(SRC, /publishHeight\(0\);/, 'the offset is never released when the bar goes');
+  // the dismiss belongs to notes only
+  const paint = SRC.match(/function repaint\(\)\s*\{([\s\S]*?)\n  \}/);
+  assert.ok(paint, 'repaint() not found');
+  assert.match(paint[1], /if \(!isSave\) \{[\s\S]{0,600}Dismiss this message/,
+    'the dismiss is no longer limited to amber notes - a save failure could be cleared without saving');
+});
+
 test('one inspection can carry sections from both lists, PC and contractor', () => {
   // 2026-09-15: 'the inspection criteria doesnt let me add criteria for the PC
   // and the C ... i need to report on the poor PC controls'. The PC/Contractor

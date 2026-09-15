@@ -2802,11 +2802,19 @@ window.AHS_SAVE_STATUS = (function () {
   // a warning about the draft, or the other way round.
   const messages = new Map(); // kind -> { text, severity }
 
+  // Full-screen panels (the criteria modal, the photo sheet) are fixed to the
+  // viewport, so body padding cannot move them: they read this instead and
+  // start below the bar, keeping their own header and Back button reachable.
+  function publishHeight(px) {
+    try { document.documentElement.style.setProperty('--ahs-alert-h', (px || 0) + 'px'); } catch (e) {}
+  }
+
   function repaint() {
     if (!messages.size) {
       failing = false;
       if (bar) bar.style.display = 'none';
       try { document.body.style.paddingTop = ''; } catch (e) {}
+      publishHeight(0);
       return;
     }
     const list = Array.from(messages.values());
@@ -2821,8 +2829,30 @@ window.AHS_SAVE_STATUS = (function () {
                     ? '<br><span style="font-weight:400;font-size:13px">' +
                       'Do not close this tab. Use &ldquo;Export HTML&rdquo; to save your work to a file.</span>'
                     : '');
+    // an amber note can be dismissed; a save failure cannot
+    if (!isSave) {
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.setAttribute('aria-label', 'Dismiss this message');
+      x.textContent = '\u00d7';
+      x.style.cssText = 'position:absolute;top:50%;right:10px;transform:translateY(-50%);' +
+        'background:rgba(255,255,255,.18);border:0;color:#fff;border-radius:8px;' +
+        'width:34px;height:34px;font:400 22px/1 system-ui,-apple-system,sans-serif;cursor:pointer';
+      x.onclick = function () {
+        Array.from(messages.keys()).forEach(function (k) {
+          if ((messages.get(k) || {}).severity !== 'save') messages.delete(k);
+        });
+        repaint();
+      };
+      b.style.position = 'fixed';
+      b.style.paddingRight = '52px';
+      b.appendChild(x);
+    } else {
+      b.style.paddingRight = '16px';
+    }
     b.style.display = 'block';
     try { document.body.style.paddingTop = b.offsetHeight + 'px'; } catch (e) {}
+    publishHeight(b.offsetHeight);
   }
 
   function reasonOf(err) {
@@ -7711,7 +7741,7 @@ function addPageFooter(doc, pageNum, totalPages) {
 
 <!-- ═══════════════ REV 2: WALK-ROUND CAPTURE ═══════════════ -->
 <style id="capCss">
-  #capOverlay{position:fixed;inset:0;z-index:99990;background:#f4f6f8;display:none;flex-direction:column;font-family:inherit}
+  #capOverlay{position:fixed;inset:0;top:var(--ahs-alert-h,0px);z-index:99990;background:#f4f6f8;display:none;flex-direction:column;font-family:inherit}
   #capOverlay.open{display:flex}
   .cap-head{background:#4A4F55;color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px;flex:0 0 auto}
   .cap-head h2{margin:0;font-size:17px;font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -8302,7 +8332,7 @@ function addPageFooter(doc, pageNum, totalPages) {
 
 <!-- ═══════════════ REV 2: PRE-SITE PACK ═══════════════ -->
 <style id="psCss">
-  #psOverlay{position:fixed;inset:0;z-index:99989;background:#f4f6f8;display:none;flex-direction:column;font-family:inherit}
+  #psOverlay{position:fixed;inset:0;top:var(--ahs-alert-h,0px);z-index:99989;background:#f4f6f8;display:none;flex-direction:column;font-family:inherit}
   #psOverlay.open{display:flex}
   .ps-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:14px}
   .ps-card h3{margin:0 0 4px;font-size:16px}
