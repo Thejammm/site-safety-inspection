@@ -1861,7 +1861,7 @@ button.r3-ai:hover{ background:var(--muted-bg); }
         <button class="btn btn-secondary btn-small" id="savePhotos" style="margin-left:0.5rem;" title="Write every photo in this inspection to this device as real image files (Photos on iPad, Downloads elsewhere)">Save photos to device</button>
 
         <div class="field" style="margin-top:1rem;">
-          <label>Inspection Outcome / Conclusion</label>
+          <label>Concluding statement</label>
           <div id="signoffSummary" class="rte" contenteditable="true"></div>
         </div>
         <div id="imgp" class="imgs"></div>
@@ -6653,7 +6653,45 @@ if (images.length > 0) {
   addPageFooter(doc, currentPage, '?');
 }
     // ========================================
-    // FINAL PAGE: SIGN-OFF  (only when the sign-off toggle is on)
+    // INSPECTION OUTCOME - the concluding statement, on its own page
+    // ========================================
+    if (signoffSummary) {
+    doc.addPage();
+    currentPage++;
+
+    doc.setFontSize(22);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(58, 58, 58);
+    doc.text('Inspection Outcome', 20, 20);
+
+    doc.setDrawColor(75, 191, 214);
+    doc.setLineWidth(0.8);
+    doc.line(20, 24, 190, 24);
+
+    y = 35;
+
+    doc.setFontSize(11);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(60, 60, 60);
+    doc.text('Concluding statement', 20, y);
+    y += 7;
+
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(40, 40, 40);
+    renderRich(doc, getStyledRuns('#signoffSummary'), 20, y, 170, 10, 5.5, [40,40,40],
+      { maxY: 262, onBreak: function(){
+          addPageFooter(doc, currentPage, '?'); doc.addPage(); currentPage++; drawBrandBorders(doc);
+          doc.setFontSize(14); doc.setFont(undefined, 'bold'); doc.setTextColor(58, 58, 58);
+          doc.text('Inspection Outcome (continued)', 20, 20);
+          doc.setFontSize(10); doc.setFont(undefined, 'normal'); doc.setTextColor(40, 40, 40);
+          return 30;
+        } });
+    addPageFooter(doc, currentPage, '?');
+    } // end Inspection Outcome
+
+    // ========================================
+    // FINAL PAGE: SIGN-OFF  (its own sheet, only when the sign-off toggle is on)
     // ========================================
     if (signoffOn) {
     doc.addPage();
@@ -6663,28 +6701,13 @@ if (images.length > 0) {
     doc.setFont(undefined, 'bold');
     doc.setTextColor(58, 58, 58);
     doc.text('Sign Off', 20, 20);
-    
+
     doc.setDrawColor(75, 191, 214);
     doc.setLineWidth(0.8);
     doc.line(20, 24, 190, 24);
-    
+
     y = 35;
-    
-    if (signoffSummary) {
-      doc.setFontSize(11);
-      doc.setFont(undefined, 'bold');
-      doc.setTextColor(60, 60, 60);
-      doc.text('Inspection Outcome / Conclusion', 20, y);
-      y += 7;
-      
-      doc.setFontSize(10);
-      doc.setFont(undefined, 'normal');
-      doc.setTextColor(40, 40, 40);
-      y = renderRich(doc, getStyledRuns('#signoffSummary'), 20, y, 170, 10, 5.5, [40,40,40],
-        { maxY: 262, onBreak: function(){ addPageFooter(doc, currentPage, '?'); doc.addPage(); currentPage++; drawBrandBorders(doc); return 20; } });
-      y += 15;
-    }
-    
+
     if (manager) {
       y += 10;
       doc.setFontSize(10);
@@ -6719,7 +6742,7 @@ if (images.length > 0) {
       doc.line(100, y + 14, 160, y + 14);
       doc.text('Date', 100, y + 17);
       
-      y += 22;
+      y += 32;
     }
     
     if (consultant) {
@@ -9734,7 +9757,7 @@ function addPageFooter(doc, pageNum, totalPages) {
   function mountAI(){
     var h3 = Array.prototype.find.call(document.querySelectorAll('.section > h3'), function(h){ return /Site Summary/i.test(h.textContent); });
     var lbl = (function(){ var e=$('signoffSummary'); return e && e.parentElement.querySelector('label'); })();
-    [[h3,'site','Compose scene setting'],[lbl,'closing','Compose outcome / conclusion']].forEach(function(t){
+    [[h3,'site','Compose scene setting'],[lbl,'closing','Compose concluding statement']].forEach(function(t){
       var host = t[0], kind = t[1]; if(!host) return;
       var b = document.createElement('button'); b.type='button'; b.textContent = t[2];
       b.title = 'Build this locally from the details you have already entered (project info, visit context and findings). No internet, no cost.';
