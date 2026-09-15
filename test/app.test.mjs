@@ -170,7 +170,7 @@ test('findings end with their status letter and the criteria modal has no includ
   assert.match(SRC, /var STATUS_LETTER = \{ minor:'A', advisory:'AD', observation:'O' \};/, 'STATUS_LETTER map changed or gone');
   assert.match(SRC, /var ref = '\(' \+ STATUS_LETTER\[it\.st\] \+ \(basis \? ', ' \+ basis : ''\) \+ '\)';/, 'findings no longer end with their status letter and legal basis');
   // 2026-09-15: only the reference is highlighted - a whole highlighted line cannot be edited on the iPad
-  assert.match(SRC, /g\.html = \(g\.hl && g\.ref\) \? _esc\(g\.text\.slice\(0, g\.text\.length - g\.ref\.length\)\) \+ '<span style="background-color:#FFE58A">' \+ _esc\(g\.ref\) \+ '<\/span>'/, 'the whole finding line is highlighted again');
+  assert.match(SRC, /: \(g\.hl && g\.ref\) \? _esc\(g\.text\.slice\(0, g\.text\.length - g\.ref\.length\)\) \+ '<span style="background-color:#FFE58A">' \+ _esc\(g\.ref\) \+ '<\/span>'/, 'the whole finding line is highlighted again');
   assert.doesNotMatch(SRC, /'<span style="background-color:#FFE58A">' \+ c\.html \+ '<\/span>'/, 'the merge wraps the whole user line in the highlight again');
   assert.doesNotMatch(SRC, /class="cap-inc"|_syncInc|In report</, 'the include switch is back in the criteria modal');
   assert.match(SRC, /if\(it\.inc === false\) delete it\.inc;/, 'answering a removed item no longer brings it back into the report');
@@ -427,49 +427,73 @@ test('every finding cites a verified regulation from the register, never a free-
   assert.match(SRC, /class="cap-law"/, 'the criteria modal no longer shows the basis under each check');
 });
 
-test('the summary composer writes from the inspector\'s own words and never leaves [INSERT] cues', () => {
-  // 2026-09-14: the composed summaries were template prose with [INSERT] cues
-  // that ignored every note typed on site. The composer now takes the whole
-  // report as its model. This pins the behaviours that make it worth having,
-  // running the block exactly as it is embedded in the page.
+test('the report is structured: scene setting, then an outcome organised under the criteria', () => {
+  // Simon's spec, 15 September. The first summary sets the scene and carries no
+  // findings; the second is the Inspection Outcome / Conclusion, organised under
+  // each criterion as What went well / What needs attention, with the regulation
+  // against the matters needing attention only, and a three-part caveat. The
+  // block is run exactly as it is embedded in the page.
   const s = SRC.indexOf('// ── AHS_COMPOSE start ──'), e = SRC.indexOf('// ── AHS_COMPOSE end ──');
   assert.ok(s > 0 && e > s, 'AHS_COMPOSE block (with its start/end markers) not found');
   const C = new Function(SRC.slice(s, e) + '\nreturn AHS_COMPOSE;')();
   const criteria = [
     'Task-specific RAMS were in place for the activities being undertaken.',
     'Adequate supervision was provided to manage the work activities safely.',
-    'At the time of the inspection the following was observed:',
+    C.OBSERVED, C.OPPORTUNITIES,
   ];
   const model = {
     client: 'Department for Health', pc: 'Henry Boot Construction Ltd', contract: 'G & H Ltd', contractor: 'Morley Ventilation Ltd',
     contact: 'Mark (Site Supervisor)', inspector: 'Simon Archer',
     visit: { works_phase: 'Installing ductwork', operatives_on_site: 3 },
     legal: { statutory: 'CDM 2015 regs 13(1) and 15(8)', hse: 'site rules and induction', contractual: '' },
+    scope: { instruments: 'the Construction (Design and Management) Regulations 2015', statutory: 'CDM 2015 reg 13(1)', hse: 'site rules and induction' },
     criteria,
     sections: [
       { name: 'CDM Roles, Cooperation & Communication',
-        lines: ['At the time of the inspection the following was observed:', 'Actions to be addressed,',
+        lines: [C.OBSERVED, C.OPPORTUNITIES, 'Actions to be addressed,',
           '• The Principal Contractor can improve by engaging in regular communication with their appointed contractors -',
           'PC is not participating in the regular safety meeting.'],
-        rows: [{ item: 'Understanding of CDM duties', status: 'minor', note: 'No safety meetings taking place on a regular basis' }] },
+        rows: [{ item: 'Understanding of CDM duties', status: 'minor', note: 'No safety meetings taking place on a regular basis',
+                 basis: 'CDM 2015 reg 13(1)', holder: "the Principal Contractor's duty" }] },
       { name: 'Risk Assessments & Method Statements',
         lines: ['• Task-specific RAMS were in place for the activities being undertaken. (see images)',
           '• Adequate supervision was provided to manage the work activities safely the operative I spoke to knew the RAMS well',
           '• Through the you see we say scheme have so far this month raised …....'],
-        rows: [{ item: 'RAMS in place', status: 'compliant', note: 'G and H approve the RAMS', text: criteria[0] },
+        rows: [{ item: 'RAMS in place', status: 'compliant', note: 'T Clarke approve the RAMS', text: criteria[0] },
                { item: 'Supervision', status: 'compliant', note: '', text: criteria[1] }] },
     ],
   };
   const site = C.build(model, 'site').join('\n'), closing = C.build(model, 'closing').join('\n');
+
+  // ── the scene setting sets the scene and nothing else ──
   assert.doesNotMatch(site + closing, /\[INSERT/i, 'a cue was written instead of leaving the unknown out');
-  assert.match(site, /No safety meetings taking place on a regular basis/, 'the note against a finding is not in the summary');
-  assert.match(site, /Action: The Principal Contractor can improve[^\n]*PC is not participating/, 'the comment lines typed under a section (label + continuation) were lost');
-  assert.match(site, /CDM 2015 regulations 13\(1\) and 13\(3\)\(a\) place with Henry Boot Construction Ltd/, 'a PC-level failure is not escalated to the Principal Contractor, naming the regulation');
-  assert.match(site, /operative the inspector spoke to knew the RAMS well/, 'words typed onto the end of a criteria line were lost, or left in the first person');
-  assert.doesNotMatch(site, /Task-specific RAMS were in place/, 'a criteria sentence the builder wrote was passed off as the inspector\'s words');
   assert.doesNotMatch(site, /…/, 'an unfilled placeholder line reached the summary');
-  assert.match(closing, /A1\. Understanding of CDM duties/, 'findings are not numbered in the sign-off');
-  assert.match(closing, /measured against CDM 2015 regs 13\(1\) and 15\(8\)\. The standard applied is HSE's construction guidance on site rules and induction\./, 'the sign-off no longer summarises the legal basis in a paragraph');
-  assert.match(site, /measured against CDM 2015 regs 13\(1\) and 15\(8\)/, 'the site summary no longer summarises the legal basis');
+  assert.match(site, /## Inspection criteria covered\n• CDM Roles, Cooperation & Communication/, 'the scene setting no longer lists the criteria covered');
+  assert.match(site, /assessed against the Construction \(Design and Management\) Regulations 2015/, 'the scene setting no longer names the law the criteria are assessed against');
+  assert.doesNotMatch(site, /No safety meetings|What needs attention|corrective action/, 'the scene setting contains findings or actions, which belong in the conclusion');
+
+  // ── the conclusion is organised under the criteria ──
+  assert.match(closing, /## CDM Roles, Cooperation & Communication\n### What needs attention/, 'the conclusion is not organised under the criteria');
+  assert.match(closing, /## Risk Assessments & Method Statements\n### What went well/, 'What went well is missing under a criterion with compliant items');
+  assert.match(closing, /• A1\. Understanding of CDM duties - No safety meetings taking place on a regular basis\. \(CDM 2015 reg 13\(1\), the Principal Contractor's duty\)/,
+    'a matter needing attention no longer carries its finding reference and regulation');
+  assert.match(closing, /• The Principal Contractor can improve by engaging in regular communication[^\n]*PC is not participating/,
+    "the inspector's own action line is not carried into What needs attention");
+  assert.match(closing, /• RAMS in place - T Clarke approve the RAMS\./, 'a compliant item lost the evidence, or its capitals were mangled');
+  assert.match(closing, /• Supervision - The operative the inspector spoke to knew the RAMS well/, 'words typed onto a criteria line were lost, or left in the first person');
+  assert.doesNotMatch(closing, /What went well[\s\S]{0,200}\(CDM 2015 reg/, 'a regulation is cited against something that went well');
+  assert.match(closing, /CDM 2015 regulation 13\(1\) places with Henry Boot Construction Ltd/, 'a PC-level matter is no longer escalated to the Principal Contractor');
+  assert.match(closing, /The matters needing attention above are measured against CDM 2015 regs 13\(1\) and 15\(8\)\./, 'the conclusion no longer summarises the legal basis in a paragraph');
+
+  // ── the caveat: a snapshot, a proportionate timescale, and the duty that remains ──
+  assert.match(closing, /reflect the conditions observed and the discussions held on the date of the inspection only\./, 'the caveat lost the inspection-date sentence');
+  assert.match(closing, /within a reasonable and proportionate timescale, taking account of the nature and risk associated with the finding\./, 'the caveat lost the proportionate-timescale sentence');
+  assert.match(closing, /does not remove the responsibility of the duty holder to manage health and safety on a continuing basis\./, 'the caveat lost the continuing-duty sentence');
+
+  // ── the app renders the structure the same way the composer wrote it ──
   assert.match(SRC, /function buildLocalSummary\(kind\)\{[\s\S]{0,600}AHS_COMPOSE\.build\(/, 'buildLocalSummary no longer composes through AHS_COMPOSE');
+  assert.match(SRC, /target\.innerHTML = _composedHtml\(parts\);/, 'the composed text is no longer rendered through _composedHtml');
+  assert.match(SRC, /'<strong>' \+ esc\(m\[1\]\) \+ '<\/strong>'/, 'heading markers no longer become bold in the box and the PDF');
+  assert.match(SRC, /gen\.push\(\{ text: OPPORTUNITIES_HEADING, hl:false, head:true \}\);/, 'the comments box no longer separates observations from opportunities');
+  assert.match(SRC, /g\.html = g\.head \? '<strong>' \+ _esc\(g\.text\) \+ '<\/strong>'/, 'the comments-box headings are no longer bold');
 });

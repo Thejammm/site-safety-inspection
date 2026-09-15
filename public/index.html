@@ -1861,7 +1861,7 @@ button.r3-ai:hover{ background:var(--muted-bg); }
         <button class="btn btn-secondary btn-small" id="savePhotos" style="margin-left:0.5rem;" title="Write every photo in this inspection to this device as real image files (Photos on iPad, Downloads elsewhere)">Save photos to device</button>
 
         <div class="field" style="margin-top:1rem;">
-          <label>Summary</label>
+          <label>Inspection Outcome / Conclusion</label>
           <div id="signoffSummary" class="rte" contenteditable="true"></div>
         </div>
         <div id="imgp" class="imgs"></div>
@@ -5500,14 +5500,55 @@ const AHS_LAW = (function(){
       var p = primary(pid); if(!p) return;
       if(p.kind === 'statutory'){ if(stat.indexOf(p.id) < 0) stat.push(p.id); }
       else if(p.kind === 'contractual'){ cpp = true; }
-      (SECTION_HSE[sectionOf(pid)] || []).forEach(function(id){ var e = get(id); if(e) hse[e.id] = e.cite.replace(/^HSE construction:\s*/, '').replace(/,.*$/, ''); });
+      (SECTION_HSE[sectionOf(pid)] || []).forEach(function(id){ hse[id] = true; });
     });
-    var topics = Object.keys(hse).map(function(k){ var t = hse[k]; return /^[A-Z]{2,}/.test(t) ? t : t.charAt(0).toLowerCase() + t.slice(1); });
-    // topic names that themselves contain "and" read better separated by semicolons
-    var hseList = !topics.length ? '' : (topics.some(function(t){ return / and /.test(t); }) ? topics.join('; ') : joinRefs(topics));
-    return { statutory: citeList(stat), hse: hseList, contractual: cpp ? 'the Construction Phase Plan (CDM 2015 reg 15(3)(b))' : '' };
+    return { statutory: citeList(stat), hse: hseTopics(Object.keys(hse)), contractual: cpp ? 'the Construction Phase Plan (CDM 2015 reg 15(3)(b))' : '' };
   }
-  return { get: get, sectionOf: sectionOf, forItem: forItem, primary: primary, basisText: basisText, holderText: holderText, holderPhrase: holderPhrase, citeList: citeList, anchorLine: anchorLine, appendix: appendix, summaryFor: summaryFor };
+  function hseTopics(ids){
+    var seen = {}, out = [];
+    ids.forEach(function(id){ var e = get(id); if(!e || seen[e.id]) return; seen[e.id] = true; out.push(e.cite.replace(/^HSE construction:\s*/, '').replace(/,.*$/, '')); });
+    out = out.map(function(t){ return /^[A-Z]{2,}/.test(t) ? t : t.charAt(0).toLowerCase() + t.slice(1); });
+    return !out.length ? '' : (out.some(function(t){ return / and /.test(t); }) ? out.join('; ') : joinRefs(out));
+  }
+  // Full titles, for naming an instrument in the scene setting rather than
+  // reciting every paragraph. Short forms stay for citing against a finding.
+  var TITLES = {
+    'CDM 2015': 'the Construction (Design and Management) Regulations 2015',
+    'MHSWR 1999': 'the Management of Health and Safety at Work Regulations 1999',
+    'HSWA 1974': 'the Health and Safety at Work etc. Act 1974',
+    'PUWER 1998': 'the Provision and Use of Work Equipment Regulations 1998',
+    'LOLER 1998': 'the Lifting Operations and Lifting Equipment Regulations 1998',
+    'WAHR 2005': 'the Work at Height Regulations 2005',
+    'COSHH 2002': 'the Control of Substances Hazardous to Health Regulations 2002',
+    'Noise 2005': 'the Control of Noise at Work Regulations 2005',
+    'Vibration 2005': 'the Control of Vibration at Work Regulations 2005',
+    'MHOR 1992': 'the Manual Handling Operations Regulations 1992',
+    'PPE 1992': 'the Personal Protective Equipment at Work Regulations 1992',
+    'EAWR 1989': 'the Electricity at Work Regulations 1989',
+    'RIDDOR 2013': 'the Reporting of Injuries, Diseases and Dangerous Occurrences Regulations 2013',
+    'First-Aid 1981': 'the Health and Safety (First-Aid) Regulations 1981',
+    'HSCER 1996': 'the Health and Safety (Consultation with Employees) Regulations 1996',
+    'CAWR 2012': 'the Control of Asbestos Regulations 2012',
+    'Fire Safety Order 2005': 'the Regulatory Reform (Fire Safety) Order 2005',
+    'Safety Signs 1996': 'the Health and Safety (Safety Signs and Signals) Regulations 1996',
+    'WTR 1998': 'the Working Time Regulations 1998'
+  };
+  // What the criteria COVERED on this visit are assessed against, for the scene
+  // setting: the instruments behind the section anchors, named in full. The
+  // paragraph-level citations belong against the findings, not in the scope.
+  function scopeFor(sectionKeys){
+    var stat = [], pages = [], titles = [];
+    (sectionKeys || []).forEach(function(k){
+      (SECTION_LAW[k] || []).forEach(function(id){ if(stat.indexOf(id) < 0) stat.push(id); });
+      (SECTION_HSE[k] || []).forEach(function(id){ if(pages.indexOf(id) < 0) pages.push(id); });
+    });
+    stat.map(get).filter(Boolean).forEach(function(e){
+      var t = TITLES[e.instrument] || e.instrument;
+      if(titles.indexOf(t) < 0) titles.push(t);
+    });
+    return { statutory: citeList(stat), instruments: joinRefs(titles), hse: hseTopics(pages) };
+  }
+  return { get: get, sectionOf: sectionOf, forItem: forItem, primary: primary, basisText: basisText, holderText: holderText, holderPhrase: holderPhrase, citeList: citeList, anchorLine: anchorLine, appendix: appendix, summaryFor: summaryFor, scopeFor: scopeFor };
 })();
 if (typeof window !== 'undefined') window.AHS_LAW = AHS_LAW;
 // ── AHS_LAW end ──
@@ -6633,7 +6674,7 @@ if (images.length > 0) {
       doc.setFontSize(11);
       doc.setFont(undefined, 'bold');
       doc.setTextColor(60, 60, 60);
-      doc.text('Summary', 20, y);
+      doc.text('Inspection Outcome / Conclusion', 20, y);
       y += 7;
       
       doc.setFontSize(10);
@@ -6952,7 +6993,13 @@ function renderRich(doc, runs, x, startY, maxW, fs, lh, color, opts){
       else doc.setFont('Inter', run.b?'bold':'normal');
       doc.setFontSize(fs);
       var w = doc.getTextWidth(tok);
-      if(ws){ if(cx===x) return; if(cx + w > x + maxW) nl(); else cx += w; return; }
+      if(ws){
+        if(cx===x) return;
+        if(cx + w > x + maxW){ nl(); return; }
+        // an underline runs through the spaces as well, or it reads as dashes
+        if(run.u){ doc.setDrawColor(color[0],color[1],color[2]); doc.setLineWidth(0.3); doc.line(cx, cy+fh*0.12, cx+w, cy+fh*0.12); }
+        cx += w; return;
+      }
       if(cx>x && cx + w > x + maxW) nl();
       if(run.hl){ var col=_pdfColor(run.hl); if(col){ doc.setFillColor(col[0],col[1],col[2]); doc.rect(cx-0.2, cy-fh*0.72, w+0.4, fh*0.92, 'F'); } }
       doc.setTextColor(color[0],color[1],color[2]);
@@ -7746,6 +7793,10 @@ function addPageFooter(doc, pageNum, totalPages) {
     return Object.keys(sec.items).filter(function(pid){ var it=sec.items[pid]; return it.st || it.note || (it.photos||[]).length; }).length;
   }
   var STATUS_LETTER = { minor:'A', advisory:'AD', observation:'O' };   // the neat letter at the end of every highlighted finding
+  // The two headings the builder writes into every Comments box. AHS_COMPOSE
+  // recognises them as ours, so they never come back as the inspector's words.
+  var OBSERVED_HEADING = 'At the time of the inspection the following was observed:';
+  var OPPORTUNITIES_HEADING = 'The following opportunities were identified and should be considered for rectification by the owner:';
   function answeredItem(it){ return !!(it && (it.st || it.note || (it.photos||[]).length)); }
   function included(it){ if(!it) return false; if(it.inc === true) return true; if(it.inc === false) return false; return answeredItem(it); }
   var _liveT = null;
@@ -8084,14 +8135,24 @@ function addPageFooter(doc, pageNum, totalPages) {
       // the legal frame for the section, first: "Assessed against CDM 2015 regs ..."
       var anchor = (typeof AHS_LAW !== 'undefined') ? AHS_LAW.anchorLine(t.key) : '';
       if(anchor) gen.push({ text: anchor, hl:false });
-      gen.push({ text:'At the time of the inspection the following was observed:', hl:false });
-      okLines.forEach(function(l){ gen.push({ text:l, hl:false }); });
-      findLines.forEach(function(l){ gen.push({ text:l.text, hl:true, ref:l.ref }); });
+      // Two headed parts, so the reader can tell what was seen from what was
+      // raised: the observations first, then the opportunities for rectification.
+      if(okLines.length){
+        gen.push({ text: OBSERVED_HEADING, hl:false, head:true });
+        okLines.forEach(function(l){ gen.push({ text:l, hl:false }); });
+      }
+      if(findLines.length){
+        if(okLines.length) gen.push({ text:'', hl:false });      // a clear break between the two
+        gen.push({ text: OPPORTUNITIES_HEADING, hl:false, head:true });
+        findLines.forEach(function(l){ gen.push({ text:l.text, hl:true, ref:l.ref }); });
+      }
       // Findings: the sentence stays plain text and only the reference at the end
       // - "(A, CDM 2015 reg 15(8))" - is highlighted, so the line can be edited on
       // an iPad without fighting the span. The PDF picks the same highlight up.
       gen.forEach(function(g){
-        g.html = (g.hl && g.ref) ? _esc(g.text.slice(0, g.text.length - g.ref.length)) + '<span style="background-color:#FFE58A">' + _esc(g.ref) + '</span>' : _esc(g.text);
+        g.html = g.head ? '<strong>' + _esc(g.text) + '</strong>'
+          : (g.hl && g.ref) ? _esc(g.text.slice(0, g.text.length - g.ref.length)) + '<span style="background-color:#FFE58A">' + _esc(g.ref) + '</span>'
+          : _esc(g.text);
         g.key = _lineKey(g.text);
       });
 
@@ -9139,14 +9200,24 @@ function addPageFooter(doc, pageNum, totalPages) {
     btn.disabled = false; btn.textContent = old;
   }
   // ── AHS_COMPOSE start ──
-  // AHS_COMPOSE - composes the Site Summary and the Sign-off summary from
-  // everything the inspection holds: the parties, the visit context, every
-  // item's status and, above all, the inspector's own words - the notes typed
-  // against items and the lines typed into each section's Comments box. The
-  // criteria sentences the builder writes are recognised and left out; what
-  // remains is the inspector's evidence, and that is what the summary is built
-  // from. Nothing is invented and no [INSERT] cues are written: a detail that
+  // AHS_COMPOSE - composes the two summaries that frame the report.
+  //
+  //   'site'    Scene setting. What was inspected, the state of the project, the
+  //             works in hand, who was there, the scope and the criteria and
+  //             regulations covered. NO findings and NO actions.
+  //   'closing' Inspection Outcome / Conclusion. What went well and what needs
+  //             attention, organised under the inspection criteria, with the
+  //             regulation against each matter needing attention, then the caveat.
+  //
+  // Everything is built from what the inspection already holds: the parties, the
+  // visit context, every item's status and, above all, the inspector's own words
+  // - the notes typed against items and the lines typed into each section's
+  // Comments box. The criteria sentences the builder writes are recognised and
+  // left out. Nothing is invented and no [INSERT] cues are written: a detail that
   // has not been recorded is left out of the text.
+  //
+  // Two line markers travel through to the report as formatting, and nothing else:
+  //   '## '  a heading (bold)        '### ' a sub-heading (italic)
   //
   // Pure: build(model, kind) -> array of paragraphs. No DOM. The same text is
   // spliced into index.html (AHS_COMPOSE) and run in node against real reports.
@@ -9156,9 +9227,11 @@ function addPageFooter(doc, pageNum, totalPages) {
   //   visit: { operatives_on_site, contractors_on_site, site_contact_name, site_contact_role,
   //            weather_conditions, works_phase, focus_areas, visit_number },
   //   sections: [ { name, lines: [plain-text comment lines],
-  //                 rows: [ { item, status, note, text (the criteria sentence, if the row came from one) } ] } ],
-  //   criteria: [ every sentence the builder can write (criteria texts and section templates) ],
-  //   prior: [ { item, note, visit } ]   // actions from earlier visits still open (optional)
+  //                 rows: [ { item, status, note, text, basis, holder } ] } ],
+  //   criteria: [ every sentence the builder can write ],
+  //   legal:  { statutory, hse, contractual }  // behind the findings, for the conclusion
+  //   scope:  { statutory, hse }               // behind every criterion covered, for the scene setting
+  //   prior:  [ { item, note, visit } ]        // actions from earlier visits still open
   // }
   var AHS_COMPOSE = (function () {
     'use strict';
@@ -9178,6 +9251,18 @@ function addPageFooter(doc, pageNum, totalPages) {
     function symDiff(a, b) {
       var c = {}; a.forEach(function (w) { c[w] = (c[w] || 0) + 1; }); b.forEach(function (w) { c[w] = (c[w] || 0) - 1; });
       return Object.keys(c).filter(function (w) { return c[w] !== 0; });
+    }
+    function head(s) { return '## ' + clean(s); }
+    function sub(s) { return '### ' + clean(s); }
+
+    // The headings the builder writes into a Comments box. They are ours, never
+    // the inspector's words, so the composer must not read them back as comments.
+    var OBSERVED = 'At the time of the inspection the following was observed:';
+    var OPPORTUNITIES = 'The following opportunities were identified and should be considered for rectification by the owner:';
+    function isBuilderHeading(t) {
+      return /^at the time of the inspection the following was observed:?$/i.test(t) ||
+        /^the following opportunities were identified/i.test(t) ||
+        /^assessed against\b/i.test(t);
     }
 
     // Comments-box HTML -> plain-text lines. The generator joins lines with
@@ -9213,8 +9298,8 @@ function addPageFooter(doc, pageNum, totalPages) {
           var ct = c.split(' '), w1 = ct[ct.length - 2], w2 = ct[ct.length - 1];
           var re = new RegExp((w1 ? reEsc(w1) + '\\W+' : '') + reEsc(w2), 'i');
           var m = re.exec(line);
-          if (m) return clean(line.slice(m.index + m[0].length).replace(/\(see images\)/gi, '').replace(/\s*\((?:A|AD|O)\)\s*$/, '').replace(/^[\s\-\u2013:;,.]+/, ''));
-          return clean(line.split(' ').slice(ct.length).join(' ').replace(/\s*\((?:A|AD|O)\)\s*$/, ''));
+          if (m) return clean(line.slice(m.index + m[0].length).replace(/\(see images\)/gi, '').replace(/\s*\((?:A|AD|O)[^)]*\)\s*$/, '').replace(/^[\s\-\u2013:;,.]+/, ''));
+          return clean(line.split(' ').slice(ct.length).join(' ').replace(/\s*\((?:A|AD|O)[^)]*\)\s*$/, ''));
         }
         var diff = symDiff(lt, c.split(' '));
         if (diff.length <= 1 && !diff.some(function (w) { return /^(not|no|never|without|nor|un\w+)$/.test(w); })) return '';
@@ -9234,7 +9319,9 @@ function addPageFooter(doc, pageNum, totalPages) {
 
     var LABEL = /^(observation|observations|action|actions|actions to be addressed|actions to address|advisory|advisories|note|notes|recommendation|recommendations|good practice|comment|comments)\s*[:,.\-\u2013]*$/i;
     var LABEL_TEXT = { observation: 'Observation', observations: 'Observation', action: 'Action', actions: 'Action', 'actions to be addressed': 'Action', 'actions to address': 'Action', advisory: 'Advisory', advisories: 'Advisory', recommendation: 'Recommendation', recommendations: 'Recommendation', 'good practice': 'Good practice' };
+    var NEEDS_LABEL = /^(action|advisory|recommendation)$/i;
     var FINDING = { minor: 1, advisory: 1, observation: 1 };
+    var ORDER = { minor: 0, advisory: 1, observation: 2 };
 
     // The inspector's own words in a section's Comments box, each tied to the
     // item row it belongs to where that can be told: a criteria sentence he
@@ -9258,13 +9345,12 @@ function addPageFooter(doc, pageNum, totalPages) {
       function echoes(t, r) { var n = norm(t); if (!n) return true; var x = noteOf(r); return !!x && (x === n || x.indexOf(n) >= 0 || (n.indexOf(x) >= 0 && x.length > 15 && n.length < x.length + 12)); }
       var out = [], label = '';
       function push(text, row, replaces) {
-        text = clean(text.replace(/\(see images\)/gi, '').replace(/\s*\((?:A|AD|O)\)\s*$/, '')); if (!text) return;
-        out.push({ text: (label ? label + ': ' : '') + cap(voice(text)), row: row || null, replaces: !!replaces }); label = '';
+        text = clean(text.replace(/\(see images\)/gi, '').replace(/\s*\((?:A|AD|O)[^)]*\)\s*$/, '')); if (!text) return;
+        out.push({ text: (label ? label + ': ' : '') + cap(voice(text)), body: cap(voice(text)), label: label, row: row || null, replaces: !!replaces }); label = '';
       }
       joined.forEach(function (l) {
         var body = l.replace(/^\u2022\s*/, '');
-        if (/^at the time of the inspection the following was observed:?$/i.test(body)) return;
-        if (/^assessed against\b/i.test(body)) return;   // the section's legal frame, written by the builder
+        if (isBuilderHeading(body)) return;
         if (isPlaceholder(body)) return;
         var lab = LABEL.exec(body);
         if (lab) { label = LABEL_TEXT[lab[1].toLowerCase()] || ''; return; }
@@ -9306,9 +9392,9 @@ function addPageFooter(doc, pageNum, totalPages) {
         var rows = (sec.rows || []).map(function (r) { return { item: clean(r.item), status: r.status || '', note: noStop(clean(r.note)), text: clean(r.text), extra: '', basis: clean(r.basis), holder: clean(r.holder) }; });
         var own = [];
         ownEntries(sec, idx, rows).forEach(function (e) {
-          if (!e.row) { own.push(endStop(e.text)); return; }
-          if (e.replaces) e.row.note = noStop(e.text);
-          else e.row.extra = (e.row.extra ? e.row.extra + ' ' : '') + endStop(e.text);
+          if (!e.row) { own.push(e); return; }
+          if (e.replaces) e.row.note = noStop(e.body);
+          else e.row.extra = (e.row.extra ? e.row.extra + ' ' : '') + endStop(e.body);
         });
         return { name: clean(sec.name), rows: rows, own: own };
       });
@@ -9341,7 +9427,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     }
 
     // Findings numbered in the order they appear in the report: A1.. (action),
-    // AD1.. (advisory), OB1.. (observation) - the way Simon numbers them by hand.
+    // AD1.. (advisory), O1.. (observation) - the way Simon numbers them by hand.
     function findingsOf(sections) {
       var pre = { minor: 'A', advisory: 'AD', observation: 'O' }, n = { minor: 0, advisory: 0, observation: 0 };
       var all = [], by = { minor: [], advisory: [], observation: [] };
@@ -9359,27 +9445,6 @@ function addPageFooter(doc, pageNum, totalPages) {
       var c = { compliant: 0, advisory: 0, minor: 0, observation: 0, na: 0, blank: 0, total: 0 };
       (m.sections || []).forEach(function (sec) { (sec.rows || []).forEach(function (r) { var st = r.status || 'blank'; c[st] = (c[st] || 0) + 1; c.total++; }); });
       return c;
-    }
-    // Evidence recorded against compliant items, in the inspector's words, by section.
-    function evidenceOf(sections) {
-      var groups = [];
-      sections.forEach(function (sec) {
-        var notes = [];
-        sec.rows.forEach(function (r) {
-          if (r.status !== 'compliant') return;
-          var n = clean(r.note); if (isPlaceholder(n)) n = '';
-          if (n.length >= 12) notes.push(endStop(n.length < 30 ? cap(r.item) + ' - ' + lc(n) : cap(voice(n))));
-          if (r.extra) notes.push(r.extra);
-        });
-        if (notes.length) groups.push({ section: sec.name, notes: notes });
-      });
-      return groups;
-    }
-    function allCompliantSections(sections) {
-      return sections.filter(function (sec) {
-        var rows = sec.rows; if (!rows.length) return false;
-        return rows.every(function (r) { return r.status === 'compliant' || r.status === 'na'; }) && rows.some(function (r) { return r.status === 'compliant'; });
-      }).map(function (sec) { return sec.name; });
     }
     function isAccidentSection(sec) { return /accident|incident/i.test(sec.name || ''); }
     var THEMES = [
@@ -9404,11 +9469,21 @@ function addPageFooter(doc, pageNum, totalPages) {
       return { notes: notes, themes: themes.slice(0, 4) };
     }
     var GAP = { minor: 'corrective action required', advisory: 'improvement required', observation: 'noted for attention' };
-    function findingLine(f) {
+    // A line under "What needs attention": the finding, the inspector's words, then
+    // the requirement it is measured against. Observations never carry a regulation.
+    function outcomeLine(f) {
       var body = f.note ? endStop(voice(f.note)) : GAP[f.status] + '.';
-      // Action and Advisory carry the requirement they were measured against (the model supplies it; observations never cite)
-      var req = (f.basis && (f.status === 'minor' || f.status === 'advisory')) ? ' Requirement: ' + f.basis + (f.holder ? ', ' + f.holder : '') + '.' : '';
-      return f.ref + '. ' + f.item + ' - ' + body + (f.extra ? ' ' + f.extra : '') + req;
+      var req = f.basis ? ' (' + f.basis + (f.holder ? ', ' + f.holder : '') + ')' : '';
+      return '\u2022 ' + f.ref + '. ' + f.item + ' - ' + body + (f.extra ? ' ' + f.extra : '') + req;
+    }
+    // A line under "What went well": the evidence in the inspector's words, no
+    // regulation. Where he added nothing, the check itself is the record.
+    function wellLine(r) {
+      var note = clean(r.note); if (isPlaceholder(note)) note = '';
+      // the inspector's words are kept exactly as capitalised: lowercasing the
+      // first letter would turn "T Clarke hold the records" into "t Clarke ..."
+      var said = [note && endStop(voice(note)), clean(r.extra)].filter(Boolean).join(' ');
+      return '\u2022 ' + noStop(r.item) + (said ? ' - ' + said : '');
     }
     function pcRelated(f) { return /principal contractor|\bpc\b|safety meeting|communicat|interface|co-?operat|cdm|coordinat/i.test(f.item + ' ' + f.note + ' ' + f.extra + ' ' + f.section); }
     function judgement(c, f) {
@@ -9422,17 +9497,16 @@ function addPageFooter(doc, pageNum, totalPages) {
       return 'The incidents recorded since the last visit' + (inc.themes.length ? ' involve ' + join(inc.themes) : ' are listed under the findings') +
         '. The pattern behind them should be reviewed with the workforce, and the controls for the activities involved checked at the next visit.';
     }
-    // The legal basis in one paragraph, instead of an appendix: what the findings
-    // are measured against, grouped by instrument, and the HSE topics behind them.
-    function legalText(legal) {
-      if (!legal || (!legal.statutory && !legal.contractual)) return '';
-      var s = 'The matters above are measured against ' + [legal.statutory, legal.contractual].filter(Boolean).join(' and ') + '.';
-      if (legal.hse) s += " The standard applied is HSE's construction guidance on " + legal.hse + '.';
-      return s + ' Each requirement is stated against the finding it applies to.';
-    }
     function priorText(prior) {
       return plural(prior.length, 'action', 'actions') + ' raised at ' + (prior.length === 1 ? 'a previous visit remains' : 'previous visits remain') + ' open: ' +
         prior.map(function (x) { return noStop(x.item) + (x.visit ? ' (visit ' + x.visit + ')' : ''); }).join('; ') + '.';
+    }
+    // The legal basis in one paragraph rather than an appendix.
+    function legalText(legal) {
+      if (!legal || (!legal.statutory && !legal.contractual)) return '';
+      var s = 'The matters needing attention above are measured against ' + [legal.statutory, legal.contractual].filter(Boolean).join(' and ') + '.';
+      if (legal.hse) s += " The standard applied is HSE's construction guidance on " + legal.hse + '.';
+      return s;
     }
 
     function build(m, kind) {
@@ -9442,22 +9516,16 @@ function addPageFooter(doc, pageNum, totalPages) {
       var c = counts(m);
       var sections = annotate(m, index(m.criteria));
       var f = findingsOf(sections);
-      var ev = evidenceOf(sections);
-      var evSecs = {}; ev.forEach(function (g) { evSecs[g.section] = true; });
-      var okSecs = allCompliantSections(sections).filter(function (n) { return !evSecs[n]; });
       var inc = incidentsOf(sections);
       var prior = (m.prior || []).filter(function (x) { return clean(x.item); });
-      var own = {};
-      sections.forEach(function (sec) { if (sec.own.length) own[sec.name] = sec.own; });
       var secNames = sections.map(function (s) { return s.name; }).filter(Boolean);
-      var byArea = [], seen = {};
-      f.all.forEach(function (x) { if (!seen[x.section]) { seen[x.section] = []; byArea.push({ section: x.section, items: seen[x.section] }); } seen[x.section].push(x); });
       var pcFails = f.minor.concat(f.advisory).filter(pcRelated);
       var whom = firstName(p.contact) || 'the site supervisor';
       var parts = [];
 
       if (kind === 'site') {
-        // 1. who for, what, where - and the chain of parties above the subject
+        // ─── Scene setting: what was inspected and the situation on the day ───
+        // No findings, no actions, no judgement. Those belong to the conclusion.
         var s1 = 'This inspection was undertaken on behalf of ' + (p.contractor || p.client || p.pc || 'the client') +
           ' to provide an independent review of the health, safety and welfare arrangements ' +
           (p.contractor ? 'applying to their works' : 'in place') + (p.project ? ' at ' + p.project : ' on site') + ' at the time of the visit.';
@@ -9467,14 +9535,12 @@ function addPageFooter(doc, pageNum, totalPages) {
         var s1b = '';
         if (chain.length) s1b = 'The project ' + chain.join(', ') + (p.contract && p.contractor && p.contract !== p.contractor ? ', and ' + p.contractor + ' are engaged through ' + p.contract : '') + '.';
         else if (p.contract && p.contractor) s1b = p.contractor + ' are engaged through ' + p.contract + '.';
-        if (p.description) s1b += (s1b ? ' ' : '') + 'The project comprises ' + lc(p.description) + '.';
+        if (p.description) s1b += (s1b ? ' ' : '') + 'The project comprises ' + p.description + '.';   // as typed: it may begin with a name
         parts.push(s1 + (s1b ? ' ' + s1b : ''));
 
-        // 2. met by, purpose agreed
         parts.push('On arrival the inspector was met by ' + (p.contact || 'the site supervisor') +
           '. The purpose of the inspection, the scope of the walk-around and the expected outputs were discussed and agreed prior to commencement.');
 
-        // 3. what was going on, who was there, in what conditions
         if (clean(v.works_phase)) parts.push('At the time of the inspection ' + p.subject + ' were engaged in ' + lc(noStop(v.works_phase)) + '.');
         var present = [];
         if (v.operatives_on_site != null && v.operatives_on_site !== '') present.push(plural(+v.operatives_on_site, 'operative', 'operatives') + (p.contractor ? ' from ' + p.contractor : ''));
@@ -9484,57 +9550,27 @@ function addPageFooter(doc, pageNum, totalPages) {
             (clean(v.weather_conditions) ? ', working in ' + lc(noStop(v.weather_conditions)) + ' conditions' : '') + ' at the time of the visit.');
         }
 
-        // 4. scope: what was discussed and what the walk-around set out to establish
-        var areas = secNames.map(function (n) { return inSentence(n, p.keep); });
-        var ref = clean(v.focus_areas) ? noStop(v.focus_areas) : (areas.length ? join(areas, '; ') : 'the arrangements in place on site');
-        var s4 = 'Discussions were held with ' + p.who + ' throughout the walk-round regarding the current arrangements for managing health, safety and welfare, with particular reference to ' + ref + '.';
+        var s4 = 'Discussions were held with ' + p.who + ' throughout the walk-round regarding the current arrangements for managing health, safety and welfare' +
+          (clean(v.focus_areas) ? ', with particular reference to ' + noStop(v.focus_areas) : '') + '.';
         s4 += ' The inspection included a walk-around of the site to establish whether the site was in good order, whether ' + (p.contractor ? p.contractor + "'s operatives" : 'the workforce') +
           ' were provided with safe means of access to their place of work, and whether suitable arrangements were in place for the delivery, loading and storage of materials that avoid manual handling wherever mechanical aids can be used.';
-        if (clean(v.focus_areas) && areas.length) s4 += ' The areas reviewed were ' + join(areas, '; ') + '.';
         parts.push(s4);
 
-        // 5. the overall picture, set by what was found
-        var jd = '';
-        if (!c.total) jd = '';
-        else if (f.minor.length >= 3 || (f.minor.length && f.advisory.length >= 3)) jd = 'Overall the standard of health and safety management found on this visit was not acceptable: ' + plural(f.minor.length, 'matter requires', 'matters require') + ' corrective action' + (f.advisory.length ? ' and ' + plural(f.advisory.length, 'advisory item was', 'advisory items were') + ' raised' : '') + '. These are set out below and were discussed with ' + whom + ' on the day.';
-        else if (f.minor.length) jd = 'Overall the arrangements were acceptable in most areas, but ' + plural(f.minor.length, 'matter requires', 'matters require') + ' corrective action' + (f.advisory.length ? ', and ' + plural(f.advisory.length, 'advisory item was', 'advisory items were') + ' raised for improvement' : '') + '. These were discussed with ' + whom + ' on the day and are set out below.';
-        else if (f.advisory.length) jd = 'Overall the arrangements were found to be acceptable, with ' + plural(f.advisory.length, 'advisory item', 'advisory items') + ' where improvement is advised before the next visit' + (f.observation.length ? ' and ' + plural(f.observation.length, 'observation', 'observations') + ' recorded for attention' : '') + '.';
-        else if (f.observation.length) jd = 'Overall ' + p.subject + "'s arrangements were found to be well controlled. " + cap(plural(f.observation.length, 'observation is', 'observations are')) + ' recorded below for attention.';
-        else jd = 'Overall ' + p.subject + "'s arrangements were found to be well controlled, and no matters requiring action were identified.";
-        if (jd && pcFails.length && !p.pcMode) {
-          jd += ' A number of the matters raised sit with the Principal Contractor rather than with ' + p.contractor + "'s own work: they go to the planning, managing and monitoring of the construction phase, and to the co-operation and co-ordination between contractors, which CDM 2015 regulations 13(1) and 13(3)(a) place with " +
-            (p.pc || 'the Principal Contractor') + '. ' + p.contractor + " cannot discharge those duties on the Principal Contractor's behalf, but should raise the matters below formally with " + (p.pc || 'the Principal Contractor') + ' and keep a record of having done so.';
+        // the scope, as a concise list: which criteria were covered
+        if (secNames.length) {
+          parts.push(head('Inspection criteria covered') + '\n' +
+            secNames.map(function (n) { return '\u2022 ' + n; }).join('\n'));
+          if (c.total) parts.push(plural(c.total, 'individual check was', 'individual checks were') + ' reviewed across ' + plural(secNames.length, 'criterion', 'criteria') + '.');
         }
-        if (jd) parts.push(jd);
-
-        // 6. the good: the inspector's evidence against compliant items, by area
-        if (ev.length) parts.push('There was clear evidence of control in the following areas. ' + ev.map(function (g) { return g.section + ': ' + g.notes.join(' '); }).join(' '));
-        if (okSecs.length) parts.push('All items reviewed under ' + join(okSecs.map(function (n) { return inSentence(n, p.keep); }), '; ') + ' were ' + (ev.length ? 'also ' : '') + 'found to be compliant.');
-
-        // 7. the bad: findings by area, numbered, each followed by the inspector's own comments for that area
-        if (f.all.length) {
-          var hd = [];
-          if (f.minor.length) hd.push(plural(f.minor.length, 'matter requires', 'matters require') + ' corrective action');
-          if (f.advisory.length) hd.push(plural(f.advisory.length, 'advisory item was', 'advisory items were') + ' raised for improvement');
-          if (f.observation.length) hd.push(plural(f.observation.length, 'observation was', 'observations were') + ' noted');
-          parts.push(cap(join(hd)) + '. ' + (f.all.length === 1 ? 'It is' : 'They are') + ' set out by area below' + (Object.keys(own).length ? ", with the inspector's comments" : '') + '.');
-          byArea.forEach(function (a) {
-            var block = a.section + '\n' + a.items.map(findingLine).join('\n');
-            if (own[a.section]) { block += '\n' + own[a.section].join(' '); delete own[a.section]; }
-            parts.push(block);
-          });
+        // and the law those criteria are assessed against, named but not recited:
+        // the paragraph behind a particular matter is given against that matter.
+        if (m.scope && (m.scope.instruments || m.scope.statutory)) {
+          parts.push('The arrangements in these areas are assessed against ' + (m.scope.instruments || m.scope.statutory) +
+            ", together with the standards set out in HSE's guidance for construction. The particular requirement behind any matter raised is given against that matter in the conclusion.");
         }
-        // the inspector's comments in areas with no finding
-        var rest = Object.keys(own);
-        if (rest.length) parts.push('The inspector also noted the following. ' + rest.map(function (s) { return s + ': ' + own[s].join(' '); }).join(' '));
-        if (f.minor.length || f.advisory.length) { var lt = legalText(m.legal); if (lt) parts.push(lt); }
-
-        // 8. incidents, open actions, gaps
-        if (inc) parts.push(incidentsText(inc));
-        if (prior.length) parts.push(priorText(prior));
-        if (c.blank) parts.push(plural(c.blank, 'item was', 'items were') + ' not assessed on this visit and ' + (c.blank === 1 ? 'is' : 'are') + ' carried forward to the next.');
-        parts.push('The findings set out below reflect the conditions observed and the discussions held on the date of the inspection only.');
+        parts.push('The observations made during the walk-round are recorded against each criterion below, and the outcome of the inspection is set out in the conclusion.');
       } else {
+        // ─── Inspection Outcome / Conclusion ───
         var jdg = judgement(c, f);
         var tally = [];
         if (c.total) {
@@ -9547,24 +9583,52 @@ function addPageFooter(doc, pageNum, totalPages) {
         }
         parts.push('At the time of the inspection ' + p.subject + "'s arrangements were found to be " + jdg + '.' +
           (c.total ? ' Of the ' + c.total + ' items reviewed across ' + plural(secNames.length, 'area', 'areas') + ', ' + join(tally) + '.' : ''));
-        if (f.minor.length) {
-          parts.push('The following ' + plural(f.minor.length, 'matter requires', 'matters require') + ' corrective action and ' + (f.minor.length === 1 ? 'was' : 'were') + ' discussed with ' + whom +
-            ' on the day. An owner and a target date are to be agreed for each and recorded against the action; they will be checked at the next visit.\n' + f.minor.map(findingLine).join('\n'));
-        }
+
+        // the outcome under each criterion: what went well, what needs attention
+        var refOf = {}; f.all.forEach(function (x) { refOf[x.section + '|' + x.item] = x; });
+        sections.forEach(function (sec) {
+          var well = sec.rows.filter(function (r) { return r.status === 'compliant'; });
+          var need = sec.rows.filter(function (r) { return FINDING[r.status]; })
+            .map(function (r) { return refOf[sec.name + '|' + r.item]; }).filter(Boolean)
+            .sort(function (a, b) { return ORDER[a.status] - ORDER[b.status]; });
+          var ownNeed = sec.own.filter(function (e) { return NEEDS_LABEL.test(e.label); });
+          var ownNote = sec.own.filter(function (e) { return !NEEDS_LABEL.test(e.label); });
+          if (!well.length && !need.length && !ownNeed.length && !ownNote.length) return;
+          var block = [head(sec.name)];
+          if (well.length) {
+            block.push(sub('What went well'));
+            well.forEach(function (r) { block.push(wellLine(r)); });
+          }
+          if (need.length || ownNeed.length) {
+            block.push(sub('What needs attention'));
+            need.forEach(function (x) { block.push(outcomeLine(x)); });
+            ownNeed.forEach(function (e) { block.push('\u2022 ' + endStop(e.body)); });
+          }
+          if (ownNote.length) block.push('The inspector also noted: ' + ownNote.map(function (e) { return endStop(e.text); }).join(' '));
+          parts.push(block.join('\n'));
+        });
+        if (!f.all.length && c.total) parts.push('No corrective actions were required on this visit.');
+
         if (pcFails.length && !p.pcMode) {
-          parts.push('Where these matters sit with the Principal Contractor rather than with ' + p.contractor + ', they go to the planning, managing and monitoring of the construction phase that CDM 2015 regulation 13(1) places with ' +
+          parts.push('Where the matters above sit with the Principal Contractor rather than with ' + p.contractor + ', they go to the planning, managing and monitoring of the construction phase that CDM 2015 regulation 13(1) places with ' +
             (p.pc || 'the Principal Contractor') + '. ' + p.contractor + ' should raise them formally with ' + (p.pc || 'the Principal Contractor') + ' and keep a record of having done so.');
         }
-        if (f.advisory.length) parts.push(cap(plural(f.advisory.length, 'advisory item was', 'advisory items were')) + ' raised for ' + p.subject + ' to improve on before the next visit.\n' + f.advisory.map(findingLine).join('\n'));
-        if (f.observation.length) parts.push(cap(plural(f.observation.length, 'observation was', 'observations were')) + ' recorded for attention.\n' + f.observation.map(findingLine).join('\n'));
-        if (!f.all.length && c.total) parts.push('No corrective actions were required on this visit.');
-        if (f.minor.length || f.advisory.length) { var lt2 = legalText(m.legal); if (lt2) parts.push(lt2); }
         if (inc) parts.push(incidentsText(inc));
         if (prior.length) parts.push(priorText(prior));
-        if (ev.length) parts.push('The areas found to be in good order, in particular ' + join(ev.slice(0, 3).map(function (g) { return inSentence(g.section, p.keep); }), '; ') + ', should be maintained.');
+        if (c.blank) parts.push(plural(c.blank, 'item was', 'items were') + ' not assessed on this visit and ' + (c.blank === 1 ? 'is' : 'are') + ' carried forward to the next.');
+        if (f.minor.length || f.advisory.length) { var lt = legalText(m.legal); if (lt) parts.push(lt); }
+
+        // the caveat: a snapshot, a proportionate timescale, and the duty that remains
+        var cav = 'The findings set out above reflect the conditions observed and the discussions held on the date of the inspection only.';
+        if (f.minor.length || f.advisory.length || f.observation.length) {
+          cav += ' Where opportunities for improvement or rectification have been identified, these should be addressed within a reasonable and proportionate timescale, taking account of the nature and risk associated with the finding.';
+        }
+        cav += ' This inspection is a snapshot in time and does not remove the responsibility of the duty holder to manage health and safety on a continuing basis.';
+        parts.push(cav);
         parts.push(f.minor.length
-          ? 'A follow-up visit should confirm that the actions above have been closed out. Until then ' + p.subject + ' should treat the items marked for action as the priorities for the site supervisor.'
+          ? 'A follow-up visit should confirm that the matters needing attention have been closed out.'
           : 'The next visit will review the items above and any change in the works.');
+
         var so = [];
         if (clean(m.inspector)) so.push('Prepared by ' + clean(m.inspector));
         if (p.contact) so.push('and discussed on site with ' + firstName(p.contact));
@@ -9572,7 +9636,11 @@ function addPageFooter(doc, pageNum, totalPages) {
       }
       return parts.filter(Boolean);
     }
-    return { build: build, findings: findings, counts: counts, annotate: annotate, linesFromHtml: linesFromHtml, index: index, judgement: judgement, voice: voice };
+    return {
+      build: build, findings: findings, counts: counts, annotate: annotate, linesFromHtml: linesFromHtml,
+      index: index, judgement: judgement, voice: voice, isBuilderHeading: isBuilderHeading,
+      OBSERVED: OBSERVED, OPPORTUNITIES: OPPORTUNITIES
+    };
   })();
   if (typeof window !== 'undefined') window.AHS_COMPOSE = AHS_COMPOSE;
   // ── AHS_COMPOSE end ──
@@ -9580,6 +9648,15 @@ function addPageFooter(doc, pageNum, totalPages) {
   // Builds the Site Summary and the sign-off from what has already been typed:
   // project info, the visit context and the findings. Entirely local.
   function _fieldTxt(sel){ var e = document.querySelector(sel); return e ? (e.innerText || e.textContent || '').replace(/\s+/g,' ').trim() : ''; }
+  // Model for the composer: everything the report holds, in plain text. The
+  // criteria and section-template sentences go with it so the composer can
+  // tell the builder's lines from the inspector's own words.
+  // Model for the composer: everything the report holds, in plain text. The
+  // criteria and section-template sentences go with it so the composer can
+  // tell the builder's lines from the inspector's own words.
+  // Model for the composer: everything the report holds, in plain text. The
+  // criteria and section-template sentences go with it so the composer can
+  // tell the builder's lines from the inspector's own words.
   // Model for the composer: everything the report holds, in plain text. The
   // criteria and section-template sentences go with it so the composer can
   // tell the builder's lines from the inspector's own words.
@@ -9605,12 +9682,13 @@ function addPageFooter(doc, pageNum, totalPages) {
     var criteria = phrases.map(function(p){ return p.text || ''; })
       .concat(((typeof TOPICS !== 'undefined') ? TOPICS : []).map(function(t){ return t.templateHtml || ''; }), ['At the time of the inspection the following was observed:'],
         (hasLaw && typeof SECTION_LAW !== 'undefined') ? Object.keys(SECTION_LAW).map(function(k){ return AHS_LAW.anchorLine(k); }) : []);
-    var cited = [];   // checks behind the Action and Advisory findings, for the one-paragraph legal basis
+    var cited = [], all = [];   // checks behind the findings, and every check in the report
     var sections = (s.inspections || []).map(function(sec){
       var name = strip(sec.sectionNameHtml); if(window.stripSectionTitle) name = window.stripSectionTitle(name);
       return { name: name, lines: AHS_COMPOSE.linesFromHtml(sec.commentsHtml),
         rows: (sec.rows || []).map(function(r){
           var st = r.status || '';
+          if(r.capPid) all.push(r.capPid);
           if(r.capPid && (st === 'minor' || st === 'advisory')) cited.push(r.capPid);
           return { item: strip(r.itemHtml), status: st, note: strip(r.commentsHtml), text: r.capPid ? (byId[r.capPid] || '') : '',
             basis: (r.capPid && hasLaw) ? AHS_LAW.basisText(r.capPid, st) : '', holder: (r.capPid && hasLaw) ? AHS_LAW.holderPhrase(r.capPid) : '' };
@@ -9618,7 +9696,10 @@ function addPageFooter(doc, pageNum, totalPages) {
     });
     var prior = []; try{ prior = openActions(); }catch(e){ prior = []; }
     var legal = (hasLaw && cited.length) ? AHS_LAW.summaryFor(cited) : null;
-    return { project: fp.projectName || '', description: fp.description || '', legal: legal,
+    // the regulations behind every criterion covered, for the scene-setting summary
+    var secKeys = []; all.forEach(function(pid){ var k = hasLaw ? AHS_LAW.sectionOf(pid) : null; if(k && secKeys.indexOf(k) < 0) secKeys.push(k); });
+    var scope = (hasLaw && secKeys.length) ? AHS_LAW.scopeFor(secKeys) : null;
+    return { project: fp.projectName || '', description: fp.description || '', legal: legal, scope: scope,
       client: strip(fx.site), pc: strip(fx.proj), contract: strip(fx.con), contractor: strip(fx.cli),
       contact: strip(fx.siteContact), inspector: strip(fx.cslt) || strip(fx.ins),
       visit: CUR.visit || {}, sections: sections, criteria: criteria, prior: prior };
@@ -9629,19 +9710,31 @@ function addPageFooter(doc, pageNum, totalPages) {
     // lines - by AHS_COMPOSE above. No [INSERT] cues: what is not recorded is left out.
     return AHS_COMPOSE.build(_composeModel(), kind);
   }
+  // '## ' marks a heading and '### ' a sub-heading in the composed text: bold
+  // and underlined. Not italic - the PDF maps every face to Inter, which has no
+  // italic, so an italic sub-heading would come out as plain body text there.
+  function _composedHtml(parts){
+    return parts.map(function(p){
+      return String(p).split('\n').map(function(line){
+        var m = /^###\s+(.*)$/.exec(line); if(m) return '<u>' + esc(m[1]) + '</u>';
+        m = /^##\s+(.*)$/.exec(line); if(m) return '<strong>' + esc(m[1]) + '</strong>';
+        return esc(line);
+      }).join('<br>');
+    }).join('<br><br>');
+  }
   function composeInto(kind){
     var target = document.querySelector(kind==='site' ? '#siteSummary' : '#signoffSummary');
     if(!target) return;
     if(strip(target.innerHTML) && !confirm('Replace the existing text with a version composed from the details you have entered?')) return;
     var parts = buildLocalSummary(kind);
     if(!parts.length){ alert('Add some details first - the visit context, project information and findings - then try again.'); return; }
-    target.innerHTML = parts.map(function(p){ return esc(p).replace(/\n/g,'<br>'); }).join('<br><br>');
+    target.innerHTML = _composedHtml(parts);
     try{ save(); }catch(e){ if(window.AHS_DRAFT && window.AHS_DRAFT.saveNow) window.AHS_DRAFT.saveNow(); }
   }
   function mountAI(){
     var h3 = Array.prototype.find.call(document.querySelectorAll('.section > h3'), function(h){ return /Site Summary/i.test(h.textContent); });
     var lbl = (function(){ var e=$('signoffSummary'); return e && e.parentElement.querySelector('label'); })();
-    [[h3,'site','Compose site summary'],[lbl,'closing','Auto-generate sign-off']].forEach(function(t){
+    [[h3,'site','Compose scene setting'],[lbl,'closing','Compose outcome / conclusion']].forEach(function(t){
       var host = t[0], kind = t[1]; if(!host) return;
       var b = document.createElement('button'); b.type='button'; b.textContent = t[2];
       b.title = 'Build this locally from the details you have already entered (project info, visit context and findings). No internet, no cost.';
