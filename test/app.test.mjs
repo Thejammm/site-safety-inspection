@@ -432,6 +432,26 @@ test('every finding cites a verified regulation from the register, never a free-
   assert.match(SRC, /class="cap-law"/, 'the criteria modal no longer shows the basis under each check');
 });
 
+test('one inspection can carry sections from both lists, PC and contractor', () => {
+  // 2026-09-15: 'the inspection criteria doesnt let me add criteria for the PC
+  // and the C ... i need to report on the poor PC controls'. The PC/Contractor
+  // buttons were filtering the REPORT as well as the list, so PC checks
+  // answered during a contractor visit never reached it. build() must consider
+  // every section; only the tile list is filtered by the button.
+  const fn = SRC.match(/async function build\(opts\)\s*\{([\s\S]{0,600})/);
+  assert.ok(fn, 'build() not found');
+  assert.match(fn[1], /var ts = topics\(\);/, 'build() is filtering sections by the list on screen again - the other list would vanish from the report');
+  assert.doesNotMatch(fn[1], /t\.mode === S\.mode/, 'build() is back to writing only the current mode');
+  // the home screen still filters the tiles, and says what is in the report from the other list
+  const home = SRC.match(/function renderHome\(\)\s*\{([\s\S]{0,1200})/);
+  assert.ok(home, 'renderHome() not found');
+  assert.match(home[1], /var ts = topics\(\)\.filter\(function\(t\)\{ return t\.mode === S\.mode \|\| t\.custom; \}\);/,
+    'the tile list no longer filters by the chosen list');
+  assert.match(home[1], /var total = 0; topics\(\)\.forEach/, 'the answered count no longer covers both lists');
+  assert.match(SRC, /Also in this report from the/, 'the home screen no longer shows what the other list has contributed');
+  assert.match(SRC, /data-cross=/, 'there is no way across to a section answered in the other list');
+});
+
 test('accidents and incidents is a criteria section on both visit types', () => {
   // 2026-09-15: Simon asked for a simple accidents and incidents section on the
   // PC and the contractor visit. A section needs BOTH halves to surface as a

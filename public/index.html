@@ -7724,6 +7724,8 @@ function addPageFooter(doc, pageNum, totalPages) {
   .cap-mode{display:flex;gap:8px;margin-bottom:14px}
   .cap-mode button{flex:1;padding:12px;border:2px solid #4A4F55;border-radius:10px;background:#fff;color:#4A4F55;font-size:15px;font-weight:700;cursor:pointer;-webkit-appearance:none}
   .cap-mode button.on{background:#4A4F55;color:#fff}
+  .cap-cross{font-size:12.5px;color:#475569;margin:-6px 0 12px;line-height:1.9}
+  .cap-cross button{font:inherit;font-weight:600;color:#0b6b7f;background:#eef6f8;border:1px solid #bfe3ec;border-radius:6px;padding:2px 8px;margin:0 4px 0 0;cursor:pointer}
   .cap-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
   .cap-tile{position:relative;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:6px;min-height:74px}
   .cap-tile:active{background:#e6f4f3}
@@ -7925,12 +7927,21 @@ function addPageFooter(doc, pageNum, totalPages) {
     title.textContent = 'Inspection criteria';
     var bb = el('capBuild'); if(bb){ bb.textContent = 'Apply to report ➜'; bb.title = 'Rebuild the report from everything answered'; }
     var ts = topics().filter(function(t){ return t.mode === S.mode || t.custom; });
-    var total = 0; ts.forEach(function(t){ total += answered(t.key); });
+    // the count covers the whole report, not just the list on screen
+    var total = 0; topics().forEach(function(t){ total += answered(t.key); });
     prog.textContent = total ? total + ' answered' : '';
     var htm = '<div class="cap-mode">' +
       '<button type="button" data-mode="PC"' + (S.mode==='PC'?' class="on"':'') + '>PC visit</button>' +
       '<button type="button" data-mode="C"' + (S.mode==='C'?' class="on"':'') + '>Contractor visit</button>' +
-      '</div><div class="cap-tiles">';
+      '</div>';
+    // Sections answered in the OTHER list are in this report too. Say so, and
+    // give a way straight to them, or they are invisible from here.
+    var others = topics().filter(function(t){ return !t.custom && t.mode !== S.mode && answered(t.key) > 0; });
+    if(others.length){
+      htm += '<div class="cap-cross">Also in this report from the <b>' + (S.mode === 'PC' ? 'Contractor' : 'PC') + ' visit</b>: ' +
+        others.map(function(t){ return '<button type="button" data-cross="' + esc(t.key) + '">' + esc(t.short) + '</button>'; }).join('') + '</div>';
+    }
+    htm += '<div class="cap-tiles">';
     ts.forEach(function(t){
       var n = answered(t.key), tot = bank()[t.key].length;
       htm += '<div class="cap-tile' + (n?' done':'') + '" data-key="' + esc(t.key) + '">' +
@@ -7942,6 +7953,14 @@ function addPageFooter(doc, pageNum, totalPages) {
     body.innerHTML = htm + '</div>';
     body.querySelectorAll('.cap-mode button').forEach(function(b){
       b.onclick = function(){ S.mode = b.getAttribute('data-mode'); save(); renderHome(); };
+    });
+    body.querySelectorAll('[data-cross]').forEach(function(b){
+      b.onclick = function(){
+        var k = b.getAttribute('data-cross');
+        var t = topics().find(function(x){ return x.key === k; });
+        if(t){ S.mode = t.mode; save(); }
+        view = { screen:'sec', key: k }; render();
+      };
     });
     body.querySelectorAll('.cap-tile').forEach(function(tile){
       if(tile.id === 'capAddSection') return;
@@ -8101,7 +8120,11 @@ function addPageFooter(doc, pageNum, totalPages) {
   async function build(opts){
     opts = opts || {};
     var built = 0, photosAdded = 0;
-    var ts = topics().filter(function(t){ return t.mode === S.mode || t.custom; });
+    // Every section that has been answered goes in, whichever list it came
+    // from: one inspection can carry both the contractor's own criteria and the
+    // Principal Contractor's. Sections never touched have no state and are
+    // skipped below, so this costs nothing.
+    var ts = topics();
     for(var i = 0; i < ts.length; i++){
       var t = ts[i], sec = S.sections[t.key];
       if(!sec) continue;
