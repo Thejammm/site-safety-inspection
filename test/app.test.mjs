@@ -432,6 +432,29 @@ test('every finding cites a verified regulation from the register, never a free-
   assert.match(SRC, /class="cap-law"/, 'the criteria modal no longer shows the basis under each check');
 });
 
+test('the report is square and flat, and a section never leaves its heading behind', () => {
+  // Simon's house style, the same pass Compass had: square edges, flat fills,
+  // ruled, uppercase labels. No rounded rectangles and no rounded stroke caps -
+  // a rounded cap softens the end of every rule it touches.
+  assert.doesNotMatch(SRC, /roundedRect/, 'a rounded rectangle is back in the report');
+  assert.doesNotMatch(SRC, /setLineCap\(\s*'round'\s*\)/, 'rounded stroke caps are back in the report');
+  assert.doesNotMatch(SRC, /drawTachographDial/, 'the semicircular dials are back');
+  // the counts are a ruled band: a colour rule over each cell, uppercase label
+  const band = SRC.match(/function drawFilledGauges\(([\s\S]*?)\n\}/);
+  assert.ok(band, 'drawFilledGauges() not found');
+  assert.match(band[1], /doc\.rect\(x, startY, cellW, ruleH, 'F'\)/, 'the count cells lost their colour rule');
+  assert.match(band[1], /label: 'OBSERVATION'/, 'the count labels are no longer uppercase');
+  assert.match(band[1], /doc\.line\(left, base, right, base\)/, 'the count band lost the hairline that closes it');
+  // the criteria tiles are square and flat
+  assert.match(SRC, /doc\.rect\(xPos, yPos, badgeWidth, badgeHeight, 'F'\)/, 'the criteria tiles are no longer square and flat');
+
+  // and a criterion does not take a page each, nor strand its heading
+  assert.match(SRC, /const needed = Math\.min\(150, 16 \+ narrativeH \+ 34\);/,
+    'the space a section needs is no longer measured - a heading can be stranded at the foot of a page');
+  assert.match(SRC, /if \(!findingsPageOpen \|\| \(265 - y\) < needed\)/, 'sections are back to one page each');
+  assert.match(SRC, /'Findings \(continued\)' : 'Findings'/, 'the carry-on pages lost their heading');
+});
+
 test('the alert bar never traps you inside a full-screen panel', () => {
   // 2026-09-15: an amber photo note left Simon stuck in the criteria modal.
   // The bar is fixed at the top on the maximum z-index - which it must be, it

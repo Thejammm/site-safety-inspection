@@ -6141,10 +6141,9 @@ if (showScores) {
       const xPos = gridLeft + (currentCol * (badgeWidth + horizontalGap));
       const yPos = y + (currentRow * badgeSpacing);
 
+      // square and flat: no rounded corners anywhere in this report
       doc.setFillColor(75, 191, 214);
-      doc.setDrawColor(56, 168, 194);
-      doc.setLineWidth(0.3);
-      doc.roundedRect(xPos, yPos, badgeWidth, badgeHeight, 2.5, 2.5, 'FD');
+      doc.rect(xPos, yPos, badgeWidth, badgeHeight, 'F');
 
       doc.setFontSize(8.5);
       doc.setFont(undefined, 'bold');
@@ -6346,28 +6345,19 @@ console.log('Found inspection sections:', inspectionSections.length);
 
 if (inspectionSections.length > 0) {
   
+  // A criterion does not need a page to itself. Start one only when this
+  // section would not begin cleanly on the page in hand - a heading stranded
+  // at the foot of a page is worse than a page break.
+  const SECTION_MIN = 62;   // mm of room a section needs to start here
+  let findingsPageOpen = false;
+
   inspectionSections.forEach((section, index) => {
     console.log(`Processing section ${index + 1}`);
-    
-    // Each section = new page
-    doc.addPage();
-    currentPage++;
-    
-    // Page header
-    doc.setFontSize(22);
-    doc.setFont(undefined, 'bold');
-    doc.setTextColor(58, 58, 58);
-    doc.text('Findings', 20, 20);
-    
-    doc.setDrawColor(75, 191, 214);
-    doc.setLineWidth(0.8);
-    doc.line(20, 24, 190, 24);
-    
-    y = 35;
-    
-    // Get section fields
+
+    // Read the section before deciding where it goes: the page decision
+    // needs to know how much of it there is.
     const fields = section.querySelectorAll('.field');
-    
+
     let sectionName = '';
     let sectionComments = '';
     let sectionCommentsEl = null;
@@ -6387,8 +6377,34 @@ if (inspectionSections.length > 0) {
         }
       }
     });
-    
     if (!sectionName) sectionName = `Section ${index + 1}`;
+
+    // The room this section needs to start here: its heading, its narrative
+    // and a first card. A section longer than a page starts on a fresh one
+    // and breaks naturally from there.
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    const narrativeH = sectionComments ? doc.splitTextToSize(sectionComments, 170).length * 5 : 0;
+    const needed = Math.min(150, 16 + narrativeH + 34);
+
+    if (!findingsPageOpen || (265 - y) < needed) {
+      doc.addPage();
+      currentPage++;
+
+      doc.setFontSize(22);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(58, 58, 58);
+      doc.text(findingsPageOpen ? 'Findings (continued)' : 'Findings', 20, 20);
+
+      doc.setDrawColor(75, 191, 214);
+      doc.setLineWidth(0.8);
+      doc.line(20, 24, 190, 24);
+
+      y = 35;
+      findingsPageOpen = true;
+    } else {
+      y += 6;   // a clear gap between sections sharing a page
+    }
 
     // SECTION NAME (BOLD) + short teal accent for tidier hierarchy
     doc.setFontSize(14);
@@ -6407,25 +6423,8 @@ if (inspectionSections.length > 0) {
       doc.setFont(undefined, 'normal');
       doc.setTextColor(40, 40, 40);
       
-      const commentLines = doc.splitTextToSize(sectionComments, 170);
-      
-      if (y + (commentLines.length * 5) > 260) {
-        addPageFooter(doc, currentPage, '?');
-        doc.addPage();
-        currentPage++;
-        y = 20;
-        
-        doc.setFontSize(14);
-        doc.setFont(undefined, 'bold');
-        doc.setTextColor(58, 58, 58);
-        doc.text(sectionName + ' (continued)', 20, y);
-        y += 10;
-        
-        doc.setFontSize(10);
-        doc.setFont(undefined, 'normal');
-        doc.setTextColor(40, 40, 40);
-      }
-      
+      // no pre-break: renderRich flows line by line and carries its own
+      // "(continued)" heading, so the narrative never leaves its heading behind
       y = renderRich(doc, getStyledRuns(sectionCommentsEl), 20, y, 170, 10, 5, [40,40,40], {
         maxY: 260,
         onBreak: function(){
@@ -6893,101 +6892,50 @@ if (images.length > 0) {
 // ========================================
 
 /**
- * Draw tachograph-style (semicircular) dials - one per category, all in a row.
- * Returns the y cursor below the dials (with labels + breathing room).
+ * The counts, as a ruled band: one cell per category, a flat colour rule over
+ * each, the count beneath it and an uppercase label under that, closed by a
+ * single hairline. Square and flat throughout - no dials, no rounded caps.
+ * Returns the y cursor below the band.
  */
 function drawFilledGauges(doc, startY, compliant, advisory, action, observation, na, totalItems) {
-  const dials = [
-    { label: 'Compliant',   value: compliant,   color: [16, 185, 129] },
-    { label: 'Advisory',    value: advisory,    color: [234, 179, 8]  },
-    { label: 'Action',      value: action,      color: [220, 38, 38]  },
-    { label: 'Observation', value: observation, color: [56, 189, 248] },
-    { label: 'N/A',         value: na,          color: [156, 163, 175]}
+  const cells = [
+    { label: 'COMPLIANT',   value: compliant,   color: [16, 185, 129] },
+    { label: 'ADVISORY',    value: advisory,    color: [234, 179, 8]  },
+    { label: 'ACTION',      value: action,      color: [220, 38, 38]  },
+    { label: 'OBSERVATION', value: observation, color: [56, 189, 248] },
+    { label: 'N/A',         value: na,          color: [156, 163, 175] }
   ];
+  const left = 20, right = 190, gap = 4;
+  const cellW = (right - left - gap * (cells.length - 1)) / cells.length;
+  const ruleH = 2.2;                    // the colour rule over each cell
+  const numY  = startY + ruleH + 9.5;   // baseline of the count
+  const labY  = numY + 5.4;             // baseline of the label
+  const base  = labY + 3.4;             // hairline closing the band
 
-  const leftX = 16, rightX = 194;           // span the full printable width
-  const colW  = (rightX - leftX) / dials.length;
-  const radius  = 15;                       // outer radius (mm)
-  const centerY = startY + radius + 2;      // baseline sits just below the arc
+  cells.forEach(function (c, i) {
+    const x = left + i * (cellW + gap);
 
-  dials.forEach((d, i) => {
-    const cx = leftX + colW * i + colW / 2;
-    drawTachographDial(doc, cx, centerY, radius, d.value, totalItems, d.color, d.label);
+    doc.setFillColor(c.color[0], c.color[1], c.color[2]);
+    doc.rect(x, startY, cellW, ruleH, 'F');
+
+    doc.setFontSize(19);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(31, 41, 55);
+    doc.text(String(c.value), x, numY);
+
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(107, 114, 128);
+    try { doc.setCharSpace(0.5); } catch (e) {}
+    doc.text(c.label, x, labY);
+    try { doc.setCharSpace(0); } catch (e) {}
   });
 
-  return centerY + 16; // room for value + label underneath
-}
+  doc.setDrawColor(209, 213, 219);
+  doc.setLineWidth(0.3);
+  doc.line(left, base, right, base);
 
-/**
- * Draw one tachograph dial: muted track arc + coloured value arc, big value
- * in the dial, small label below.
- */
-function drawTachographDial(doc, cx, cy, r, value, total, color, label) {
-  const thickness = 3.6;            // stroke thickness of the arc (mm)
-  const rMid      = r - thickness / 2;
-  const ratio     = total > 0 ? Math.min(1, value / total) : 0;
-  const steps     = 48;
-  const startA    = Math.PI;        // left side of the semicircle
-  const endA      = 0;              // right side
-  const valueA    = startA - Math.PI * ratio; // sweep clockwise across the top
-
-  // jsPDF supports round line caps from 2.x onward - use them if available
-  try { doc.setLineCap('round'); } catch (e) {}
-
-  // Colour-code to the UI: a light tint of the category colour for the empty
-  // track, and a darkened version for the number + label, so each dial reads
-  // as its category even when the value is zero.
-  var tint = color.map(function(c){ return Math.round(c + (255 - c) * 0.82); });
-  var dark = color.map(function(c){ return Math.round(c * 0.72); });
-
-  // Track arc - light tint of the category colour, full 180°
-  doc.setDrawColor(tint[0], tint[1], tint[2]);
-  doc.setLineWidth(thickness);
-  let prev = null;
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    const a = startA + (endA - startA) * t;
-    const x = cx + rMid * Math.cos(a);
-    const y = cy - rMid * Math.sin(a);
-    if (prev) doc.line(prev.x, prev.y, x, y);
-    prev = { x, y };
-  }
-
-  // Value arc - coloured
-  if (ratio > 0) {
-    doc.setDrawColor(...color);
-    doc.setLineWidth(thickness);
-    prev = null;
-    const vSteps = Math.max(2, Math.round(steps * ratio));
-    for (let i = 0; i <= vSteps; i++) {
-      const t = i / vSteps;
-      const a = startA + (valueA - startA) * t;
-      const x = cx + rMid * Math.cos(a);
-      const y = cy - rMid * Math.sin(a);
-      if (prev) doc.line(prev.x, prev.y, x, y);
-      prev = { x, y };
-    }
-  }
-
-  // Reset to square caps for everything else
-  try { doc.setLineCap('butt'); } catch (e) {}
-
-  // Faint baseline under the dial
-  doc.setDrawColor(229, 231, 235);
-  doc.setLineWidth(0.25);
-  doc.line(cx - r + 1, cy + 0.6, cx + r - 1, cy + 0.6);
-
-  // Big value inside the dial - in the category colour
-  doc.setFontSize(15);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(dark[0], dark[1], dark[2]);
-  doc.text(String(value), cx, cy - 1.5, { align: 'center' });
-
-  // Label below - category colour, sized to match the rest of the report
-  doc.setFontSize(9.5);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(dark[0], dark[1], dark[2]);
-  doc.text(label, cx, cy + 9, { align: 'center' });
+  return base + 9;
 }
 
 /**
