@@ -575,13 +575,17 @@ test('the report is structured: scene setting, then an outcome organised under t
   // ── the conclusion is organised under the criteria ──
   assert.match(closing, /## CDM Roles, Cooperation & Communication\n### What needs attention/, 'the conclusion is not organised under the criteria');
   assert.match(closing, /## Risk Assessments & Method Statements\n### What went well/, 'What went well is missing under a criterion with compliant items');
-  assert.match(closing, /• A1\. Understanding of CDM duties - No safety meetings taking place on a regular basis\. \(CDM 2015 reg 13\(1\), the Principal Contractor's duty\)/,
-    'a matter needing attention no longer carries its finding reference and regulation');
+  assert.match(closing, /• Understanding of CDM duties - No safety meetings taking place on a regular basis\./,
+    'a matter needing attention lost the finding or the words recorded against it');
+  // 2026-09-15: the regulations are named once, in the closing paragraph. Nothing
+  // is cited against an item, and A1/AD1/O1 are working marks for the app only.
+  assert.doesNotMatch(closing, /\(CDM 2015 reg[^)]*duty\)/, 'a regulation is being printed against an individual matter again');
+  assert.doesNotMatch(closing, /• A\d+\.|• AD\d+\.|• O\d+\./, 'the status references are back in the conclusion');
   assert.match(closing, /• The Principal Contractor can improve by engaging in regular communication[^\n]*PC is not participating/,
     "the inspector's own action line is not carried into What needs attention");
   assert.match(closing, /• RAMS in place - T Clarke approve the RAMS\./, 'a compliant item lost the evidence, or its capitals were mangled');
   assert.match(closing, /• Supervision - The operative the inspector spoke to knew the RAMS well/, 'words typed onto a criteria line were lost, or left in the first person');
-  assert.doesNotMatch(closing, /What went well[\s\S]{0,200}\(CDM 2015 reg/, 'a regulation is cited against something that went well');
+
   assert.match(closing, /CDM 2015 regulation 13\(1\) places with Henry Boot Construction Ltd/, 'a PC-level matter is no longer escalated to the Principal Contractor');
   assert.match(closing, /The matters needing attention above are measured against CDM 2015 regs 13\(1\) and 15\(8\)\./, 'the conclusion no longer summarises the legal basis in a paragraph');
 

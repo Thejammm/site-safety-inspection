@@ -9553,12 +9553,13 @@ function addPageFooter(doc, pageNum, totalPages) {
       return { notes: notes, themes: themes.slice(0, 4) };
     }
     var GAP = { minor: 'corrective action required', advisory: 'improvement required', observation: 'noted for attention' };
-    // A line under "What needs attention": the finding, the inspector's words, then
-    // the requirement it is measured against. Observations never carry a regulation.
+    // A line under "What needs attention": the finding and the inspector's words.
+    // No status reference and no regulation against the item - the references are
+    // the inspector's working marks in the app, and the regulations are named
+    // once, in the paragraph that closes the conclusion.
     function outcomeLine(f) {
       var body = f.note ? endStop(voice(f.note)) : GAP[f.status] + '.';
-      var req = f.basis ? ' (' + f.basis + (f.holder ? ', ' + f.holder : '') + ')' : '';
-      return '\u2022 ' + f.ref + '. ' + f.item + ' - ' + body + (f.extra ? ' ' + f.extra : '') + req;
+      return '\u2022 ' + f.item + ' - ' + body + (f.extra ? ' ' + f.extra : '');
     }
     // A line under "What went well": the evidence in the inspector's words, no
     // regulation. Where he added nothing, the check itself is the record.
@@ -9732,6 +9733,9 @@ function addPageFooter(doc, pageNum, totalPages) {
   // Builds the Site Summary and the sign-off from what has already been typed:
   // project info, the visit context and the findings. Entirely local.
   function _fieldTxt(sel){ var e = document.querySelector(sel); return e ? (e.innerText || e.textContent || '').replace(/\s+/g,' ').trim() : ''; }
+  // Model for the composer: everything the report holds, in plain text. The
+  // criteria and section-template sentences go with it so the composer can
+  // tell the builder's lines from the inspector's own words.
   // Model for the composer: everything the report holds, in plain text. The
   // criteria and section-template sentences go with it so the composer can
   // tell the builder's lines from the inspector's own words.
