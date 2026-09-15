@@ -173,6 +173,10 @@ test('findings end with their status letter and the criteria modal has no includ
   // 2026-09-15: the regulation is named once, in the conclusion. The box says so.
   assert.doesNotMatch(SRC, /AHS_LAW\.basisText\(q\.id, it\.st\)/, 'the regulation is back on the end of every line in the comments box');
   assert.match(SRC, /gen\.push\(\{ text: OPPORTUNITIES_NOTE, hl:false \}\);/, 'the box no longer points to the conclusion for the regulations');
+  // 2026-09-15: the PDF finding cards carry no Requirement line either. The
+  // regulations are named once, in the closing paragraph of the conclusion.
+  assert.doesNotMatch(SRC, /'Requirement: '/, 'the PDF finding cards are citing a regulation against each item again');
+  assert.doesNotMatch(SRC, /lawLines/, 'the requirement block is back on the finding cards');
   // 2026-09-15: the builder highlights nothing. Findings sit under their own
   // heading and end with their reference, so the amber only got in the way of
   // editing. Ours is stripped from any line carried over; the toolbar

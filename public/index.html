@@ -6511,14 +6511,6 @@ if (inspectionSections.length > 0) {
           doc.setFontSize(8.5);
           commentLines = doc.splitTextToSize(itemComments, contentW - 4);
         }
-        // the requirement the finding is measured against (Action and Advisory only)
-        let lawLines = [];
-        const cardBasis = (window.AHS_LAW && row.dataset && row.dataset.capPid) ? AHS_LAW.basisText(row.dataset.capPid, status) : '';
-        if (cardBasis) {
-          doc.setFontSize(8);
-          lawLines = doc.splitTextToSize('Requirement: ' + cardBasis + (AHS_LAW.holderPhrase(row.dataset.capPid) ? ', ' + AHS_LAW.holderPhrase(row.dataset.capPid) : ''), contentW - 4);
-        }
-        const lawH = lawLines.length ? 1.6 + lawLines.length * 4.1 : 0;
 
         // Status label + item + optional comments (with gaps)
         const statusH  = 4;               // status label line
@@ -6526,7 +6518,7 @@ if (inspectionSections.length > 0) {
         const itemH    = itemLines.length * 4.9;
         const gapI2C   = 1.8;
         const commH    = commentLines.length * 4.3;
-        const cardH    = padTop + statusH + gapS2I + itemH + (commentLines.length ? gapI2C + commH : 0) + lawH + padBottom;
+        const cardH    = padTop + statusH + gapS2I + itemH + (commentLines.length ? gapI2C + commH : 0) + padBottom;
 
         const cardY = y - 2;
 
@@ -6562,12 +6554,6 @@ if (inspectionSections.length > 0) {
           doc.setFont('helvetica', 'italic');
           doc.setTextColor(107, 114, 128);
           doc.text(commentLines, contentX + 2, itemY + itemH + gapI2C);
-        }
-        if (lawLines.length) {
-          doc.setFontSize(8);
-          doc.setFont('helvetica', 'normal');
-          doc.setTextColor(11, 107, 127);
-          doc.text(lawLines, contentX + 2, itemY + itemH + (commentLines.length ? gapI2C + commH : 0) + 2.6);
         }
 
         y = cardY + cardH + 3;
