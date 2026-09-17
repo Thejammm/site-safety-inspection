@@ -1670,6 +1670,7 @@ button.r3-ai:hover{ background:var(--muted-bg); }
           <button data-action="print" class="tb-output" title="Print or save as PDF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>Print / PDF</button>
           <button data-action="client-report" id="btnClientReport" class="tb-output" title="Generate client-ready PDF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>Client Report</button>
           <button data-action="export" id="exphtml" class="tb-output" title="Export full HTML report"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>Export</button>
+          <button data-action="import" id="impfile" class="tb-output" title="Open an inspection saved by the offline copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>Open file</button>
           <!-- Cloud sign-in / out - the sync wrapper mounts its control here (see buildBar) -->
           <div id="ahsAuthSlot" title="Cloud sign-in / sign-out"></div>
         </div>
@@ -1733,27 +1734,27 @@ button.r3-ai:hover{ background:var(--muted-bg); }
           <div class="grid">
             <div class="field field-client-cdm">
               <label>Client (CDM)</label>
-              <div class="rte" contenteditable="true" id="site" data-placeholder="Enter site name"></div>
+              <div class="rte" contenteditable="true" id="site" data-placeholder="CDM client"></div>
             </div>
             <div class="field field-principal-contractor">
               <label>Principal Contractor</label>
-              <div class="rte" contenteditable="true" id="proj" data-placeholder="Enter project name"></div>
+              <div class="rte" contenteditable="true" id="proj" data-placeholder="Principal contractor"></div>
             </div>
             <div class="field field-contractor">
               <label>Contractor</label>
-              <div class="rte" contenteditable="true" id="cli" data-placeholder="Enter client name"></div>
+              <div class="rte" contenteditable="true" id="cli" data-placeholder="Contractor"></div>
             </div>
             <div class="field field-client-contract">
               <label>Client (Contract)</label>
-              <div class="rte" contenteditable="true" id="con" data-placeholder="Enter contractor name"></div>
+              <div class="rte" contenteditable="true" id="con" data-placeholder="Contract client"></div>
             </div>
             <div class="field field-inspector">
               <label>Inspector/Auditor</label>
-              <div class="rte" contenteditable="true" id="ins" data-placeholder="Enter inspector name"></div>
+              <div class="rte" contenteditable="true" id="ins" data-placeholder="Inspector or auditor"></div>
             </div>
             <div class="field field-site-contact">
               <label>Site Contact</label>
-              <div class="rte" contenteditable="true" id="site-contact" data-placeholder="Enter site contact"></div>
+              <div class="rte" contenteditable="true" id="site-contact" data-placeholder="Site contact"></div>
             </div>
           </div>
         </div>
@@ -1873,11 +1874,11 @@ button.r3-ai:hover{ background:var(--muted-bg); }
           <div class="grid">
             <div class="field">
               <label>Manager/Supervisor</label>
-              <div class="rte" contenteditable="true" id="mgr" data-placeholder="Enter manager name"></div>
+              <div class="rte" contenteditable="true" id="mgr" data-placeholder="Manager or supervisor"></div>
             </div>
             <div class="field">
               <label>Consultant</label>
-              <div class="rte" contenteditable="true" id="cslt" data-placeholder="Enter consultant name"></div>
+              <div class="rte" contenteditable="true" id="cslt" data-placeholder="Consultant"></div>
             </div>
           </div>
           <div class="final-print-footer">
@@ -6886,7 +6887,8 @@ if (images.length > 0) {
       .substring(0, 30);
     const dateStr = new Date().toISOString().slice(0, 10);
     const filename = `Safety-Inspection-${cleanProjectName}-${dateStr}.pdf`;
-    doc.save(filename);
+    // Share sheet on a device that has one, plain download otherwise.
+    window.AHS_PDF_DELIVER ? window.AHS_PDF_DELIVER(doc, filename) : doc.save(filename);
     
     console.log('=== PDF Generated Successfully ===');
     console.log('Filename:', filename);
@@ -8416,6 +8418,8 @@ function addPageFooter(doc, pageNum, totalPages) {
   'use strict';
 
   // ── File store (separate DB from photos, deliberately) ──
+  // Exposed as window.AHS_FILES at the end of this IIFE so "Open file" can
+  // restore RAMS and the training matrix as well as photos.
   var FILES = (function(){
     var DB='ahs-inspection-files', ST='files', _db=null;
     function open(){
@@ -8441,6 +8445,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       del:function(id){ return rw(function(s){ s.delete(id); }); }
     };
   })();
+  window.AHS_FILES = FILES;
 
   // ── Minimal .xlsx reader: zip walk + DecompressionStream + XML ──
   async function unzipEntries(buf){
@@ -9218,7 +9223,8 @@ function addPageFooter(doc, pageNum, totalPages) {
     var fp = (typeof loadFrontPageData==='function') ? loadFrontPageData() : {};
     var g = function(sel){ var e=document.querySelector(sel); return e ? strip(e.innerHTML) : ''; };
     return {
-      project_name: fp.projectName||g('#proj')||'',
+      // No fallback: #proj is the Principal Contractor field, not a project name.
+      project_name: fp.projectName||'',
       inspection_type: fp.inspectionType||'',
       address: [fp.address1,fp.address2,fp.address3].filter(Boolean).join(', '),
       client: fp.client || g('#site') || g('#con') || fp.providedFor || '',
@@ -10126,5 +10132,219 @@ function addPageFooter(doc, pageNum, totalPages) {
 })();
 </script>
 
+<script>
+/* ══════════════════════════════════════════════════════════════════════
+   Open a saved inspection file  (ONLINE app, added for the offline copies)
+
+   Reads either:
+     - the plain JSON bridge written by the offline copy (the same shape
+       the sync already pushes to /api/state), or
+     - an offline "index offline.html" save, straight from the file.
+
+   Photos go back into IndexedDB, the draft is re-keyed to whatever this
+   page's own draft key is, and the app's existing restore pass rebuilds
+   the page. Nothing about the stored shape changes, so the next sync
+   pushes it to the server as normal.
+   ══════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  var LS_KEYS = ['FRONTPAGE_DATA_V1', 'clientLogo', 'AHS_INSPECTIONS_V1', 'AHS_SIGNOFF_ON'];
+
+  function fromJson(text) {
+    var o = JSON.parse(text);
+    var ls = {};
+    LS_KEYS.forEach(function (k) { if (typeof o[k] === 'string') ls[k] = o[k]; });
+    var draft = null;
+    // The offline copy writes the key the online app uses, but accept any
+    // draft key so a file saved under a different path still opens.
+    Object.keys(o).forEach(function (k) {
+      if (k.indexOf('AHS_REPORT_DRAFT_V1:') === 0 && typeof o[k] === 'string') draft = o[k];
+    });
+    if (!draft) throw new Error('that JSON file has no inspection in it');
+    return { photos: o.__photos__ || {}, ls: ls, draft: draft, files: [] };
+  }
+
+  function fromHtml(text) {
+    var doc = new DOMParser().parseFromString(text, 'text/html');   // scripts do not run
+    var a = doc.getElementById('AHS_OFFLINE_ASSETS');
+    var d = doc.getElementById('AHS_EMBEDDED_DRAFT');
+    var assets = {};
+    if (a && (a.textContent || '').trim()) {
+      try { assets = JSON.parse(a.textContent); }
+      catch (e) { throw new Error('the photos in that file could not be read'); }
+    }
+    var draft = (d && (d.textContent || '').trim()) ? d.textContent.trim() : null;
+    if (!draft) throw new Error('that HTML file has no inspection in it');
+    return { photos: assets.photos || {}, ls: assets.ls || {}, draft: draft, files: assets.files || [] };
+  }
+
+  async function apply(p) {
+    if (Object.keys(p.photos).length && window.AHS_PHOTOS && window.AHS_PHOTOS.putAll) {
+      await window.AHS_PHOTOS.putAll(p.photos);
+    }
+    // Pre-site files (training matrix, RAMS PDFs), if the offline file carried any.
+    if (p.files && p.files.length && window.AHS_FILES && window.AHS_FILES.put) {
+      for (var i = 0; i < p.files.length; i++) {
+        try { await window.AHS_FILES.put(p.files[i]); } catch (e) { console.warn('pre-site file skipped:', e); }
+      }
+    }
+    Object.keys(p.ls).forEach(function (k) { try { localStorage.setItem(k, p.ls[k]); } catch (e) {} });
+
+    var fe = document.getElementById('AHS_EMBEDDED_FRONTPAGE');
+    if (fe && p.ls.FRONTPAGE_DATA_V1) fe.textContent = p.ls.FRONTPAGE_DATA_V1;
+    var de = document.getElementById('AHS_EMBEDDED_DRAFT');
+    if (de) de.textContent = p.draft;
+    try { localStorage.setItem(window.AHS_DRAFT.key, p.draft); } catch (e) {}
+
+    if (window.AHS_DRAFT && window.AHS_DRAFT.restoreIfPresent) await window.AHS_DRAFT.restoreIfPresent();
+    try { if (typeof loadFrontPageData === 'function') loadFrontPageData(); } catch (e) {}
+    try { if (typeof updateScoreDashboard === 'function') updateScoreDashboard(); } catch (e) {}
+    try { if (window.AHS_DRAFT && window.AHS_DRAFT.saveNow) window.AHS_DRAFT.saveNow(); } catch (e) {}
+  }
+
+  function openFile() {
+    if (!confirm('Open a saved inspection file?\n\nWhat is on screen now will be replaced. If it has not been uploaded yet, cancel and let it sync first.')) return;
+    var old = document.getElementById('impfileInput');
+    if (old) old.remove();
+    var inp = document.createElement('input');
+    inp.type = 'file';
+    inp.id = 'impfileInput';
+    inp.accept = '.json,.html,.htm,application/json,text/html';
+    inp.style.display = 'none';
+    inp.onchange = function () {
+      var f = inp.files && inp.files[0];
+      if (!f) return;
+      var r = new FileReader();
+      r.onload = async function () {
+        try {
+          var text = String(r.result);
+          var isJson = /\.json$/i.test(f.name) || text.trim().charAt(0) === '{';
+          var p = isJson ? fromJson(text) : fromHtml(text);
+          await apply(p);
+          var n = Object.keys(p.photos).length;
+          alert('Opened ' + f.name + '\n\n' + n + ' photo' + (n === 1 ? '' : 's') + ' restored.\n\nIt will upload on the next sync.');
+        } catch (e) {
+          alert('That file could not be opened.\n\n' + e.message + '\n\nWhat was on screen has not been changed.');
+        } finally { inp.remove(); }
+      };
+      r.onerror = function () { alert('That file could not be read.'); inp.remove(); };
+      r.readAsText(f);
+    };
+    document.body.appendChild(inp);
+    inp.click();
+  }
+
+  function wire() {
+    var b = document.getElementById('impfile');
+    if (b) b.addEventListener('click', openFile);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
+  else wire();
+})();
+
+</script>
+<style>
+
+/* PDF ready bar. Square and flat to match the rest of the app's chrome.
+   (PD Site Tools' equivalent bar is rounded; say the word and I will square
+   that one off too so the two match exactly.) */
+#ahsPdfBar{
+  position:fixed; left:50%; bottom:-200px; transform:translateX(-50%);
+  display:flex; align-items:center; gap:10px;
+  max-width:min(560px,calc(100vw - 32px));
+  background:#2b3138; color:#fff; padding:10px 12px;
+  border-left:4px solid var(--accent,#4BBFD6); border-radius:0;
+  box-shadow:0 8px 28px rgba(0,0,0,.28); z-index:100002;
+  transition:bottom .18s ease-out;
+  padding-bottom:calc(10px + env(safe-area-inset-bottom));
+}
+#ahsPdfBar.show{ bottom:24px; }
+#ahsPdfBar span{
+  font-size:12.5px; max-width:230px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+#ahsPdfBar button{
+  font:inherit; font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  padding:8px 14px; border-radius:0; border:1px solid #545b64;
+  background:#3a4149; color:#fff; cursor:pointer; white-space:nowrap;
+}
+#ahsPdfBar button.primary{ background:var(--accent,#4BBFD6); border-color:var(--accent,#4BBFD6); color:#08343d; }
+#ahsPdfBar button.ghost{ background:none; border:none; padding:6px 4px; font-size:14px; }
+@media print{ #ahsPdfBar{ display:none !important; } }
+
+</style>
+<script>
+/* ══════════════════════════════════════════════════════════════════════
+   PDF delivery: Share or Download.
+
+   On the iPad the share sheet (Files, Mail, AirDrop) is far more use than a
+   silent download into Downloads. iOS will only open a share sheet from a
+   fresh tap, and the PDF takes a few seconds to build, so the finished PDF
+   is held and a small bar offers Share or Download. Anything without the
+   share API just downloads, exactly as before.
+
+   Same pattern PD Site Tools already uses, so the two apps behave alike.
+   ══════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  var pending = null;
+
+  function bar() {
+    var b = document.getElementById('ahsPdfBar');
+    if (b) return b;
+    b = document.createElement('div');
+    b.id = 'ahsPdfBar';
+    b.className = 'no-print';
+    b.innerHTML =
+      '<span id="ahsPdfName"></span>' +
+      '<button type="button" id="ahsPdfShare" class="primary">Share</button>' +
+      '<button type="button" id="ahsPdfDown">Download</button>' +
+      '<button type="button" id="ahsPdfClose" class="ghost" aria-label="Close">&#x2715;</button>';
+    document.body.appendChild(b);
+    b.querySelector('#ahsPdfShare').addEventListener('click', share);
+    b.querySelector('#ahsPdfDown').addEventListener('click', download);
+    b.querySelector('#ahsPdfClose').addEventListener('click', close_);
+    return b;
+  }
+
+  function close_() {
+    var b = document.getElementById('ahsPdfBar');
+    if (b) b.classList.remove('show');
+    pending = null;
+  }
+
+  function download() {
+    if (pending) { try { pending.doc.save(pending.filename); } catch (e) { alert('The PDF could not be saved.\n\n' + e.message); } }
+    close_();
+  }
+
+  function share() {
+    if (!pending) return;
+    navigator.share({ files: [pending.file], title: pending.filename })
+      .then(close_)
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') return;      // user backed out, keep the bar up
+        download();
+      });
+  }
+
+  // Called in place of doc.save(filename).
+  window.AHS_PDF_DELIVER = function (doc, filename) {
+    var file = null, canShare = false;
+    try {
+      file = new File([doc.output('blob')], filename, { type: 'application/pdf' });
+      canShare = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] }));
+    } catch (e) { canShare = false; }
+
+    if (!canShare) { doc.save(filename); return; }
+
+    pending = { file: file, filename: filename, doc: doc };
+    var b = bar();
+    b.querySelector('#ahsPdfName').textContent = filename;
+    b.classList.add('show');
+  };
+})();
+
+</script>
 </body>
 </html>
