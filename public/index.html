@@ -1859,7 +1859,7 @@ button.r3-ai:hover{ background:var(--muted-bg); }
         <input type="file" id="imgs" accept="image/*" multiple style="display:none" />
         <label for="imgs" class="btn btn-primary" style="display:inline-block;">Add Images</label>
         <button class="btn btn-secondary btn-small" id="clri" style="margin-left:1rem;">Clear</button>
-        <button class="btn btn-secondary btn-small" id="savePhotos" style="margin-left:0.5rem;" title="Write every photo in this inspection to this device as real image files (Photos on iPad, Downloads elsewhere)">Save photos to device</button>
+        <button class="btn btn-primary" id="savePhotos" style="margin-left:0.5rem;" title="Write your photos onto this iPad as real image files, into Photos. Once they are there, nothing the browser does can lose them.">Save photos to iPad</button>
 
         <div class="field" style="margin-top:1rem;">
           <label>Concluding statement</label>
@@ -2690,39 +2690,80 @@ window.AHS_PHOTOS = (function () {
   const VERSION = 1;
   let _db = null;
 
+  // A hung open must not hang the app: the restore awaits this, and a restore
+  // that never settles blanks the photo strip AND stops every save.
+  const OPEN_DEADLINE_MS = 6000;
+
   function open() {
     if (_db) return Promise.resolve(_db);
     return new Promise((resolve, reject) => {
       if (!window.indexedDB) { reject(new Error('This browser has no IndexedDB')); return; }
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (settled) return; settled = true;
+        reject(new Error('The photo store did not respond'));
+      }, OPEN_DEADLINE_MS);
       const req = indexedDB.open(DB_NAME, VERSION);
       req.onupgradeneeded = () => {
         const db = req.result;
         if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' });
       };
-      req.onsuccess = () => { _db = req.result; resolve(_db); };
-      req.onerror   = () => reject(req.error || new Error('Could not open the photo store'));
-      req.onblocked = () => reject(new Error('The photo store is blocked by another tab'));
+      req.onsuccess = () => {
+        clearTimeout(timer);
+        const db = req.result;
+        // iOS closes the connection when the app is suspended (leaving for
+        // the camera). A handle kept past that throws on every use, so let it
+        // go and the next call opens a fresh one.
+        db.onclose = () => { if (_db === db) _db = null; };
+        db.onversionchange = () => { try { db.close(); } catch (e) {} if (_db === db) _db = null; };
+        if (settled) { try { db.close(); } catch (e) {} return; }
+        settled = true; _db = db; resolve(db);
+      };
+      req.onerror   = () => { clearTimeout(timer); if (!settled) { settled = true; reject(req.error || new Error('Could not open the photo store')); } };
+      req.onblocked = () => { clearTimeout(timer); if (!settled) { settled = true; reject(new Error('The photo store is blocked by another tab')); } };
+    });
+  }
+
+  // db.transaction() throws InvalidStateError when the browser has closed the
+  // connection underneath us. That is not a lost photo, it is a stale handle:
+  // drop it and run the same operation once more on a fresh connection.
+  function isClosed(e) {
+    return !!(e && (e.name === 'InvalidStateError' || /clos/i.test(String(e.message || ''))));
+  }
+  function once(mode, run) {
+    return open().then(db => new Promise((resolve, reject) => {
+      let t;
+      try { t = db.transaction(STORE, mode); } catch (e) { if (isClosed(e) && _db === db) _db = null; reject(e); return; }
+      run(t, resolve, reject);
+    }));
+  }
+  function retrying(mode, run) {
+    return once(mode, run).catch(e => {
+      if (!isClosed(e)) throw e;
+      _db = null;
+      return once(mode, run);
     });
   }
 
   // Writes wait for the transaction, not just the request, so a quota failure
   // on commit still surfaces as a rejection rather than a silent loss.
   function write(fn) {
-    return open().then(db => new Promise((resolve, reject) => {
-      const t = db.transaction(STORE, 'readwrite');
+    return retrying('readwrite', (t, resolve, reject) => {
       try { fn(t.objectStore(STORE)); } catch (e) { reject(e); return; }
       t.oncomplete = () => resolve(true);
       t.onerror    = () => reject(t.error || new Error('Photo write failed'));
       t.onabort    = () => reject(t.error || new Error('Photo write aborted'));
-    }));
+    });
   }
 
   function read(fn) {
-    return open().then(db => new Promise((resolve, reject) => {
-      const req = fn(db.transaction(STORE, 'readonly').objectStore(STORE));
+    return retrying('readonly', (t, resolve, reject) => {
+      let req;
+      try { req = fn(t.objectStore(STORE)); } catch (e) { reject(e); return; }
       req.onsuccess = () => resolve(req.result);
       req.onerror   = () => reject(req.error || new Error('Photo read failed'));
-    }));
+      t.onabort     = () => reject(t.error || new Error('Photo read aborted'));
+    });
   }
 
   return {
@@ -2911,47 +2952,150 @@ function _photoFileName(idx, caption, mime) {
   const n = String(idx + 1).padStart(2, '0');
   return slug(proj) + '-' + n + (caption ? '-' + slug(caption) : '') + '.' + ext;
 }
-async function savePhotosToDevice() {
-  const btn = document.getElementById('savePhotos');
-  const label = btn ? btn.textContent : '';
-  const setBtn = t => { if (btn) btn.textContent = t; };
-  const files = [];
-  for (let i = 0; i < allImages.length; i++) {
-    const im = allImages[i];
-    let dataUrl = im.dataUrl;
-    if (!dataUrl && im.id && window.AHS_PHOTOS) { try { dataUrl = await window.AHS_PHOTOS.get(im.id); } catch (e) {} }
-    const blob = dataUrl ? _dataUrlToBlob(dataUrl) : null;
-    if (!blob) continue;
-    files.push(new File([blob], _photoFileName(i, im.caption, blob.type), { type: blob.type }));
-  }
-  if (!files.length) { alert('There are no photos in this inspection yet.'); return; }
-  if (btn) btn.disabled = true;
-  setBtn('Saving' + String.fromCharCode(8230));
+/* ==================================================================
+   PHOTOS ONTO THE DEVICE
+
+   Browser storage is a convenience. The copy that counts is the one in
+   the iPad own Photos library, because nothing the browser does can
+   touch it. Every photo is prepared as a real file the moment it is
+   taken, so saving is one tap with no waiting.
+
+   iOS will not let a web page write to Photos on its own. It needs one
+   tap on the share sheet. What this does is make that tap ONE tap, for
+   everything outstanding, and refuse to let you forget it.
+   ================================================================== */
+window.AHS_TO_DEVICE = (function () {
+  var SAVED_KEY = "ahsPhotosOnDevice";   // ids only - a few bytes each
+  // iOS gets unhappy sharing very large batches at once, so go in runs.
+  var BATCH = 20;
+
+  var saved = Object.create(null);
   try {
-    if (navigator.canShare && navigator.canShare({ files }) && navigator.share) {
-      // iPad / phone: share sheet -> "Save Images" puts them in Photos
-      await navigator.share({ files, title: files.length + ' inspection photo' + (files.length === 1 ? '' : 's') });
-    } else {
-      // desktop / no file sharing: plain downloads, one per photo
-      for (const f of files) {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(f); a.download = f.name; a.style.display = 'none';
-        document.body.appendChild(a); a.click();
-        await new Promise(r => setTimeout(r, 250));
-        URL.revokeObjectURL(a.href); a.remove();
-      }
-    }
-    setBtn('Saved ' + files.length + ' ' + String.fromCharCode(10003));
-  } catch (e) {
-    // The user closing the share sheet is not an error worth shouting about
-    if (!(e && e.name === 'AbortError')) alert('Could not save the photos to this device: ' + (e && e.message ? e.message : e));
-    setBtn(label);
+    var raw = localStorage.getItem(SAVED_KEY);
+    if (raw) JSON.parse(raw).forEach(function (id) { saved[id] = 1; });
+  } catch (e) {}
+
+  function remember(ids) {
+    ids.forEach(function (id) { saved[id] = 1; });
+    try { localStorage.setItem(SAVED_KEY, JSON.stringify(Object.keys(saved))); } catch (e) {}
   }
-  setTimeout(() => { setBtn(label); if (btn) btn.disabled = false; }, 2500);
-}
+
+  // Files are built AHEAD of the tap. navigator.share must be called during
+  // the gesture: any await before it spends the gesture and iOS refuses.
+  var ready = Object.create(null);   // id -> File
+
+  function build(im, idx) {
+    if (!im || !im.id || ready[im.id]) return;
+    var blob = im.dataUrl ? _dataUrlToBlob(im.dataUrl) : null;
+    if (!blob) return;
+    try {
+      ready[im.id] = new File([blob], _photoFileName(idx, im.caption, blob.type), { type: blob.type });
+    } catch (e) {}
+  }
+
+  // Rebuild the ready set from whatever is on the page now. Safe to call
+  // often; it only does work for photos it has not seen.
+  function refresh() {
+    if (typeof allImages === "undefined") return;
+    for (var i = 0; i < allImages.length; i++) build(allImages[i], i);
+    paint();
+  }
+
+  function pending() {
+    if (typeof allImages === "undefined") return [];
+    return allImages.filter(function (im) { return im && im.id && ready[im.id] && !saved[im.id]; });
+  }
+
+  /* ---- the bar you cannot miss ---- */
+  var bar = null;
+  function ensureBar() {
+    if (bar) return bar;
+    bar = document.createElement("div");
+    bar.id = "ahs-todevice-bar";
+    bar.setAttribute("style", "position:fixed;left:0;right:0;bottom:0;z-index:99998;display:none;" +
+      "background:#7d1c07;color:#fff;padding:12px 16px;box-sizing:border-box;" +
+      "font:15px/1.4 -apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,sans-serif;" +
+      "align-items:center;gap:14px;box-shadow:0 -2px 10px rgba(0,0,0,.25)");
+    bar.innerHTML = "<span id=\"ahs-todevice-msg\" style=\"flex:1 1 auto\"></span>" +
+      "<button type=\"button\" id=\"ahs-todevice-go\" style=\"flex:0 0 auto;background:#fff;color:#7d1c07;" +
+      "border:0;font:inherit;font-weight:700;padding:10px 16px;cursor:pointer\">Save to iPad</button>";
+    document.body.appendChild(bar);
+    bar.querySelector("#ahs-todevice-go").addEventListener("click", save);
+    return bar;
+  }
+
+  function paint() {
+    var n = pending().length;
+    var btn = document.getElementById("savePhotos");
+    if (btn && !btn.disabled) {
+      btn.textContent = n ? ("Save " + n + " photo" + (n === 1 ? "" : "s") + " to iPad") : "Photos saved to iPad";
+    }
+    var b = ensureBar();
+    if (!n) { b.style.display = "none"; return; }
+    b.querySelector("#ahs-todevice-msg").innerHTML =
+      "<strong>" + n + " photo" + (n === 1 ? " is" : "s are") + " only in this browser.</strong> " +
+      "Save them onto the iPad so they cannot be lost.";
+    b.style.display = "flex";
+  }
+
+  /* ---- the tap: no await before share() ---- */
+  function save() {
+    var list = pending().slice(0, BATCH);
+    if (!list.length) { alert("Every photo is already saved onto this iPad."); return; }
+    var ids = list.map(function (im) { return im.id; });
+    var files = list.map(function (im) { return ready[im.id]; });
+    var btn = document.getElementById("savePhotos");
+    var go = document.getElementById("ahs-todevice-go");
+    var busy = function (on) {
+      if (btn) { btn.disabled = on; if (on) btn.textContent = "Saving" + String.fromCharCode(8230); }
+      if (go) { go.disabled = on; go.textContent = on ? "Saving" + String.fromCharCode(8230) : "Save to iPad"; }
+    };
+
+    var canShare = false;
+    try { canShare = !!(navigator.share && navigator.canShare && navigator.canShare({ files: files })); } catch (e) {}
+
+    if (canShare) {
+      busy(true);
+      // Called synchronously inside the tap, which is what iOS requires.
+      navigator.share({ files: files, title: files.length + " inspection photo" + (files.length === 1 ? "" : "s") })
+        .then(function () { remember(ids); })
+        .catch(function (e) {
+          if (e && e.name === "AbortError") return;          // closed the sheet
+          alert("The iPad would not take the photos: " + ((e && e.message) || e) +
+                String.fromCharCode(10) + String.fromCharCode(10) +
+                "Take your photos with the Camera app instead and add them from the library. " +
+                "Then they are on the iPad the moment you take them.");
+        })
+        .then(function () { busy(false); paint(); });
+      return;
+    }
+
+    // No file sharing (desktop): plain downloads, one per photo.
+    busy(true);
+    var i = 0;
+    (function next() {
+      if (i >= files.length) { remember(ids); busy(false); paint(); return; }
+      var f = files[i++];
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(f); a.download = f.name; a.style.display = "none";
+      document.body.appendChild(a); a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); next(); }, 250);
+    })();
+  }
+
+  return { refresh: refresh, paint: paint, save: save,
+           pendingCount: function () { return pending().length; },
+           isSaved: function (id) { return !!saved[id]; } };
+})();
+
+// Kept for anything that still calls the old name.
+function savePhotosToDevice() { window.AHS_TO_DEVICE.save(); }
 document.addEventListener('DOMContentLoaded', () => {
-  const b = document.getElementById('savePhotos'); if (b) b.onclick = savePhotosToDevice;
+  const b = document.getElementById('savePhotos');
+  if (b) b.onclick = function () { window.AHS_TO_DEVICE.save(); };
   if (window.AHS_PHOTOS && window.AHS_PHOTOS.persist) window.AHS_PHOTOS.persist();
+  // Photos restored from a previous session still need offering to the device.
+  setTimeout(function () { window.AHS_TO_DEVICE.refresh(); }, 1200);
 });
 
 // Helper: Convert File to DataURL Promise with high quality
@@ -2998,6 +3142,7 @@ async function persistPhoto(imgObj) {
   try {
     await window.AHS_PHOTOS.put(imgObj.id, imgObj.dataUrl);
     window.AHS_SAVE_STATUS.ok('photos');
+    try { if (window.AHS_TO_DEVICE) window.AHS_TO_DEVICE.refresh(); } catch (e) {}
     return true;
   } catch (e) {
     window.AHS_SAVE_STATUS.fail('photos', 'a photo could not be stored', e);
@@ -3014,6 +3159,24 @@ async function renderImages() {
 
   // Process all images and wait for all DataURLs to be ready
   const imagePromises = allImages.map(async (imgObj, index) => {
+    // A restored photo whose bytes could not be read last time: look once
+    // more (the connection may have come back), otherwise hold its place
+    // and say why. It must never be silently skipped or dropped.
+    if (!imgObj.dataUrl && !imgObj.file) {
+      try { imgObj.dataUrl = await window.AHS_PHOTOS.get(imgObj.id); } catch (e) {}
+      if (!imgObj.dataUrl) {
+        const box = document.createElement('div');
+        box.className = 'img-item';
+        box.setAttribute('data-image-id', imgObj.id);
+        box.setAttribute('style', 'outline:3px solid #b91c1c;min-height:120px;display:flex;align-items:center;' +
+          'justify-content:center;text-align:center;padding:12px;font-size:13px;color:#b91c1c');
+        box.textContent = 'Photo could not be read on this device. It is still in the report; ' +
+          'close the app fully and reopen it to try again.';
+        imgPreview.appendChild(box);
+        return;
+      }
+      imgObj.missing = false;
+    }
     // If dataUrl is not yet loaded, load it
     if (!imgObj.dataUrl) {
       imagesLoadingCount++;
@@ -3113,6 +3276,9 @@ async function renderImages() {
 
   // Wait for all images to be processed
   await Promise.all(imagePromises);
+  // Every photo now has its data: prepare each as a real file and update the
+  // "not on the iPad yet" count.
+  try { if (window.AHS_TO_DEVICE) window.AHS_TO_DEVICE.refresh(); } catch (e) {}
   
   // Trigger a save after images are rendered/updated
   if (typeof window.AHS_DRAFT !== 'undefined' && typeof window.AHS_DRAFT.scheduleSave === 'function') {
@@ -4952,18 +5118,22 @@ window.showPhraseModal = showPhraseModal;
             catch (e) { console.warn('Could not fold restored photo into the store:', e); }
           }
 
-          if (dataUrl) {
-            built.push({ id, file: null, dataUrl, caption: imgData.caption || '', link: imgData.link || null });
-          } else {
-            missing++;
-          }
+          // Keep the id EVEN WHEN the bytes are missing. A read that fails on
+          // this pass (the store closed by iOS, a slow open, a transient
+          // error) must not delete the photo from the report: the next
+          // autosave would write the list without it, and that is permanent.
+          // The bytes are looked for again on every render and every load.
+          built.push({ id, file: null, dataUrl: dataUrl || null, missing: !dataUrl,
+                       caption: imgData.caption || '', link: imgData.link || null });
+          if (!dataUrl) missing++;
         }
 
         allImages = built;
         if (missing) {
-          window.AHS_SAVE_STATUS.note('photos',
-            missing + ' photo' + (missing === 1 ? ' is' : 's are') + ' not stored in this browser' +
-            ' &mdash; open this report on the device it was taken on, or sign in to pull them down');
+          window.AHS_SAVE_STATUS.fail('photos',
+            missing + ' photo' + (missing === 1 ? ' could' : 's could') + ' not be read on this device.' +
+            ' They are still in the report. Close the app fully and reopen it to try again.',
+            new Error('photo store returned nothing for ' + missing + ' id(s)'));
         } else {
           window.AHS_SAVE_STATUS.ok('photos');
         }
