@@ -44,7 +44,7 @@ test('"New inspection" adopts a report that has no visit context instead of wipi
   // has never been through the start form IS the inspection being set up, so
   // the handler must branch on hasVisit() and adopt, and must confirm before
   // it ever takes the destructive path.
-  const m = SRC.match(/nb\.onclick = function\(\)\s*\{([\s\S]{0,1400}?)\n      \};/);
+  const m = SRC.match(/nb\.onclick = async function\(\)\s*\{([\s\S]{0,3000}?)\n      \};/);
   assert.ok(m, 'the New inspection button handler was not found - has it been rewired?');
   const body = m[1];
   assert.match(body, /hasVisit\(\s*CUR\.visit\s*\)/,
@@ -53,6 +53,15 @@ test('"New inspection" adopts a report that has no visit context instead of wipi
     'New inspection no longer adopts the report being set up');
   assert.match(body, /confirm\(/,
     'New inspection takes the archive-and-clear path without confirming');
+  // 2026-09-22, Simon: an inspection done offline has to be safe on the device
+  // before the app is emptied for the next one. New inspection writes the whole
+  // report to a file, names the file, and clears nothing if the file never
+  // appeared.
+  assert.match(body, /await window\.AHS_EXPORT_HTML\(\{ announce: false \}\)/,
+    'New inspection no longer saves the inspection to a file before it clears it');
+  const saveAt = body.indexOf('AHS_EXPORT_HTML'), clearAt = body.lastIndexOf('openStart({})');
+  assert.ok(saveAt > 0 && clearAt > saveAt, 'the report is cleared before the file is written');
+  assert.match(body, /if\(!saved\)\{/, 'a failed save no longer stops the clear');
 });
 
 test('switching project saves the one you are leaving before clearing the device', () => {
@@ -92,11 +101,13 @@ test('photos can be written out as real files, and the store asks to persist', (
   assert.match(SRC, /navigator\.storage\.persist\(\)/, 'the persistent-storage request is gone');
   assert.match(SRC, /AHS_PHOTOS\.persist\(\)/, 'persist() is defined but no longer called at load');
   assert.match(SRC, /id="savePhotos"/, 'the Save photos to device button is gone');
-  const h = SRC.match(/async function savePhotosToDevice\(\)\s*\{([\s\S]*?)\r?\n\}/);
-  assert.ok(h, 'savePhotosToDevice() not found');
+  // 2026-09-16: the work moved into window.AHS_TO_DEVICE and savePhotosToDevice
+  // became a one-line call into it. The guarantees are unchanged.
+  const h = [SRC.slice(SRC.indexOf('window.AHS_TO_DEVICE'), SRC.indexOf('function savePhotosToDevice'))];
+  assert.ok(h[1] = h[0], 'the AHS_TO_DEVICE photo module was not found');
   assert.match(h[1], /navigator\.share\(/, 'the share-sheet path (Photos on iPad) is gone');
   assert.match(h[1], /\.download = /, 'the download fallback is gone - desktop users get nothing');
-  assert.match(h[1], /AHS_PHOTOS\.get\(/, 'photos not yet in memory are skipped instead of read from the store');
+  assert.match(h[1], /dataUrl/, 'the module no longer reads the image data it is meant to write out');
 });
 
 test('a poor site signal degrades to amber and a retry, never a hang or a red banner', () => {
@@ -428,7 +439,49 @@ test('every finding cites a verified regulation from the register, never a free-
   // legislation.gov.uk before being added to the register.
   assert.equal(L.AHS_LAW.anchorLine('PC3'), 'Assessed against CDM 2015 reg 15(7); MHSWR 1999 reg 3(1).', 'Documentation citations changed');
   assert.equal(L.AHS_LAW.anchorLine('C22'), 'Assessed against CDM 2015 regs 12(1), 12(4), 15(3)(b), 15(9)(a), 15(9)(b) and 30(1).', 'Construction Phase Plan citations changed');
-  assert.equal(L.AHS_LAW.anchorLine('C26'), 'Assessed against CDM 2015 regs 17(1), 17(2), 18(1), 22(2), 32(1) and 35(1); WAHR 2005 regs 4(1), 6(2) and 6(3).', 'Site Set-Up & Housekeeping citations changed');
+  // 2026-09-22: reg 22(2) is excavations and is off housekeeping. What is left
+  // here is only the fallback, used when a section holds no mapped checks.
+  assert.equal(L.AHS_LAW.anchorLine('C26'), 'Assessed against CDM 2015 regs 17(1), 17(2), 18(1), 32(1) and 35(1); WAHR 2005 regs 4(1), 6(2) and 6(3).', 'Site Set-Up & Housekeeping fallback citations changed');
+  assert.ok(!(L.SECTION_LAW.C26 || []).includes('cdm22_2'), 'reg 22(2), which is excavations, is back on housekeeping');
+  ['C32', 'PC5', 'PC7'].forEach(k => assert.ok((L.SECTION_LAW[k] || []).includes('cdm22_2'), 'reg 22(2) has been lost from ' + k + ', where it belongs'));
+
+  // THE RULE. A citation line names the regulations behind the checks actually
+  // in this report, never a fixed list per section. Two reports went to a client
+  // on 21 September citing reg 22(2) on sites with no excavation.
+  assert.equal(L.AHS_LAW.anchorLine('C26', ['c26_1', 'c26_2', 'c26_3', 'c26_4', 'c26_5']),
+    'Assessed against CDM 2015 regs 17(1), 17(2), 17(4), 18(1) and 35(1); HSWA 1974 s.2(2)(d).',
+    'the housekeeping anchor is not being built from the checks in the section');
+  assert.equal(L.AHS_LAW.anchorLine('C34', ['c34_1']), 'Assessed against COSHH 2002 regs 6(1) and 12(1).',
+    'the COSHH assessment check lost reg 6(1) or reg 12(1)');
+  assert.equal(L.AHS_LAW.anchorLine('C31', ['c31_3']), 'Assessed against WAHR 2005 regs 6(3), 10(1) and 11.',
+    'falling objects (reg 10) and danger areas (reg 11) are not behind the edge protection check');
+  assert.match(L.AHS_LAW.anchorLine('C29', ['c29_1', 'c29_2', 'c29_3']), /PUWER 1998 regs 4\(1\), 5\(1\) and 6\(2\); LOLER 1998 regs 8\(1\) and 9\(3\)/,
+    'the plant section no longer reaches PUWER inspection or LOLER');
+
+  // A section the inspector wrote himself is never left with no regulations.
+  assert.equal(L.AHS_LAW.anchorLine('cust-anything', ['his1', 'his2']),
+    'Assessed against HSWA 1974 s.2(1) and s.3(1); MHSWR 1999 reg 3(1).',
+    'a section of his own making prints findings with no regulations at all');
+
+  // A citation line carries regulations. Guidance never appears in one; the
+  // contractual entries a Principal Contractor section rests on still do.
+  const guidanceIds = L.LAW_REGISTER.filter(x => x.kind === 'guidance').map(x => x.id);
+  Object.keys(L.SECTION_LAW).forEach(k => {
+    const pids = Object.keys(L.CRITERIA_LAW).filter(p => L.AHS_LAW.sectionOf(p) === k);
+    const ids = L.AHS_LAW.anchorIds(k, pids);
+    const leaked = ids.filter(id => guidanceIds.includes(id));
+    assert.deepEqual(leaked, [], 'HSE guidance is being cited in the ' + k + ' assessed-against line');
+  });
+  assert.match(L.AHS_LAW.anchorLine('C41', ['c41_1']), /the Construction Phase Plan for the project\.$/,
+    'the Principal Contractor sections lost the contractual entry they rest on');
+  assert.doesNotMatch(SRC, /The standard applied is HSE's construction guidance on/,
+    'the measured-against line is naming HSE guidance again');
+
+  // the two regulations added for this, read on legislation.gov.uk first
+  assert.equal(L.AHS_LAW.get('wahr11').cite, 'WAHR 2005 reg 11');
+  assert.match(L.AHS_LAW.get('wahr11').requirement, /preventing unauthorised persons from entering/, 'reg 11 is not the danger-areas duty');
+  assert.equal(L.AHS_LAW.get('coshh12_1').cite, 'COSHH 2002 reg 12(1)');
+  assert.match(L.AHS_LAW.get('coshh12_1').requirement, /information, instruction and training/, 'COSHH reg 12(1) is not the training duty');
   assert.equal(L.AHS_LAW.anchorLine('C38'), 'Assessed against RIDDOR 2013 regs 4, 7 and 12; MHSWR 1999 regs 5(1) and 11.', 'Accidents citations changed');
   assert.equal(L.AHS_LAW.anchorLine('C40'), 'Assessed against CDM 2015 regs 15(10), 17(1), 27(3)(d), 27(4), 30(1) and 31(3); MHOR 1992 reg 4(1)(a).', 'Access & Egress citations changed');
   assert.equal(L.AHS_LAW.get('cdm31_3').cite, 'CDM 2015 reg 31(3)');
@@ -438,8 +491,10 @@ test('every finding cites a verified regulation from the register, never a free-
   // the closing paragraph of the conclusion is built from the same section list
   // as the "Assessed against" lines, so the two can never disagree
   assert.match(SRC, /function summaryForSections\(keys\)\{/, 'the conclusion no longer names the regulations the sections were assessed against');
-  assert.match(SRC, /var legal = \(hasLaw && findKeys\.length\) \? AHS_LAW\.summaryForSections\(findKeys\) : null;/,
-    'the conclusion is back to citing only the regulation behind each finding, which drifts from the section lines');
+  assert.match(SRC, /var legal = \(hasLaw && cited\.length\) \? AHS_LAW\.summaryForChecks\(cited\) : null;/,
+    'the measured-against list is no longer built from the checks that carry an Action or an Advisory');
+  assert.match(SRC, /AHS_LAW\.anchorLine\(t\.key, rows\.map\(function\(r\)\{ return r\.capPid; \}\)\)/,
+    'the section anchor is back to a fixed list per section');
   const docsInBuilder = phrases.filter(p => /^d\d+$/.test(p.id) && !/^\(PC - Section 3\) /.test(p.label || '')).map(p => p.id);
   assert.deepEqual(docsInBuilder, [], 'Documentation items have lost the section label that puts them in the criteria builder');
   assert.equal(L.AHS_LAW.basisText('c24_3', 'minor'), 'CDM 2015 reg 15(8)');
@@ -485,6 +540,26 @@ test('the report is square and flat, and a section never leaves its heading behi
     'the space a section needs is no longer measured - a heading can be stranded at the foot of a page');
   assert.match(SRC, /if \(!findingsPageOpen \|\| \(265 - y\) < needed\)/, 'sections are back to one page each');
   assert.match(SRC, /'Findings \(continued\)' : 'Findings'/, 'the carry-on pages lost their heading');
+});
+
+test('the report carries the date on its front page, not the day it was reprinted', () => {
+  // 2026-09-22: a report regenerated a week later was stamping the day it was
+  // reprinted into every page footer.
+  assert.match(SRC, /const dateStr = _reportDateStr\(\);/, 'the footer is back to stamping today');
+  const f = SRC.match(/function _reportDateStr\(\)\s*\{([\s\S]*?)\n\}/);
+  assert.ok(f, '_reportDateStr() not found');
+  assert.match(f[1], /getElementById\('fp-report-date'\)/, 'the footer date no longer reads the front page');
+  assert.match(f[1], /new Date\(\)\.toLocaleDateString\('en-GB'\)/, 'there is no fallback for a report with no date set');
+});
+
+test('an introduction goes into Purpose and Rationale once', () => {
+  // 2026-09-22: the box read the same opening paragraph twice, run together
+  // with no break, because inserting an introduction added a second copy.
+  assert.match(SRC, /if \(\/Introduction\/i\.test\(String\(sn\.title \|\| ''\)\)\) _stripIntro\(window\.snippetTargetEl\);/,
+    'an introduction no longer replaces one already in the box');
+  const f = SRC.match(/function _stripIntro\(target\)\s*\{([\s\S]*?)\n\}/);
+  assert.ok(f, '_stripIntro() not found');
+  assert.match(f[1], /nodeValue = ''/, '_stripIntro no longer clears the text it matched');
 });
 
 test('the alert bar never traps you inside a full-screen panel', () => {
