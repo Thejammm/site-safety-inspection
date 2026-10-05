@@ -944,3 +944,111 @@ test('temporary works stays out of the report until a check is marked, then surv
   assert.deepEqual(back, ['minor', 'Register not updated since March'], 'the tick or the note did not survive a reload');
   assert.deepEqual(errs, []);
 });
+
+// ────────────────────────────────────────────────────────────────
+//  Compass link - accreditation evidence out, focus areas in
+// ────────────────────────────────────────────────────────────────
+
+// The 14 questions the master list (accreditation-master-questions.json,
+// 5 October 2026) says a site inspection can evidence. A check may only be
+// tagged to one of these.
+const SITE_QIDS = ['HS-11', 'HS-15', 'HS-17', 'CN-01', 'CN-02', 'CN-04', 'CN-05', 'QA-04', 'QA-07', 'BS-03', 'BS-04', 'BS-06', 'BS-11', 'EN-02'];
+function accredLiteral(name) {
+  const m = SRC.match(new RegExp('var ' + name + ' = (\\{[^\\n]*\\});'));
+  assert.ok(m, name + ' not found in the Compass link module');
+  return JSON.parse(m[1]);
+}
+
+test('accreditation tags point only at questions a site inspection can evidence, from checks that exist', () => {
+  const TAGS = accredLiteral('TAGS'), Q = accredLiteral('Q');
+  const p0 = SRC.indexOf('const SIMPLE_PHRASES = [');
+  let i = SRC.indexOf('[', p0), d = 0, p1 = -1;
+  for (; i < SRC.length; i++) { const ch = SRC[i]; if (ch === '[') d++; else if (ch === ']') { d--; if (d === 0) { p1 = i; break; } } }
+  const ids = new Set(new Function('return ' + SRC.slice(SRC.indexOf('[', p0), p1 + 1) + ';')().map(p => p.id));
+  Object.keys(TAGS).forEach(pid => {
+    assert.ok(ids.has(pid), 'tagged check ' + pid + ' is not in the criteria');
+    TAGS[pid].forEach(q => {
+      assert.ok(SITE_QIDS.includes(q), pid + ' is tagged to ' + q + ', which a site inspection cannot evidence');
+      assert.ok(Q[q], q + ' has no wording');
+    });
+  });
+  assert.equal(Object.keys(TAGS).length, 41, 'the tag list changed - show Simon before it ships');
+  // HS-11 needs the advice shown to have been acted on; BS-04 is defects
+  // reported to manufacturers. No check evidences either, so neither is tagged.
+  assert.ok(!Object.values(TAGS).flat().includes('HS-11') && !Object.values(TAGS).flat().includes('BS-04'));
+  assert.deepEqual(TAGS.c44_4, ['QA-04'], 'temporary works built-as-designed evidences installation checked');
+  assert.deepEqual(TAGS.c44_6, ['CN-01'], 'temporary works RAMS accepted evidences the RAMS question');
+  assert.match(Q['HS-17'], /^Practical evidence of two-way consultation with the workforce/);
+  assert.match(SRC, /var REPORT_QIDS = \['HS-15', 'BS-06'\];/, 'the report itself no longer evidences monitoring');
+  assert.match(SRC, /var SYNC_KEYS {5}= \['FRONTPAGE_DATA_V1','clientLogo','AHS_INSPECTIONS_V1','AHS_ACCRED_EVIDENCE_V1'\];/, 'the evidence no longer travels with the project');
+});
+
+test('the link server matches a client by its reference, and keeps only well-formed evidence', async () => {
+  const { createRequire } = await import('node:module');
+  const req = createRequire(import.meta.url);
+  const dbPath = req.resolve('../db/index.js');
+  req.cache[dbPath] = { id: dbPath, filename: dbPath, loaded: true, exports: { pool: {} } };   // the route's pure parts need no database
+  const link = req('../routes/link.js');
+  const rows = [
+    { project: 'Woldgate School', ev: JSON.stringify({ client: ' mvl ', sent: [{ inspectionId: 'a', date: '2026-09-01', items: [{ qids: ['HS-17', 'bad'], check: 'c', photo: 'javascript:alert(1)' }] }, { inspectionId: 'b', date: '2026-10-01', items: [{ qids: ['CN-05'], check: 'w', photo: 'data:image/jpeg;base64,AAA' }] }] }) },
+    { project: 'Other', ev: JSON.stringify({ client: 'RSSC', sent: [{ inspectionId: 'c', items: [{ qids: ['HS-17'] }] }] }) },
+    { project: 'Broken', ev: '{not json' },
+  ];
+  const out = link.evidenceFor(rows, 'MVL');
+  assert.deepEqual(out.map(r => r.inspectionId), ['b', 'a'], 'MVL only, newest first');
+  assert.deepEqual(out[1].items[0].qids, ['HS-17'], 'a malformed question id is dropped');
+  assert.equal(out[1].items[0].photo, '', 'only an image data URL passes as a photo');
+  assert.equal(out[0].project, 'Woldgate School');
+  assert.deepEqual(link.evidenceFor(rows, ''), []);
+  assert.deepEqual(link.cleanFocus([{ id: 'HS-17', text: 'x' }, { id: 'drop me' }]).map(f => f.id), ['HS-17']);
+  assert.match(fs.readFileSync(path.join(here, '..', 'server.js'), 'utf8'), /app\.use\('\/api\/link', {2}linkRoutes\);/, 'the link route is not mounted');
+  assert.match(fs.readFileSync(path.join(here, '..', 'db', 'schema.sql'), 'utf8'), /CREATE TABLE IF NOT EXISTS link_focus/);
+});
+
+test('a finished inspection sends its compliant tagged checks and the report, and nothing else', { skip: !CHROME && 'Chrome not found' }, async () => {
+  const { browser, page, errs } = await boot();
+  const pause = ms => new Promise(r => setTimeout(r, ms));
+  const tile = async (mode, key) => {
+    await page.evaluate(() => { document.getElementById('capOpen').click(); const b = document.getElementById('capBack'); if (b.style.display !== 'none') b.click(); });
+    await page.click('#capOverlay .cap-mode button[data-mode="' + mode + '"]');
+    await page.click('#capOverlay .cap-tile[data-key="' + key + '"]');
+  };
+  let shown, collected, stored, resent, draftSame, focusAsked;
+  try {
+    await tile('C', 'C25');
+    shown = await page.evaluate(() => (Array.from(document.querySelectorAll('.cap-item[data-pid="c25_5"] .cap-acc')).map(x => x.textContent))[0] || '');
+    await page.click('.cap-item[data-pid="c25_5"] .cap-st[data-st="compliant"]');
+    await page.type('.cap-item[data-pid="c25_5"] .cap-note', 'Weekly toolbox talk signed by all six');
+    await tile('C', 'C23');
+    await page.click('.cap-item[data-pid="c23_1"] .cap-st[data-st="advisory"]');
+    await tile('C', 'C26');
+    await page.click('.cap-item[data-pid="c26_1"] .cap-st[data-st="compliant"]');
+    await page.evaluate(() => document.getElementById('capHide').click());
+    await pause(1500);
+    collected = await page.evaluate(() => window.AHS_ACCRED.collect().map(it => [it.checkId, it.qids.join(' '), it.note]));
+    const draft0 = await page.evaluate(async () => { const o = await window.AHS_DRAFT.collect(); delete o.t; return JSON.stringify(o); });
+    await page.evaluate(() => localStorage.setItem('AHS_ACCRED_EVIDENCE_V1', JSON.stringify({ v: 1, client: 'MVL', sent: [] })));
+    await page.evaluate(() => window.AHS_ACCRED.send());
+    await pause(800);
+    stored = await page.evaluate(() => JSON.parse(localStorage.getItem('AHS_ACCRED_EVIDENCE_V1')));
+    await page.evaluate(() => window.AHS_ACCRED.send());
+    await pause(800);
+    resent = await page.evaluate(() => JSON.parse(localStorage.getItem('AHS_ACCRED_EVIDENCE_V1')).sent.length);
+    draftSame = draft0 === await page.evaluate(async () => { const o = await window.AHS_DRAFT.collect(); delete o.t; return JSON.stringify(o); });
+    focusAsked = await page.evaluate(async () => (await window.AHS_ACCRED.loadFocus()).ok);
+  } finally {
+    await browser.close();
+  }
+  assert.match(shown, /Accreditation evidence: HS-17 Practical evidence of two-way consultation/, 'a tagged check does not say which question it evidences');
+  assert.deepEqual(collected, [['c25_5', 'HS-17', 'Weekly toolbox talk signed by all six'], ['report', 'HS-15 BS-06', '3 checks reviewed across 3 criteria, 1 finding raised for action']],
+    'only compliant tagged checks go, with the report; an advisory and an untagged check stay behind');
+  assert.equal(stored.client, 'MVL');
+  assert.equal(stored.sent.length, 1);
+  assert.equal(stored.sent[0].items.length, 2);
+  assert.match(stored.sent[0].reportName, /^Safety Inspection Report - /);
+  assert.ok(stored.sent[0].inspectionId && stored.sent[0].date && stored.sent[0].sentAt, 'the evidence is dated and tied to its inspection');
+  assert.equal(resent, 1, 'sending the same inspection again replaces it, never doubles it');
+  assert.ok(draftSame, 'sending to Compass changed the inspection itself');
+  assert.equal(focusAsked, false, 'from disk there is no server, and asking for focus areas must fail quietly');
+  assert.deepEqual(errs, []);
+});

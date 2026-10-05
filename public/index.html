@@ -1671,6 +1671,7 @@ button.r3-ai:hover{ background:var(--muted-bg); }
           <button data-action="client-report" id="btnClientReport" class="tb-output" title="Generate client-ready PDF"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>Client Report</button>
           <button data-action="export" id="exphtml" class="tb-output" title="Export full HTML report"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>Export</button>
           <button data-action="import" id="impfile" class="tb-output" title="Open an inspection saved by the offline copy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>Open file</button>
+          <button type="button" id="compassOpen" class="tb-output" title="Send accreditation evidence to Compass, and see what Compass is asking for"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polygon points="15.5 8.5 13.5 13.5 8.5 15.5 10.5 10.5 15.5 8.5"/></svg> Compass</button>
           <!-- Cloud sign-in / out - the sync wrapper mounts its control here (see buildBar) -->
           <div id="ahsAuthSlot" title="Cloud sign-in / sign-out"></div>
         </div>
@@ -7616,7 +7617,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     document.addEventListener('visibilitychange', function(){ try{ if(document.visibilityState === 'visible' && _user && _isDirty()) push(); }catch(_){} });
 
     var TENANT        = 'archer';
-    var SYNC_KEYS     = ['FRONTPAGE_DATA_V1','clientLogo','AHS_INSPECTIONS_V1'];
+    var SYNC_KEYS     = ['FRONTPAGE_DATA_V1','clientLogo','AHS_INSPECTIONS_V1','AHS_ACCRED_EVIDENCE_V1'];
     var SYNC_PREFIXES = ['AHS_REPORT_DRAFT_V1:'];
     var _user=null, _project=null, _saveTimer=null, _pulling=false, bar=null, statusEl=null;
 
@@ -8419,6 +8420,7 @@ function addPageFooter(doc, pageNum, totalPages) {
         '<div class="lbl">' + esc(q.check) + '</div>' +
         ((typeof AHS_LAW !== 'undefined' && AHS_LAW.primary(q.id)) ? '<div class="cap-law">' + esc(AHS_LAW.primary(q.id).cite) + (AHS_LAW.holderPhrase(q.id) ? ' · ' + esc(AHS_LAW.holderPhrase(q.id)) : '') + '</div>' : '') +
         (q.src ? '<div class="cap-law">Source: ' + esc(q.src) + '</div>' : '') +
+        ((window.AHS_ACCRED && window.AHS_ACCRED.tagsFor(q.id).length) ? '<div class="cap-law cap-acc">' + (window.AHS_ACCRED.tagsFor(q.id).some(window.AHS_ACCRED.inFocus) ? '<b>Compass is asking for this.</b> ' : '') + 'Accreditation evidence: ' + window.AHS_ACCRED.tagsFor(q.id).map(function(t){ return esc(t + ' ' + window.AHS_ACCRED.qText(t)); }).join('; ') + '</div>' : '') +
         '<div class="cap-sts">' + STS.map(function(s){
           return '<button type="button" class="cap-st ' + s.cls + '" data-st="' + s.k + '" data-on="' + (it.st===s.k?1:0) + '">' + s.chip + '</button>';
         }).join('') + '</div>' +
@@ -8729,6 +8731,206 @@ function addPageFooter(doc, pageNum, totalPages) {
       }
       build().catch(function(e){ alert('Build failed: ' + e.message); });
     };
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+
+<!-- ═══════════════ COMPASS LINK: accreditation evidence ═══════════════ -->
+<style id="acCss">
+  #acOverlay{position:fixed;inset:0;top:var(--ahs-alert-h,0px);z-index:99988;background:#f4f6f8;display:none;flex-direction:column;font-family:inherit}
+  #acOverlay.open{display:flex}
+  .ac-card{background:#fff;border:1px solid #e2e8f0;padding:14px 16px;margin-bottom:12px}
+  .ac-card h3{margin:0 0 4px;font-size:15px;font-weight:800}
+  .ac-sub{font-size:13px;color:#5a6b7c;margin:0 0 10px;line-height:1.5}
+  .ac-lbl{font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#64748b;margin:10px 0 4px}
+  .ac-in{width:100%;box-sizing:border-box;padding:9px;border:1px solid #c9d2da;font-size:15px;border-radius:0 !important}
+  .ac-btn{border:1px solid #3E9DAF;background:#fff;color:#3E9DAF;padding:9px 14px;font-size:14px;font-weight:700;cursor:pointer;border-radius:0;-webkit-appearance:none}
+  .ac-btn.pri{background:#3E9DAF;color:#fff}
+  .ac-btn:disabled{opacity:.5;cursor:default}
+  .ac-row{display:grid;grid-template-columns:92px minmax(0,1fr);gap:10px;padding:8px 0;border-top:1px solid #eef2f6;font-size:13.5px;line-height:1.45}
+  .ac-row:first-child{border-top:0}
+  .ac-q{font-weight:800;color:#64748b;font-size:12px}
+  .ac-muted{font-size:12.5px;color:#64748b}
+  .ac-ok{color:#047857;font-weight:700}
+  .ac-warn{color:#b42318;font-weight:700}
+  .cap-acc{color:#3E9DAF}
+  .cap-acc b{font-weight:800}
+  #siCompassFocus{font-size:12.5px;color:#475569;margin-top:6px;line-height:1.5}
+  #siCompassFocus button{margin-top:6px}
+</style>
+<div id="acOverlay" role="dialog" aria-label="Compass">
+  <div class="cap-head">
+    <h2>Compass: accreditation evidence</h2>
+    <button type="button" id="acHide">Close</button>
+  </div>
+  <div class="cap-body" id="acBody"></div>
+</div>
+<script>
+// ═══════════════ COMPASS LINK MODULE ═══════════════
+// Evidence collected on site lands in Compass against the accreditation
+// question it answers. A check is tagged only where it genuinely evidences a
+// question (the master list's own "a site inspection can evidence this").
+// When an inspection is finished the inspector sends it: every tagged check
+// marked Compliant, with its note and first photo, plus the report itself.
+// It is kept in this project's saved inspection (synced like the rest) under
+// AHS_ACCRED_EVIDENCE_V1, and Compass pulls it through its server. Compass
+// sends back the questions that still need evidence, shown here as focus
+// areas for the next visit. Nothing here touches the report.
+(function(){
+  'use strict';
+  var KEY = 'AHS_ACCRED_EVIDENCE_V1';
+  // The questions, word for word from the master list (accreditation-master-questions.json)
+  var Q = {"HS-15":"How you check, review and improve H&S performance","HS-17":"Practical evidence of two-way consultation with the workforce on H&S (5+ employees); description of consultation (1-4 employees)","CN-01":"Two site-specific risk assessments and method statements from two separate projects","CN-02":"Two completed COSHH assessments for chemicals used","CN-04":"Two-way communication with another party about the work (meeting notes, client emails)","CN-05":"Welfare confirmed by another party (email or pre-start minutes)","QA-04":"Installation of products and systems checked and approved by a competent person","QA-07":"Supervision, instruction and information for workforce and key subcontractors so work meets relevant requirements","BS-03":"Cooperating and communicating with other duty holders so work is compliant","BS-06":"Planning, managing and monitoring building work so it complies (as PC or Contractor)","BS-11":"Documented arrangements to assess and manage fire risk on projects and sites","EN-02":"Environmental arrangements: effectiveness, workforce training, check and review, subcontractors"};
+  // check id -> the questions it evidences
+  var TAGS = {"s4_8":["HS-15","BS-06"],"c25_2":["HS-17"],"c25_3":["HS-17"],"c25_5":["HS-17"],"c41_5":["HS-17"],"c41_7":["HS-17"],"c42_2":["HS-17"],"c42_3":["HS-17"],"c23_1":["CN-01"],"c23_2":["CN-01"],"c23_4":["CN-01"],"c44_6":["CN-01"],"c34_1":["CN-02"],"c21_3":["CN-04"],"c41_2":["CN-04","BS-03"],"c41_4":["CN-04"],"s4_4":["CN-04","BS-03"],"c37_1":["CN-05"],"c37_2":["CN-05"],"c37_3":["CN-05"],"s16_1":["CN-05"],"s16_2":["CN-05"],"c44_4":["QA-04"],"c24_3":["QA-07"],"c24_5":["QA-07"],"d17":["QA-07"],"c41_1":["QA-07"],"c42_1":["QA-07"],"c21_2":["BS-03"],"c21_6":["BS-03"],"s4_2":["BS-06"],"c36_2":["BS-11"],"c36_3":["BS-11"],"c36_4":["BS-11"],"s12_7":["BS-11"],"s12_8":["BS-11"],"s12_9":["BS-11"],"s12_10":["BS-11"],"s15_5":["BS-11"],"s15_11":["BS-11"],"s15_2":["EN-02"]};
+  // Every finished inspection report is itself the evidence for these
+  var REPORT_QIDS = ['HS-15', 'BS-06'];
+  var focus = null;   // what Compass last asked for, for this client
+  window.AHS_ACCRED = { tagsFor: function(pid){ return TAGS[pid] || []; }, qText: function(id){ return Q[id] || ''; },
+    inFocus: function(qid){ return !!(focus && focus.some(function(f){ return f.id === qid; })); } };
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+  function store(){ try{ var v = JSON.parse(localStorage.getItem(KEY) || 'null'); if(v && typeof v === 'object') return { v:1, client: v.client || '', sent: Array.isArray(v.sent) ? v.sent : [] }; }catch(e){} return { v:1, client:'', sent:[] }; }
+  function save(st){ localStorage.setItem(KEY, JSON.stringify(st)); }
+  function fp(){ try{ return (typeof loadFrontPageData === 'function') ? (loadFrontPageData() || {}) : JSON.parse(localStorage.getItem('FRONTPAGE_DATA_V1') || '{}'); }catch(e){ return {}; } }
+  function checkName(pid){
+    var p = (typeof SIMPLE_PHRASES !== 'undefined' ? SIMPLE_PHRASES : []).find(function(x){ return x.id === pid; });
+    return p ? String(p.label || '').replace(/^\([^)]*\)\s*/, '') : pid;
+  }
+  function today(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+
+  // What this inspection evidences: tagged checks marked Compliant (and not
+  // taken out of the report), then the report itself.
+  function collect(){
+    var cap = (window.AHS_CAPTURE && window.AHS_CAPTURE.serialize) ? window.AHS_CAPTURE.serialize() : { sections:{} };
+    var items = [];
+    Object.keys(cap.sections || {}).forEach(function(k){
+      var its = (cap.sections[k] && cap.sections[k].items) || {};
+      Object.keys(its).forEach(function(pid){
+        var it = its[pid];
+        if(!TAGS[pid] || !it || it.st !== 'compliant' || it.inc === false) return;
+        items.push({ qids: TAGS[pid].slice(), checkId: pid, check: checkName(pid), note: it.note || '', photoId: (it.photos || [])[0] || '' });
+      });
+    });
+    var rows = Array.prototype.slice.call(document.querySelectorAll('#secs .item-row select.status-select'));
+    var findings = rows.filter(function(s){ return s.value === 'minor' || s.value === 'advisory' || s.value === 'observation'; }).length;
+    var secs = document.querySelectorAll('#secs .insp-section').length;
+    if(rows.length) items.push({ qids: REPORT_QIDS.slice(), checkId: 'report', check: 'The site safety inspection report',
+      note: rows.length + ' check' + (rows.length === 1 ? '' : 's') + ' reviewed across ' + secs + ' criteri' + (secs === 1 ? 'on' : 'a') + ', ' + findings + ' finding' + (findings === 1 ? '' : 's') + ' raised for action', photoId: '' });
+    return items;
+  }
+  function thumb(dataUrl){
+    return new Promise(function(res){
+      if(!dataUrl) return res('');
+      var img = new Image();
+      img.onload = function(){
+        try{
+          var s = Math.min(1, 240 / Math.max(img.width, img.height));
+          var c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          res(c.toDataURL('image/jpeg', 0.6));
+        }catch(e){ res(''); }
+      };
+      img.onerror = function(){ res(''); };
+      img.src = dataUrl;
+    });
+  }
+  async function send(){
+    var st = store();
+    var client = (($('acClient') || {}).value || st.client || '').trim();
+    if(!client){ alert('Type the client reference first - the same words as on the Compass link for this client.'); return; }
+    var items = collect();
+    if(!items.length){ alert('Nothing to send yet: no tagged check is marked Compliant and the report has no rows.'); return; }
+    var btn = $('acSend'); if(btn){ btn.disabled = true; btn.textContent = 'Preparing...'; }
+    var out = [];
+    for(var i = 0; i < items.length; i++){
+      var it = items[i], photo = '';
+      if(it.photoId && window.AHS_PHOTOS){ try{ photo = await thumb(await window.AHS_PHOTOS.get(it.photoId)); }catch(e){} }
+      out.push({ qids: it.qids, checkId: it.checkId, check: it.check, note: it.note, photo: photo });
+    }
+    var f = fp(), v = (window.AHS_VISIT && window.AHS_VISIT.serialize) ? (window.AHS_VISIT.serialize() || {}) : {};
+    var project = (f.projectName || '').trim() || (localStorage.getItem('ahsSyncProject') || 'Project');
+    var date = f.reportDate || today();
+    var id = (window.AHS_VISIT && window.AHS_VISIT.id) ? window.AHS_VISIT.id() : ('insp-' + Date.now());
+    var rec = { inspectionId: String(id || ''), project: project, visit: v.visit_number || '', date: date, sentAt: new Date().toISOString(),
+      inspector: ((($('ins') || {}).textContent) || '').trim(),
+      reportName: 'Safety Inspection Report - ' + project + (v.visit_number ? ' - visit ' + v.visit_number : '') + ' - ' + date,
+      items: out };
+    st.client = client;
+    st.sent = st.sent.filter(function(r){ return r.inspectionId !== rec.inspectionId; }).concat([rec]);   // a resend replaces, never doubles
+    try{ save(st); }
+    catch(e){ alert('Could not save the evidence on this device: ' + (e && e.message)); if(btn){ btn.disabled = false; btn.textContent = 'Send to Compass'; } return; }
+    render();
+    alert('Sent: ' + out.length + ' piece' + (out.length === 1 ? '' : 's') + ' of evidence from this inspection.\n\nIt travels with this inspection when the app syncs (you need to be signed in), and Compass picks it up on its next pull for ' + client + '.');
+  }
+  function remove(inspectionId){
+    if(!confirm('Take this inspection\'s evidence back out of Compass? It goes on the next pull.')) return;
+    var st = store(); st.sent = st.sent.filter(function(r){ return r.inspectionId !== inspectionId; }); save(st); render();
+  }
+  async function loadFocus(){
+    var client = store().client;
+    if(!client){ focus = null; return { ok:false, why:'no-client' }; }
+    try{
+      var r = await fetch('/api/link/focus?client=' + encodeURIComponent(client), { credentials:'same-origin' });
+      if(r.status === 401) return { ok:false, why:'signed-out' };
+      if(!r.ok) return { ok:false, why:'error' };
+      var j = await r.json(); focus = Array.isArray(j.focus) ? j.focus : [];
+      return { ok:true, updatedAt: j.updatedAt };
+    }catch(e){ return { ok:false, why:'offline' }; }
+  }
+  function focusList(){
+    if(!focus || !focus.length) return '';
+    return focus.map(function(f){ return '<div class="ac-row"><span class="ac-q">' + esc(f.id) + '</span><span>' + esc(f.text) + ' <span class="ac-muted">· ' + esc(f.status) + (f.site ? ' · on site: ' + esc(f.site) : '') + '</span></span></div>'; }).join('');
+  }
+  function addFocusToVisit(){
+    if(!focus || !focus.length) return;
+    var words = focus.map(function(f){ return f.site || f.text; });
+    var el = $('si-focus');
+    if(el){ el.value = [el.value.trim()].concat(words).filter(Boolean).join('; '); el.dispatchEvent(new Event('input', { bubbles:true })); }
+  }
+  async function render(){
+    var body = $('acBody'); if(!body) return;
+    var st = store(), items = collect();
+    var ev = items.map(function(it){ return '<div class="ac-row"><span class="ac-q">' + esc(it.qids.join(' ')) + '</span><span><b>' + esc(it.check) + '</b>' + (it.note ? ' - ' + esc(it.note) : '') + (it.photoId ? ' <span class="ac-muted">· with a photo</span>' : '') + '</span></div>'; }).join('');
+    var sent = st.sent.slice().reverse().map(function(r){ return '<div class="ac-row"><span class="ac-q">' + esc(r.date) + '</span><span><b>' + esc(r.project) + (r.visit ? ', visit ' + esc(r.visit) : '') + '</b> · ' + r.items.length + ' piece' + (r.items.length === 1 ? '' : 's') + ' of evidence · sent ' + esc(String(r.sentAt || '').slice(0, 16).replace('T', ' ')) + ' <button type="button" class="ac-btn" style="padding:3px 8px;font-size:12px;" data-ac-remove="' + esc(r.inspectionId) + '">Take back</button></span></div>'; }).join('');
+    body.innerHTML = '<div class="ac-card"><h3>Which client this project is for</h3><p class="ac-sub">Type the client reference saved on this client\'s Site Safety Inspection link in Compass. It is kept with this project.</p>'
+      + '<input class="ac-in" id="acClient" type="text" value="' + esc(st.client) + '" placeholder="e.g. MVL"></div>'
+      + '<div class="ac-card"><h3>What Compass is asking for</h3><div id="acFocus" class="ac-sub">Checking...</div></div>'
+      + '<div class="ac-card"><h3>Evidence from this inspection</h3><p class="ac-sub">Each tagged check marked Compliant goes with its note and its first photo, and the report itself evidences how health and safety is monitored. It is dated and named after the report, and it never replaces a document the client picked in Compass.</p>'
+      + (ev || '<div class="ac-muted">Nothing yet: mark a tagged check Compliant in the inspection criteria. Tagged checks show the question they evidence in teal.</div>')
+      + '<div style="margin-top:12px;"><button type="button" class="ac-btn pri" id="acSend"' + (items.length ? '' : ' disabled') + '>Send to Compass</button></div></div>'
+      + '<div class="ac-card"><h3>Sent from this project</h3>' + (sent || '<div class="ac-muted">Nothing sent yet.</div>') + '</div>';
+    $('acClient').onchange = function(){ var s = store(); s.client = this.value.trim(); save(s); render(); };
+    $('acSend').onclick = send;
+    Array.prototype.forEach.call(body.querySelectorAll('[data-ac-remove]'), function(b){ b.onclick = function(){ remove(b.getAttribute('data-ac-remove')); }; });
+    var r = await loadFocus(), fe = $('acFocus'); if(!fe) return;
+    if(!r.ok) fe.innerHTML = r.why === 'no-client' ? 'Type the client reference above to see it.' : r.why === 'signed-out' ? 'Sign in to see what Compass is asking for.' : 'Compass could not be reached just now.';
+    else if(!focus.length) fe.innerHTML = 'Nothing outstanding that a site inspection can evidence' + (r.updatedAt ? '' : ' (Compass has not pulled for this client yet)') + '.';
+    else fe.innerHTML = 'These still need evidence, and a site inspection can provide it. They show in the visit details as focus areas.' + focusList();
+  }
+  // The visit details form: what Compass is asking for, offered as focus areas
+  async function visitHint(){
+    var host = $('si-focus'); if(!host) return;
+    var box = $('siCompassFocus');
+    if(!box){ box = document.createElement('div'); box.id = 'siCompassFocus'; host.parentNode.appendChild(box); }
+    box.innerHTML = '';
+    if(!store().client) return;
+    var r = await loadFocus();
+    if(!r.ok || !focus.length){ box.innerHTML = ''; return; }
+    box.innerHTML = '<b>Compass is asking for evidence of:</b> ' + focus.map(function(f){ return esc(f.id + ' ' + (f.site || f.text)); }).join('; ')
+      + '<br><button type="button" class="ac-btn" id="siAddFocus">Add these to the focus areas</button>';
+    $('siAddFocus').onclick = addFocusToVisit;
+  }
+  window.AHS_ACCRED.collect = collect;
+  window.AHS_ACCRED.send = send;
+  window.AHS_ACCRED.visitHint = visitHint;
+  window.AHS_ACCRED.loadFocus = loadFocus;
+  window.AHS_ACCRED.open = function(){ var o = $('acOverlay'); if(o){ o.classList.add('open'); render(); } };
+  function init(){
+    var b = $('compassOpen'); if(b) b.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); window.AHS_ACCRED.open(); });
+    var h = $('acHide'); if(h) h.onclick = function(){ $('acOverlay').classList.remove('open'); };
+    if(store().client) loadFocus();
   }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
@@ -9486,6 +9688,7 @@ function addPageFooter(doc, pageNum, totalPages) {
     $('si-visit-hint').textContent = 'Visit ' + n + ' for ' + (fpn ? fpn : 'this project') + (opts.edit ? '' : ' (' + prev + ' previous inspection' + (prev===1?'':'s') + ' on record)');
     $('si-err').textContent = '';
     m.style.display = 'block';
+    try{ if(window.AHS_ACCRED && window.AHS_ACCRED.visitHint) window.AHS_ACCRED.visitHint(); }catch(e){}
     setTimeout(function(){ $('si-operatives').focus(); }, 50);
   }
   // Dismissing the start modal also disarms the gate: once you have chosen to

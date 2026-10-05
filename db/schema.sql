@@ -64,3 +64,13 @@ BEGIN
     ALTER TABLE app_state ADD PRIMARY KEY (tenant_id, project);
   END IF;
 END $$;
+
+-- What Compass says each client still needs evidence for: the open
+-- accreditation questions a site inspection can evidence. Written by
+-- Compass through /api/link/evidence, read by the inspector's visit details.
+-- Keyed by the client reference typed against a project (lower-cased).
+CREATE TABLE IF NOT EXISTS link_focus (
+  client      TEXT PRIMARY KEY,
+  focus       JSONB NOT NULL DEFAULT '[]'::jsonb,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

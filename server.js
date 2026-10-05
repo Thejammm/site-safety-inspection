@@ -19,6 +19,7 @@ const { bootstrap }          = require('./bootstrap');
 const authRoutes             = require('./routes/auth');
 const stateRoutes            = require('./routes/state');
 const adminRoutes            = require('./routes/admin');
+const linkRoutes             = require('./routes/link');
 
 const app  = express();
 const PORT = parseInt(process.env.PORT, 10) || 3000;
@@ -42,6 +43,7 @@ app.get('/healthz', async (_req, res) => {
 app.use('/api/auth',  authRoutes);
 app.use('/api/state', stateRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/link',  linkRoutes);    // Compass: accreditation evidence out, focus areas in
 
 app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'not_found' });
