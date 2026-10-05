@@ -8862,13 +8862,20 @@ function addPageFooter(doc, pageNum, totalPages) {
     try{ save(st); }
     catch(e){ alert('Could not save the evidence on this device: ' + (e && e.message)); if(btn){ btn.disabled = false; btn.textContent = 'Send to Compass'; } return; }
     render();
-    alert('Sent: ' + out.length + ' piece' + (out.length === 1 ? '' : 's') + ' of evidence from this inspection.\n\nIt travels with this inspection when the app syncs (you need to be signed in), and Compass picks it up on its next pull for ' + client + '.');
+    var n = out.length + ' piece' + (out.length === 1 ? '' : 's') + ' of evidence';
+    // The offline copy has no server: the evidence rides in the saved file and
+    // goes to Compass when that file is opened in the online app.
+    alert(window.AHS_OFFLINE
+      ? 'Kept with this inspection: ' + n + '.\n\nSave the inspection file, then open it in the online app with Open file. It goes to Compass for ' + client + ' from there.'
+      : 'Sent: ' + n + ' from this inspection.\n\nIt travels with this inspection when the app syncs (you need to be signed in), and Compass picks it up on its next pull for ' + client + '.');
   }
   function remove(inspectionId){
     if(!confirm('Take this inspection\'s evidence back out of Compass? It goes on the next pull.')) return;
     var st = store(); st.sent = st.sent.filter(function(r){ return r.inspectionId !== inspectionId; }); save(st); render();
   }
   async function loadFocus(){
+    // the offline copy has no server to ask, whatever the reference
+    if(window.AHS_OFFLINE) return { ok:false, why:'offline-copy' };
     var client = store().client;
     if(!client){ focus = null; return { ok:false, why:'no-client' }; }
     try{
@@ -8899,13 +8906,13 @@ function addPageFooter(doc, pageNum, totalPages) {
       + '<div class="ac-card"><h3>What Compass is asking for</h3><div id="acFocus" class="ac-sub">Checking...</div></div>'
       + '<div class="ac-card"><h3>Evidence from this inspection</h3><p class="ac-sub">Each tagged check marked Compliant goes with its note and its first photo, and the report itself evidences how health and safety is monitored. It is dated and named after the report, and it never replaces a document the client picked in Compass.</p>'
       + (ev || '<div class="ac-muted">Nothing yet: mark a tagged check Compliant in the inspection criteria. Tagged checks show the question they evidence in teal.</div>')
-      + '<div style="margin-top:12px;"><button type="button" class="ac-btn pri" id="acSend"' + (items.length ? '' : ' disabled') + '>Send to Compass</button></div></div>'
+      + '<div style="margin-top:12px;"><button type="button" class="ac-btn pri" id="acSend"' + (items.length ? '' : ' disabled') + '>' + (window.AHS_OFFLINE ? 'Keep for Compass' : 'Send to Compass') + '</button></div></div>'
       + '<div class="ac-card"><h3>Sent from this project</h3>' + (sent || '<div class="ac-muted">Nothing sent yet.</div>') + '</div>';
     $('acClient').onchange = function(){ var s = store(); s.client = this.value.trim(); save(s); render(); };
     $('acSend').onclick = send;
     Array.prototype.forEach.call(body.querySelectorAll('[data-ac-remove]'), function(b){ b.onclick = function(){ remove(b.getAttribute('data-ac-remove')); }; });
     var r = await loadFocus(), fe = $('acFocus'); if(!fe) return;
-    if(!r.ok) fe.innerHTML = r.why === 'no-client' ? 'Type the client reference above to see it.' : r.why === 'signed-out' ? 'Sign in to see what Compass is asking for.' : 'Compass could not be reached just now.';
+    if(!r.ok) fe.innerHTML = r.why === 'no-client' ? 'Type the client reference above to see it.' : r.why === 'offline-copy' ? 'This is the offline copy, so it cannot reach Compass. Open this inspection in the online app to see what Compass is asking for.' : r.why === 'signed-out' ? 'Sign in to see what Compass is asking for.' : 'Compass could not be reached just now.';
     else if(!focus.length) fe.innerHTML = 'Nothing outstanding that a site inspection can evidence' + (r.updatedAt ? '' : ' (Compass has not pulled for this client yet)') + '.';
     else fe.innerHTML = 'These still need evidence, and a site inspection can provide it. They show in the visit details as focus areas.' + focusList();
   }
@@ -10767,7 +10774,7 @@ function addPageFooter(doc, pageNum, totalPages) {
    ══════════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
-  var LS_KEYS = ['FRONTPAGE_DATA_V1', 'clientLogo', 'AHS_INSPECTIONS_V1', 'AHS_SIGNOFF_ON'];
+  var LS_KEYS = ['FRONTPAGE_DATA_V1', 'clientLogo', 'AHS_INSPECTIONS_V1', 'AHS_SIGNOFF_ON', 'AHS_ACCRED_EVIDENCE_V1'];
 
   function fromJson(text) {
     var o = JSON.parse(text);

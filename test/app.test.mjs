@@ -1052,3 +1052,14 @@ test('a finished inspection sends its compliant tagged checks and the report, an
   assert.equal(focusAsked, false, 'from disk there is no server, and asking for focus areas must fail quietly');
   assert.deepEqual(errs, []);
 });
+
+test('evidence kept in the offline copy reaches Compass through Open file', () => {
+  // The offline copy has no server, so its evidence rides in the saved file.
+  // Open file in the online app must bring that key across, after which it
+  // syncs like the rest of the project; the panel says so in the offline copy.
+  const openFile = SRC.slice(SRC.indexOf('Open a saved inspection file  (ONLINE app'));
+  assert.match(openFile, /var LS_KEYS = \['FRONTPAGE_DATA_V1', 'clientLogo', 'AHS_INSPECTIONS_V1', 'AHS_SIGNOFF_ON', 'AHS_ACCRED_EVIDENCE_V1'\];/,
+    'Open file drops the accreditation evidence an offline save carries');
+  assert.match(SRC, /if\(window\.AHS_OFFLINE\) return \{ ok:false, why:'offline-copy' \};/, 'the offline copy tries to reach Compass');
+  assert.match(SRC, /window\.AHS_OFFLINE \? 'Keep for Compass' : 'Send to Compass'/, 'the offline copy promises to send what it can only keep');
+});
