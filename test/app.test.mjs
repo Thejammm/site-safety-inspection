@@ -711,3 +711,236 @@ test('the report is structured: scene setting, then an outcome organised under t
   assert.match(SRC, /gen\.push\(\{ text: OPPORTUNITIES_HEADING, hl:false, head:true \}\);/, 'the comments box no longer separates observations from opportunities');
   assert.match(SRC, /g\.html = g\.head \? '<strong>' \+ _esc\(g\.text\) \+ '<\/strong>'/, 'the comments-box headings are no longer bold');
 });
+
+// ────────────────────────────────────────────────────────────────
+//  Temporary Works - a tile on each list, in Simon's own words
+// ────────────────────────────────────────────────────────────────
+
+// The 25 checks exactly as Simon wrote them in his brief of 5 October 2026,
+// each with the source he gave for it: [wording, source]. The wording is his.
+// Do not tidy it here to make a test pass - change it only when he does.
+const TW = {
+  pc: [
+    ["PC's Designated Individual named and the temporary works procedure in place.",
+     "CITB simplified TW process flowchart v02.00; CITB TWC lesson plan 5.3"],
+    ["TWC appointment letter issued and accepted; TWC named in the construction phase plan; deputy appointed.",
+     "CITB flowchart v02.00; TWf Information Sheet 3, 3.1.2; CITB TWCTC scheme of work 5.6"],
+    ["TWS appointment letters where TWSs are used, each showing which TWC they answer to (a TWS is optional; with none, the TWC covers the duties).",
+     "CITB flowchart v02.00; CITB TWCTC scheme of work 5.7, 5.8"],
+    ["Organogram shows every DI, TWC and TWS and who answers to whom.",
+     "CITB TWCTC scheme of work 5.2"],
+    ["Any subcontractor managing its own TW has the PC's DI's agreement, its own TWC appointed by its own DI, and a communication protocol in the implementation plan. The PC's TWC keeps overall responsibility.",
+     "CITB TWCTC scheme of work 5.9; CITB TWC lesson plan 4.4; IOSH BS 5975:2019 update slides"],
+    ["Temporary works register current, with every item seen on site, its implementation risk class and its design check category.",
+     "CITB completed example TW register v02.00; CITB TWC lesson plan 6.1"],
+    ["Design brief issued for each item and signed off by the originator, TWC and PC's TWC.",
+     "CITB completed example TW design brief v02.00"],
+    ["Design certificate and design check certificate for each design, at the right independence for its category (categories 2 and 3 need check calculations; category 3 is checked by another organisation).",
+     "CITB completed example design and check certificate v02.00; CITB TWC lesson plan 6.4"],
+    ["Standard solutions have a recorded application check; any change from the supplier's tables has been peer reviewed.",
+     "CITB TWC lesson plan 6.5, 6.6"],
+    ["Implementation plan, RAMS and ITP with hold points, reviewed and accepted before installation; approved by the PC's TWC if written by others.",
+     "CITB TWC lesson plan 7.2, 10.1; CITB completed example TW register v02.00"],
+    ["The implementation plan says who may issue permits and for what scope; permits to load and unload are issued by the PC's TWC or someone authorised.",
+     "CITB TWC lesson plan 10.3"],
+    ["Inspection regime set for each item and records up to date, including statutory inspections.",
+     "CITB completed example TW register v02.00; CITB flowchart v02.00"],
+    ["Changes recorded in writing against the original brief and approved by the designer before any alteration.",
+     "CITB TWC lesson plan 10.2; IOSH BS 5975:2019 update slides"],
+    ["TWC has the authority to stop the work.",
+     "HSE Management of Temporary Works presentation; IOSH BS 5975:2019 update slides"],
+    ["TW information for the Health and Safety File identified, such as items left in place.",
+     "CITB completed example TW design brief v02.00; TWf Information Sheet 3, 3.3"],
+  ],
+  c: [
+    ["The contractor's temporary works are on the PC's register.",
+     "CITB TWC lesson plan 6.1; CITB completed example TW register v02.00"],
+    ["If the contractor manages its own TW: the PC's DI has agreed, and the contractor's TWC is appointed by its own DI and works within the PC's TWC's system.",
+     "CITB TWCTC scheme of work 5.9; CITB TWC lesson plan 4.4"],
+    ["The supervisor on site knows who their TWC is.",
+     "CITB TWCTC scheme of work 5.7, 5.8"],
+    ["Built as designed: checked against the drawing on site, using the designer's quality-control checklist where there is one.",
+     "CITB TWC lesson plan 7.3"],
+    ["Proprietary or standard kit: supplier's information in hand and an application check recorded for this location.",
+     "CITB TWC lesson plan 6.5; HSE Management of Temporary Works presentation"],
+    ["RAMS for the temporary works reviewed and accepted by the PC before installation.",
+     "CITB completed example TW register v02.00"],
+    ["Permit to load held by the supervisor directly responsible before any loading, with the load case and controls matching what is happening.",
+     "CITB completed example TW permit to load v02.00"],
+    ["No unauthorised changes, such as props or ties removed for access; any change has gone through the TWC to the designer and been approved first.",
+     "CITB TWC lesson plan 10.2"],
+    ["Inspections carried out and recorded to the regime on the register, including statutory inspections.",
+     "CITB completed example TW register v02.00; CITB flowchart v02.00"],
+    ["Striking or dismantling only under a permit to unload, with the sequence referenced and the permanent works confirmed self-supporting.",
+     "CITB completed example TW permit to unload v02.00; CITB TWC lesson plan 10.3, 10.5"],
+  ],
+};
+const TW_LISTS = [['PC', 43, 's43_', TW.pc], ['C', 44, 'c44_', TW.c]];
+
+function listLiteral(name) {
+  const p0 = SRC.indexOf('const ' + name + ' = [');
+  assert.ok(p0 > 0, name + ' not found');
+  let i = SRC.indexOf('[', p0), d = 0, p1 = -1;
+  for (; i < SRC.length; i++) { const ch = SRC[i]; if (ch === '[') d++; else if (ch === ']') { d--; if (d === 0) { p1 = i; break; } } }
+  return new Function('return ' + SRC.slice(SRC.indexOf('[', p0), p1 + 1) + ';')();
+}
+
+test('temporary works is a tile on both lists, in the words Simon wrote, each with its source', () => {
+  // A tile needs both halves: the checks, labelled with the section number, and
+  // the section title in SIMPLE_SNIPPETS. The name on the checklist is the
+  // wording without its final full stop, as every other check name is, so a
+  // finding reads "<wording> - <note> (A)"; the report sentence is the wording whole.
+  const phrases = listLiteral('SIMPLE_PHRASES'), snippets = listLiteral('SIMPLE_SNIPPETS');
+  const byId = Object.fromEntries(phrases.map(p => [p.id, p]));
+  for (const [mode, num, prefix, list] of TW_LISTS) {
+    const head = '(' + mode + ' - Section ' + num + ') ';
+    const checks = phrases.filter(p => (p.label || '').startsWith(head));
+    assert.equal(checks.length, list.length, mode + ' temporary works should have ' + list.length + ' checks, found ' + checks.length + ' - nothing is to be added to or dropped from his list');
+    list.forEach(([wording, source], i) => {
+      const p = byId[prefix + (i + 1)];
+      assert.ok(p, prefix + (i + 1) + ' is missing');
+      assert.equal(p.text, wording, prefix + (i + 1) + ': the wording is no longer what Simon wrote');
+      assert.equal(p.label, head + wording.replace(/\.$/, ''), prefix + (i + 1) + ': the name on the checklist has drifted from the wording');
+      assert.equal(p.src, source, prefix + (i + 1) + ': the source is no longer what Simon gave');
+    });
+    const tmpl = snippets.find(s => new RegExp('^\\s*' + mode + '\\s*-\\s*Section\\s*' + num + '\\b').test(s.title || ''));
+    assert.ok(tmpl, mode + ' Section ' + num + ' template is gone - the tile would never appear');
+    assert.match(tmpl.title, /- Temporary Works$/, mode + ' Section ' + num + ' is no longer the temporary works section');
+  }
+  assert.match(SRC, /'temporary works':'TWK'/, 'the temporary works tiles lost their TWK code');
+  // The source is shown under the check on the criteria screen...
+  assert.match(SRC, /check: m\[3\], text: p\.text \|\| '', src: p\.src \|\| ''/, 'the bank no longer carries a check\'s source through to the criteria screen');
+  assert.match(SRC, /\(q\.src \? '<div class="cap-law">Source: ' \+ esc\(q\.src\) \+ '<\/div>' : ''\)/, 'the source is no longer shown under the check');
+  // ...and nowhere else. The report cites regulations, never course material.
+  const b0 = SRC.indexOf('async function build(opts){'), b1 = SRC.indexOf('// ── Wire up ──', b0);
+  assert.ok(b0 > 0 && b1 > b0, 'build() not found');
+  assert.doesNotMatch(SRC.slice(b0, b1), /\.src\b/, 'build() is writing a check\'s source into the report');
+  // Simon kept the temporary works checks that were already there: saved inspections use them.
+  ['s11_9', 's11_10', 's11_11', 's11_12', 's11_13', 's11_14', 's11_15', 's11_16', 'c32_5'].forEach(id =>
+    assert.ok(byId[id], 'the existing temporary works check ' + id + ' has gone - saved inspections refer to it'));
+});
+
+test('temporary works rests on regulations already in the register, never on the course material', () => {
+  // The sources are CITB, TWf, IOSH and HSE training material: not law. Simon
+  // approved the basis on 5 October 2026: CDM 2015 reg 13(1) and reg 19 for the
+  // Principal Contractor's list, regs 15(2), 15(3) and 19 for the contractor's,
+  // with BS 5975 behind both as the standard. Reg 12(7) was read on
+  // legislation.gov.uk that day before it was added for the Health and Safety File check.
+  const s = SRC.indexOf('// ── AHS_LAW start ──'), e = SRC.indexOf('// ── AHS_LAW end ──');
+  const L = new Function(SRC.slice(s, e) + '\nreturn { CRITERIA_LAW, SECTION_HSE, AHS_LAW };')();
+  const approved = {
+    PC: ['cdm13_1', 'cdm19_1', 'cdm19_2', 'cdm19_3', 'cdm12_7', 'g_bs5975'],
+    C: ['cdm15_2', 'cdm15_3a', 'cdm15_3b', 'cdm19_1', 'cdm19_2', 'cdm19_3', 'g_bs5975'],
+  };
+  const holder = { PC: 'Principal Contractor', C: 'Contractor' };
+  const pids = {};
+  for (const [mode, , prefix, list] of TW_LISTS) {
+    pids[mode] = list.map((_, i) => prefix + (i + 1));
+    pids[mode].forEach(pid => {
+      const m = L.CRITERIA_LAW[pid];
+      assert.ok(m, pid + ' has no legal basis');
+      assert.equal(m.holder, holder[mode], pid + ' names the wrong duty holder');
+      m.law.forEach(id => assert.ok(approved[mode].includes(id), pid + ' cites ' + id + ', which is not in the basis Simon approved'));
+      assert.equal(L.AHS_LAW.get(m.law[0]).kind, 'statutory', pid + ' must rest on a regulation first, with the standard behind it');
+    });
+  }
+  assert.equal(L.AHS_LAW.anchorLine('PC43', pids.PC), 'Assessed against CDM 2015 regs 12(7), 13(1), 19(2) and 19(3).');
+  assert.equal(L.AHS_LAW.anchorLine('C44', pids.C), 'Assessed against CDM 2015 regs 15(2), 15(3)(a), 15(3)(b), 19(1), 19(2) and 19(3).');
+  assert.equal(L.AHS_LAW.get('cdm12_7').cite, 'CDM 2015 reg 12(7)');
+  assert.match(L.AHS_LAW.get('cdm12_7').requirement, /relevant to the health and safety file/, 'reg 12(7) is not the file-information duty');
+  assert.deepEqual([L.SECTION_HSE.PC43, L.SECTION_HSE.C44], [['g_hse_tw'], ['g_hse_tw']], 'HSE\'s temporary works page is no longer behind the temporary works sections');
+});
+
+test('a finding with no note is not read back as the inspector\'s own words', () => {
+  // Found on 5 October 2026 while proving the temporary works tiles, and already
+  // live: a finding marked without a note is written into the comments box as
+  // the check's name and its letter. The composer took that line for something
+  // the inspector had typed, printed "The inspector also noted: Permits to load
+  // and strike." and, because the box now seemed to speak for the section,
+  // dropped the notes on the section's other findings from the conclusion.
+  const s = SRC.indexOf('// ── AHS_COMPOSE start ──'), e = SRC.indexOf('// ── AHS_COMPOSE end ──');
+  const C = new Function(SRC.slice(s, e) + '\nreturn AHS_COMPOSE;')();
+  const stop = 'TWC has the authority to stop the work.';
+  const model = lines => ({
+    client: 'Department for Health', pc: 'Henry Boot Construction Ltd', contract: '', contractor: '',
+    contact: 'Mark (Site Manager)', inspector: 'Simon Archer', visit: {},
+    legal: { statutory: 'CDM 2015 regs 19(2) and 19(3)', hse: '', contractual: '' },
+    scope: { instruments: 'the Construction (Design and Management) Regulations 2015', statutory: 'CDM 2015 reg 19(2)', hse: '' },
+    criteria: [C.OBSERVED, C.OPPORTUNITIES, stop],
+    sections: [{ name: 'Scaffolds and Temporary works', lines,
+      rows: [{ item: 'Temporary works coordination', status: 'minor', note: 'No TWC appointed in writing' },
+             { item: 'Permits to load and strike', status: 'minor', note: '' },
+             { item: stop.replace(/\.$/, ''), status: 'observation', note: '', text: stop }] }],
+  });
+  const built = [C.OPPORTUNITIES, '• Temporary works coordination - No TWC appointed in writing (A)',
+    '• Permits to load and strike (A)', '• ' + stop.replace(/\.$/, '') + ' (O)'];
+  const closing = C.build(model(built), 'closing').join('\n');
+  assert.doesNotMatch(closing, /also noted/i, 'a finding line the builder wrote has come back as the inspector\'s own words');
+  assert.match(closing, /• Temporary works coordination - No TWC appointed in writing\./, 'the note on another finding in the section dropped out of the conclusion');
+  assert.match(closing, /• Permits to load and strike - corrective action required\./, 'a finding with no note lost its line');
+  // what he does type into the box is still his
+  const own = C.build(model(built.concat(['The hoarding on the east boundary had been moved without the coordinator being told.'])), 'closing').join('\n');
+  assert.match(own, /The hoarding on the east boundary had been moved without the coordinator being told\./, 'the inspector\'s own line was swallowed');
+});
+
+test('temporary works stays out of the report until a check is marked, then survives a reload', { skip: !CHROME && 'Chrome not found' }, async () => {
+  // Simon's brief: hidden until needed. Opening the tile and marking nothing
+  // must leave no trace in the report or the saved inspection; a mark, a note
+  // and the report section they build must all come back after a reload.
+  const { browser, page, errs } = await boot();
+  const pause = ms => new Promise(r => setTimeout(r, ms));
+  const snapshot = () => page.evaluate(() => ({
+    saved: Object.keys(localStorage).filter(k => k.indexOf('AHS_REPORT_DRAFT_V1:') === 0).map(k => localStorage.getItem(k)).join(''),
+    sections: Array.from(document.querySelectorAll('#secs .insp-section')).map(sec => ({
+      name: sec.querySelector('.field .rte').innerText.trim(),
+      rows: Array.from(sec.querySelectorAll('.items-list .item-row')).map(r => {
+        const t = r.querySelectorAll(".rte[contenteditable='true']");
+        return [t[0].innerText.trim(), r.querySelector('select.status-select').value, t[1].innerText.trim()];
+      }),
+    })),
+  }));
+  // The criteria screen reopens where it was left, so go back to the tiles
+  // first. The mode buttons are looked up inside the overlay: the page has
+  // another, hidden, set with the same data-mode.
+  const openTile = async () => {
+    await page.evaluate(() => {
+      document.getElementById('capOpen').click();
+      const back = document.getElementById('capBack');
+      if (back.style.display !== 'none') back.click();
+    });
+    await page.click('#capOverlay .cap-mode button[data-mode="PC"]');
+    await page.click('#capOverlay .cap-tile[data-key="PC43"]');
+  };
+  const close = async () => { await page.evaluate(() => document.getElementById('capHide').click()); await pause(1500); };
+
+  let shown, untouched, marked, reloaded, back;
+  try {
+    await openTile();
+    shown = await page.evaluate(() => Array.from(document.querySelectorAll('.cap-item')).map(n => n.querySelectorAll('.cap-law').length));
+    await close();
+    untouched = await snapshot();
+    await openTile();
+    await page.click('.cap-item[data-pid="s43_6"] .cap-st[data-st="minor"]');
+    await page.type('.cap-item[data-pid="s43_6"] .cap-note', 'Register not updated since March');
+    await close();
+    marked = await snapshot();
+    await page.reload({ waitUntil: 'networkidle0' });
+    await pause(2000);
+    reloaded = await snapshot();
+    await openTile();
+    back = await page.evaluate(() => { const n = document.querySelector('.cap-item[data-pid="s43_6"]');
+      return [n.querySelector('.cap-st[data-on="1"]').getAttribute('data-st'), n.querySelector('.cap-note').value]; });
+  } finally {
+    await browser.close();   // a failure must not leave Chrome holding the whole run open
+  }
+
+  assert.equal(shown.length, 15, 'the tile does not open its 15 checks');
+  assert.ok(shown.every(n => n === 2), 'a check is missing its regulation line or its source line');
+  assert.deepEqual(untouched.sections, [], 'opening the tile put something in the report');
+  assert.doesNotMatch(untouched.saved, /PC43|s43_/, 'opening the tile wrote temporary works into the saved inspection');
+  const row = [TW.pc[5][0].replace(/\.$/, ''), 'minor', 'Register not updated since March'];
+  assert.deepEqual(marked.sections, [{ name: 'Temporary Works', rows: [row] }], 'the marked check did not build its section in the report');
+  assert.deepEqual(reloaded.sections, marked.sections, 'the temporary works section did not survive a reload');
+  assert.deepEqual(back, ['minor', 'Register not updated since March'], 'the tick or the note did not survive a reload');
+  assert.deepEqual(errs, []);
+});
