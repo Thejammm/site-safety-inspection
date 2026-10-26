@@ -3078,6 +3078,15 @@ window.AHS_TO_DEVICE = (function () {
     try { localStorage.setItem(SAVED_KEY, JSON.stringify(Object.keys(saved))); } catch (e) {}
   }
 
+  // Hide on the bar: it stays away until a photo arrives that was not
+  // outstanding when it was hidden. This device only, ids only.
+  var HIDDEN_KEY = "ahsPhotoBarHidden";
+  var hidden = Object.create(null);
+  try {
+    var rawHidden = localStorage.getItem(HIDDEN_KEY);
+    if (rawHidden) JSON.parse(rawHidden).forEach(function (id) { hidden[id] = 1; });
+  } catch (e) {}
+
   // Files are built AHEAD of the tap. navigator.share must be called during
   // the gesture: any await before it spends the gesture and iOS refuses.
   var ready = Object.create(null);   // id -> File
@@ -3116,20 +3125,31 @@ window.AHS_TO_DEVICE = (function () {
       "align-items:center;gap:14px;box-shadow:0 -2px 10px rgba(0,0,0,.25)");
     bar.innerHTML = "<span id=\"ahs-todevice-msg\" style=\"flex:1 1 auto\"></span>" +
       "<button type=\"button\" id=\"ahs-todevice-go\" style=\"flex:0 0 auto;background:#fff;color:#7d1c07;" +
-      "border:0;font:inherit;font-weight:700;padding:10px 16px;cursor:pointer\">Save to iPad</button>";
+      "border:0;font:inherit;font-weight:700;padding:10px 16px;cursor:pointer\">Save to iPad</button>" +
+      "<button type=\"button\" id=\"ahs-todevice-hide\" title=\"Hide this bar until there are new photos\" " +
+      "style=\"flex:0 0 auto;background:none;color:#fff;border:1px solid rgba(255,255,255,.6);" +
+      "font:inherit;font-weight:700;padding:9px 14px;cursor:pointer\">Hide</button>";
     document.body.appendChild(bar);
     bar.querySelector("#ahs-todevice-go").addEventListener("click", save);
+    bar.querySelector("#ahs-todevice-hide").addEventListener("click", hide);
     return bar;
   }
 
+  function hide() {
+    pending().forEach(function (im) { hidden[im.id] = 1; });
+    try { localStorage.setItem(HIDDEN_KEY, JSON.stringify(Object.keys(hidden))); } catch (e) {}
+    paint();
+  }
+
   function paint() {
-    var n = pending().length;
+    var list = pending();
+    var n = list.length;
     var btn = document.getElementById("savePhotos");
     if (btn && !btn.disabled) {
       btn.textContent = n ? ("Save " + n + " photo" + (n === 1 ? "" : "s") + " to iPad") : "Photos saved to iPad";
     }
     var b = ensureBar();
-    if (!n) { b.style.display = "none"; return; }
+    if (!n || list.every(function (im) { return hidden[im.id]; })) { b.style.display = "none"; return; }
     b.querySelector("#ahs-todevice-msg").innerHTML =
       "<strong>" + n + " photo" + (n === 1 ? " is" : "s are") + " only in this browser.</strong> " +
       "Save them onto the iPad so they cannot be lost.";
