@@ -8710,7 +8710,7 @@ function addPageFooter(doc, pageNum, totalPages) {
 
   async function build(opts){
     opts = opts || {};
-    var built = 0, photosAdded = 0;
+    var built = 0, photosAdded = 0, linksMoved = false;
     // Every section that has been answered goes in, whichever list it came
     // from: one inspection can carry both the contractor's own criteria and the
     // Principal Contractor's. Sections never touched have no state and are
@@ -8839,6 +8839,13 @@ function addPageFooter(doc, pageNum, totalPages) {
           // Rows the user added by hand carry no capKey. They are not ours to
           // regenerate, so lift them out and put them back after the criteria rows.
           var manual = Array.prototype.filter.call(list.querySelectorAll('.item-row'), function(r){ return !(r.dataset && r.dataset.capKey); });
+          // A photo is linked to a row by its place in the section, and this
+          // puts the rows back in the builder's order. Note which item each
+          // linked photo is on before the rows go, so it follows its item.
+          var itemOf = function(r){ return (r.dataset && r.dataset.capPid) ? 'cap:' + r.dataset.capPid : r; };
+          var before = Array.prototype.map.call(node.querySelectorAll('.item-row'), itemOf);
+          var onRows = allImages.filter(function(im){ return im.link && im.link.instanceId === inst.instanceId && im.link.row !== null && im.link.row !== undefined; })
+            .map(function(im){ return { im: im, item: before[Number(im.link.row)] }; });
           list.innerHTML = '';
           rows.forEach(function(r){
             addItemRow(list);
@@ -8854,12 +8861,27 @@ function addPageFooter(doc, pageNum, totalPages) {
             if(rtes[1]) rtes[1].textContent = r.note;
           });
           manual.forEach(function(r){ list.appendChild(r); });
+          var after = Array.prototype.map.call(node.querySelectorAll('.item-row'), itemOf);
+          onRows.forEach(function(p){
+            var at = p.item === undefined ? -1 : after.indexOf(p.item);
+            var link = at >= 0 ? { instanceId: inst.instanceId, row: at } : null;
+            if(JSON.stringify(link) !== JSON.stringify(p.im.link)){ p.im.link = link; linksMoved = true; }
+          });
+          // A photo taken against a check in the criteria screen goes on that
+          // check's row, unless it has been put somewhere else by hand.
+          rows.forEach(function(r){
+            var at = after.indexOf('cap:' + r.capPid);
+            ((sec.items[r.capPid] || {}).photos || []).forEach(function(id){
+              var im = allImages.find(function(x){ return x.id === id; });
+              if(im && !im.link && at >= 0){ im.link = { instanceId: inst.instanceId, row: at }; linksMoved = true; }
+            });
+          });
         }
       }
       sec.builtSig = sig;
       built++;
     }
-    if(photosAdded && typeof renderImages === 'function') await renderImages();
+    if((photosAdded || linksMoved) && typeof renderImages === 'function') await renderImages();
     if(typeof updateStatusSelectColors === 'function') updateStatusSelectColors();
     if(typeof updateScoreDashboard === 'function') updateScoreDashboard();
     if(window.AHS_DRAFT && window.AHS_DRAFT.saveNow) window.AHS_DRAFT.saveNow();
