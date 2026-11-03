@@ -1063,3 +1063,154 @@ test('evidence kept in the offline copy reaches Compass through Open file', () =
   assert.match(SRC, /if\(window\.AHS_OFFLINE\) return \{ ok:false, why:'offline-copy' \};/, 'the offline copy tries to reach Compass');
   assert.match(SRC, /window\.AHS_OFFLINE \? 'Keep for Compass' : 'Send to Compass'/, 'the offline copy promises to send what it can only keep');
 });
+
+// ────────────────────────────────────────────────────────────────
+//  Constructionline Evidence - Contractor Section 47, out of the report until switched in
+// ────────────────────────────────────────────────────────────────
+
+// Simon's list, 3 November 2026, word for word. Saved inspections refer to these ids.
+const CLE = [
+  'Toolbox talks since the last visit, with signed attendance',
+  'Operative feedback or questions recorded on those toolbox talks',
+  'H&S meeting minutes since the last visit, showing issues and actions closed',
+  'Findings from previous AHS and PC inspections closed out, with date and photo',
+  'PC/client RAMS approval held for current works',
+  'Training matrix current, with expiries, and a copy issued to the PC for this site',
+  'Site induction records for all operatives on site',
+  'Subcontractor onboarding records for any subcontractors used',
+  'Accident, incident and near-miss log kept, including a nil return',
+  'Plant and tool inspection or calibration records, with retest dates',
+  'PC system cross-check (Dalux, BIM 360 or Procore): open tasks and the oldest date, latest safe start or briefing record, mandatory checklists outstanding',
+  'Environmental records (waste transfer notes, environmental briefings)',
+  'Quality records (quality checklists, snag or defect close-outs)',
+  'Building Safety records (installer competence, records passed to the PC, such as fire stopping)',
+];
+
+test('the Constructionline Evidence tile carries Simon\'s 14 checks, each on a regulation read at source', () => {
+  const p0 = SRC.indexOf('const SIMPLE_PHRASES = [');
+  let i = SRC.indexOf('[', p0), d = 0, p1 = -1;
+  for (; i < SRC.length; i++) { const ch = SRC[i]; if (ch === '[') d++; else if (ch === ']') { d--; if (d === 0) { p1 = i; break; } } }
+  const phrases = new Function('return ' + SRC.slice(SRC.indexOf('[', p0), p1 + 1) + ';')();
+  const mine = phrases.filter(p => /^\(C - Section 47\)/.test(p.label));
+  assert.deepEqual(mine.map(p => p.id), CLE.map((_, n) => 'c47_' + (n + 1)), 'the check ids changed - saved inspections refer to them');
+  assert.deepEqual(mine.map(p => p.label.replace('(C - Section 47) ', '')), CLE, 'a check was reworded');
+  assert.ok(mine.every(p => p.text === p.label.replace('(C - Section 47) ', '') + '.'), 'a check writes something other than its own words into the report');
+  assert.ok(!phrases.some(p => /^\(PC - Section 47\)/.test(p.label)), 'the tile is Contractor only');
+  assert.match(SRC, /title: "C - Section 47 - Constructionline Evidence"/, 'the section template that makes it a tile is missing');
+  assert.match(SRC, /'constructionline evidence':'CLE'/);
+  assert.doesNotMatch(SRC.slice(p0, p1), /[–—]/, 'a dash crept into the criteria');
+
+  const s = SRC.indexOf('// ── AHS_LAW start ──'), e = SRC.indexOf('// ── AHS_LAW end ──');
+  const L = new Function(SRC.slice(s, e) + '\nreturn { CRITERIA_LAW, SECTION_HSE, AHS_LAW };')();
+  mine.forEach(p => {
+    const m = L.CRITERIA_LAW[p.id];
+    assert.ok(m, p.id + ' has no legal basis');
+    assert.equal(m.holder, 'Contractor', p.id + ' names the wrong duty holder');
+    assert.equal(L.AHS_LAW.get(m.law[0]).kind, 'statutory', p.id + ' must rest on a regulation first');
+  });
+  // the four entries added for it, read on legislation.gov.uk on 3 November 2026
+  const added = {
+    epa34_1: ['EPA 1990 s.34(1)', /ukpga\/1990\/43\/section\/34$/, /written description of the waste/],
+    br7_1: ['Building Regulations 2010 reg 7(1)', /uksi\/2010\/2214\/regulation\/7$/, /workmanlike manner/],
+    br11f_1: ['Building Regulations 2010 reg 11F(1)', /regulation\/11F$/, /skills, knowledge, experience and behaviours/],
+    br11l_3: ['Building Regulations 2010 reg 11L(3)', /regulation\/11L$/, /sufficient information about the work/],
+  };
+  Object.entries(added).forEach(([id, [cite, url, req]]) => {
+    const x = L.AHS_LAW.get(id);
+    assert.ok(x, id + ' is not in the register');
+    assert.equal(x.cite, cite); assert.match(x.url, url); assert.match(x.requirement, req);
+  });
+  assert.equal(L.AHS_LAW.anchorLine('C47', ['c47_12', 'c47_13', 'c47_14']),
+    'Assessed against EPA 1990 s.34(1); Building Regulations 2010 regs 7(1), 11F(1) and 11L(3).');
+  assert.deepEqual(L.SECTION_HSE.C47, ['g_hse_admin']);
+  // no new Compass tags: the 41 pinned above stay the whole list
+  const TAGS = JSON.parse(SRC.match(/var TAGS = (\{[^\n]*\});/)[1]);
+  assert.ok(!Object.keys(TAGS).some(k => /^c47_/.test(k)), 'a Constructionline check was tagged to Compass without Simon seeing it');
+});
+
+test('a section switched out of the report keeps its photos in the inspection but out of the PDF and print', () => {
+  assert.match(SRC, /var REPORT_OPTIONAL = \{ C47: true \};/, 'Constructionline Evidence is no longer out of the report by default');
+  assert.match(SRC, /imageContainer\.querySelectorAll\('\.img-item:not\(\.img-off\) img'\)/, 'the PDF prints the photos of a section left out of the report');
+  assert.match(SRC, /@media print\{ \.img-item\.img-off\{ display:none !important; \} \}/, 'print shows the photos of a section left out of the report');
+  assert.match(SRC, /if\(REPORT_OPTIONAL\[k\]\)\{ delete sec\.rep; return; \}/, 'removing the section from the report throws its answers away instead of switching it out');
+});
+
+test('Constructionline Evidence stays out of the report until switched in, and its answers and photos survive', { skip: !CHROME && 'Chrome not found' }, async () => {
+  const os = await import('node:os');
+  const png = path.join(os.tmpdir(), 'ahs-cle-test.png');
+  fs.writeFileSync(png, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'));
+  const { browser, page, errs } = await boot();
+  const pause = ms => new Promise(r => setTimeout(r, ms));
+  const toTiles = () => page.evaluate(() => {
+    document.getElementById('capOpen').click();
+    const back = document.getElementById('capBack');
+    if (back.style.display !== 'none') back.click();
+  });
+  const openTile = async () => {
+    await toTiles();
+    await page.click('#capOverlay .cap-mode button[data-mode="C"]');
+    await page.click('#capOverlay .cap-tile[data-key="C47"]');
+  };
+  const close = async () => { await page.evaluate(() => document.getElementById('capHide').click()); await pause(1500); };
+  const snap = () => page.evaluate(() => {
+    const cap = window.AHS_CAPTURE.serialize();
+    const it = ((cap.sections.C47 || {}).items || {}).c47_1 || {};
+    return {
+      sections: Array.from(document.querySelectorAll('#secs .insp-section')).map(sec => sec.querySelector('.field .rte').innerText.trim()),
+      rows: document.querySelectorAll('#secs .item-row').length,
+      answer: [it.st || '', it.note || '', (it.photos || []).length],
+      tiles: Array.from(document.querySelectorAll('#imgp .img-item')).map(t => t.classList.contains('img-off')),
+      pdfPhotos: document.querySelectorAll('#imgp .img-item:not(.img-off) img').length,
+    };
+  });
+  let home, items, out1, in1, out2, reloaded;
+  try {
+    await toTiles();
+    await page.click('#capOverlay .cap-mode button[data-mode="C"]');
+    home = await page.evaluate(() => {
+      const t = document.querySelector('#capOverlay .cap-tile[data-key="C47"]');
+      return t ? [t.querySelector('.t').textContent, t.querySelector('.code').textContent, t.querySelector('.p').textContent] : null;
+    });
+    await page.click('#capOverlay .cap-tile[data-key="C47"]');
+    items = await page.evaluate(() => [document.querySelectorAll('.cap-item').length, !!document.getElementById('capRep'), document.getElementById('capRep').checked]);
+    await page.click('.cap-item[data-pid="c47_1"] .cap-st[data-st="compliant"]');
+    await page.type('.cap-item[data-pid="c47_1"] .cap-note', 'Three TBTs, all signed');
+    const input = await page.$('.cap-item[data-pid="c47_1"] input[type="file"]');
+    await input.uploadFile(png);
+    await pause(1500);
+    await close();
+    out1 = await snap();
+    await openTile();
+    await page.click('#capRep');
+    await pause(300);
+    await close();
+    in1 = await snap();
+    await openTile();
+    await page.click('#capRep');   // the confirm is accepted by boot()
+    await pause(300);
+    await close();
+    out2 = await snap();
+    await page.reload({ waitUntil: 'networkidle0' });
+    await pause(2500);
+    reloaded = await snap();
+  } finally {
+    await browser.close();   // a failure must not leave Chrome holding the whole run open
+    try { fs.unlinkSync(png); } catch (e) {}
+  }
+  assert.deepEqual(home, ['Constructionline Evidence', 'CLE', '0 of 14 answered · not in the report']);
+  assert.deepEqual(items, [14, true, false], 'the tile does not open its 14 checks with the switch off');
+  assert.deepEqual(out1.sections, [], 'answering a check put the section in the report while it is switched off');
+  assert.deepEqual(out1.answer, ['compliant', 'Three TBTs, all signed', 1]);
+  assert.deepEqual(out1.tiles, [true], 'the photo is not kept in the photo list, marked as not in the report');
+  assert.equal(out1.pdfPhotos, 0, 'the PDF would print a photo from a section left out of the report');
+  assert.deepEqual(in1.sections, ['Constructionline Evidence'], 'switching it in did not build the section');
+  assert.equal(in1.rows, 1);
+  assert.deepEqual(in1.tiles, [false], 'switched in, the photo is still marked as not in the report');
+  assert.deepEqual(out2.sections, [], 'switching it out did not take the section out of the report');
+  assert.deepEqual(out2.answer, ['compliant', 'Three TBTs, all signed', 1], 'switching it out lost the answer, the note or the photo');
+  assert.deepEqual(out2.tiles, [true]);
+  assert.deepEqual(reloaded.sections, [], 'the section came back into the report after a reload');
+  assert.deepEqual(reloaded.answer, out2.answer, 'the answer did not survive a reload');
+  assert.deepEqual(reloaded.tiles, [true], 'the photo did not survive a reload, or lost its mark');
+  assert.deepEqual(errs, []);
+});
