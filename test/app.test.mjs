@@ -520,18 +520,22 @@ test('the report is square and flat, and a section never leaves its heading behi
   // ruled, uppercase labels. No rounded rectangles and no rounded stroke caps -
   // a rounded cap softens the end of every rule it touches.
   assert.doesNotMatch(SRC, /roundedRect/, 'a rounded rectangle is back in the report');
-  // The dials are the one curve in the report - Simon asked for them back.
-  // Their round cap must be returned to square straight after, or every rule
-  // that follows ends soft.
   const dial = SRC.match(/function drawTachographDial\(([\s\S]*?)\n\}/);
-  assert.ok(dial, 'the tachograph dials are gone - they were liked');
-  // 2026-09-15: the dials got the square treatment too - a square plate, a
-  // scale of straight ticks and a needle. Nothing in the report is curved now,
-  // so there is no round stroke cap left anywhere in it.
+  assert.ok(dial, 'the score gauges are gone - they were liked');
+  // 2026-09-15: the dials got the square treatment - a square plate, a scale
+  // of straight ticks and a needle.
+  // 2026-11-23: Simon swapped the ticks and needle for a solid arc with the
+  // count in the middle ("option a but just with the count"), labels in
+  // sentence case. The arc is the one curve in the report. Its ends are
+  // square, and the line cap goes back afterwards, so there is still no
+  // round stroke cap anywhere in it.
   assert.equal((SRC.match(/setLineCap\('round'\)/g) || []).length, 0, 'a round stroke cap is back in the report');
-  assert.match(dial[1], /doc\.rect\(px, py, pw, ph\)/, 'the speedo lost its square plate');
-  assert.match(dial[1], /const TICKS = 25;/, 'the speedo scale of straight ticks is gone');
-  assert.match(dial[1], /the needle and its square hub/, 'the speedo lost its needle');
+  assert.match(dial[1], /doc\.rect\(px, py, pw, ph\)/, 'the gauge lost its square plate');
+  assert.match(dial[1], /doc\.lines\(segs/, 'the solid arc is gone from the gauge');
+  assert.match(dial[1], /setLineCap\('butt'\)/, 'the arc lost its square ends');
+  assert.match(dial[1], /restoreGraphicsState\(\)/, 'the arc no longer puts the line cap back for the drawing after it');
+  assert.doesNotMatch(dial[1], /doc\.line\(/, 'straight ticks or a needle are back on the gauge - Simon chose the solid arc');
+  assert.doesNotMatch(dial[1], /%|of items|out of/i, 'a percentage or "of items" line is back - Simon asked for the count only');
   // the criteria tiles are square and flat
   assert.match(SRC, /doc\.rect\(xPos, yPos, badgeWidth, badgeHeight, 'F'\)/, 'the criteria tiles are no longer square and flat');
 
@@ -1212,5 +1216,88 @@ test('Constructionline Evidence stays out of the report until switched in, and i
   assert.deepEqual(reloaded.sections, [], 'the section came back into the report after a reload');
   assert.deepEqual(reloaded.answer, out2.answer, 'the answer did not survive a reload');
   assert.deepEqual(reloaded.tiles, [true], 'the photo did not survive a reload, or lost its mark');
+  assert.deepEqual(errs, []);
+});
+
+test('the Client Report draws each score gauge as a solid arc with its count, and a report with nothing scored draws none', { skip: !CHROME && 'Chrome not found' }, async () => {
+  // 2026-11-23: Simon swapped the tick-and-needle dials for a solid arc with
+  // the count in the middle ("option a but just with the count"), labels in
+  // sentence case. Followed in his order: a first report with nothing scored,
+  // then checks marked in the criteria screen, the screen closed, Client
+  // Report pressed, the app reloaded.
+  const { browser, page, errs } = await boot();
+  const pause = ms => new Promise(r => setTimeout(r, ms));
+  const tile = async (mode, key) => {
+    await page.evaluate(() => { document.getElementById('capOpen').click(); const b = document.getElementById('capBack'); if (b.style.display !== 'none') b.click(); });
+    await page.click('#capOverlay .cap-mode button[data-mode="' + mode + '"]');
+    await page.click('#capOverlay .cap-tile[data-key="' + key + '"]');
+  };
+  // Record what the report draws: every text, and inside the gauge row every
+  // arc, straight line and text with its size. The PDF is kept, not offered.
+  await page.evaluate(() => {
+    window.AHS_PDF_DELIVER = function () { window.__rep.done = true; };
+    const Orig = window.jspdf.jsPDF;
+    const Watched = function () {
+      const d = new Orig(...arguments);
+      const text = d.text;
+      d.text = function (s) { window.__rep.texts.push(String(s)); return text.apply(this, arguments); };
+      return d;
+    };
+    Object.setPrototypeOf(Watched, Orig);
+    Watched.prototype = Orig.prototype;
+    window.jspdf.jsPDF = Watched;
+    const draw = window.drawFilledGauges;
+    window.drawFilledGauges = function (doc, startY) {
+      const g = { arcs: [], lines: 0, texts: [] };
+      const keep = { lines: doc.lines, line: doc.line, text: doc.text };
+      doc.lines = function (segs, x, y, scale, style) { g.arcs.push({ segs: segs.length, bezier: segs.every(s => s.length === 6), style }); return keep.lines.apply(this, arguments); };
+      doc.line = function () { g.lines++; return keep.line.apply(this, arguments); };
+      doc.text = function (s) { g.texts.push([String(s), doc.getFontSize()]); return keep.text.apply(this, arguments); };
+      let end;
+      try { end = draw.apply(this, arguments); } finally { Object.assign(doc, keep); }
+      g.height = end - startY;
+      window.__rep.gauges.push(g);
+      return end;
+    };
+  });
+  const report = async () => {
+    await page.evaluate(() => { window.__rep = { texts: [], gauges: [], done: false }; document.getElementById('btnClientReport').click(); });
+    await page.waitForFunction(() => window.__rep.done, { timeout: 60000 });
+    return page.evaluate(() => window.__rep);
+  };
+  const draftNow = () => page.evaluate(() => { window.AHS_DRAFT.saveNow(); return (localStorage.getItem(window.AHS_DRAFT.key) || '').replace(/"t":\d+,/, ''); });
+  let empty, marked, counts, draft0, draft1;
+  try {
+    empty = await report();
+    await tile('C', 'C25');
+    await page.click('.cap-item[data-pid="c25_5"] .cap-st[data-st="compliant"]');
+    await tile('C', 'C23');
+    await page.click('.cap-item[data-pid="c23_1"] .cap-st[data-st="advisory"]');
+    await tile('C', 'C26');
+    await page.click('.cap-item[data-pid="c26_1"] .cap-st[data-st="minor"]');
+    await page.evaluate(() => document.getElementById('capHide').click());
+    await pause(1500);
+    counts = await page.evaluate(() => ['gc-text', 'ga-text', 'gm-text', 'go-text', 'gna-text'].map(id => document.getElementById(id).textContent));
+    draft0 = await draftNow();
+    marked = await report();
+    await pause(500);
+    await page.reload({ waitUntil: 'networkidle0' });
+    await pause(2500);
+    draft1 = await draftNow();
+  } finally {
+    await browser.close();
+  }
+  assert.equal(empty.gauges.length, 0, 'a report with nothing scored drew a row of empty gauges');
+  assert.ok(empty.texts.some(t => /recorded in the section narratives/.test(t)), 'a report with nothing scored lost the line saying where its findings are');
+  assert.deepEqual(counts, ['1', '1', '1', '0', '0'], 'the on-screen gauges did not count the three marked checks');
+  assert.equal(marked.gauges.length, 1, 'the score gauges were not drawn');
+  const g = marked.gauges[0];
+  assert.equal(g.arcs.length, 5 + 3, 'each gauge is one pale track, plus one filled arc where its count is above 0');
+  assert.ok(g.arcs.every(a => a.style === 'S' && a.bezier && a.segs >= 1 && a.segs <= 4), 'an arc is not one stroked path of Bezier segments of 45 degrees or less');
+  assert.equal(g.lines, 0, 'straight ticks or a needle are back on the gauges');
+  assert.deepEqual(g.texts, [['1', 20], ['Compliant', 8], ['1', 20], ['Advisory', 8], ['1', 20], ['Action', 8], ['0', 20], ['Observation', 8], ['0', 20], ['N/A', 8]],
+    'each gauge must show the on-screen count at 20 pt and its status in sentence case at 8 pt, and nothing else');
+  assert.equal(g.height, 27 + 4, 'the gauge plates are no longer 27 mm with 4 mm below');
+  assert.equal(draft1, draft0, 'making the Client Report changed the inspection');
   assert.deepEqual(errs, []);
 });

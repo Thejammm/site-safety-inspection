@@ -6674,7 +6674,7 @@ if (showScores) {
     y += 6;
   }
 
-  // --- Tachograph-style dials (replaces old circle gauges) ----------------
+  // --- Arc gauges: one plate per status, a solid arc with the count in it -
   // A narrative-style inspection has no scored items - a row of zero dials
   // reads as broken, so say what is actually going on instead.
   const totalItems = compliantCount + advisoryCount + actionCount + observationCount + naCount;
@@ -7493,15 +7493,17 @@ if (images.length > 0) {
 // ========================================
 
 /**
- * Draw tachograph-style (semicircular) dials - one per category, all in a row.
- * Returns the y cursor below the dials (with labels + breathing room).
+ * Draw the row of five arc gauges - one plate per status, all in a row across
+ * the printable width. Returns the y cursor below the plates (with breathing
+ * room). Action keeps its red on purpose: Simon wants a stark focus when
+ * something is wrong. It is the only red here.
  */
 function drawFilledGauges(doc, startY, compliant, advisory, action, observation, na, totalItems) {
   const dials = [
-    { label: 'COMPLIANT',   value: compliant,   color: [16, 185, 129] },
-    { label: 'ADVISORY',    value: advisory,    color: [234, 179, 8]  },
-    { label: 'ACTION',      value: action,      color: [220, 38, 38]  },
-    { label: 'OBSERVATION', value: observation, color: [56, 189, 248] },
+    { label: 'Compliant',   value: compliant,   color: [16, 185, 129] },
+    { label: 'Advisory',    value: advisory,    color: [234, 179, 8]  },
+    { label: 'Action',      value: action,      color: [220, 38, 38]  },
+    { label: 'Observation', value: observation, color: [56, 189, 248] },
     { label: 'N/A',         value: na,          color: [156, 163, 175]}
   ];
 
@@ -7509,7 +7511,7 @@ function drawFilledGauges(doc, startY, compliant, advisory, action, observation,
   const colW  = (rightX - leftX) / dials.length;
   const gap   = 3.2;
   const plateW = colW - gap;
-  const plateH = 32;
+  const plateH = 27;
 
   dials.forEach((d, i) => {
     const plateX = leftX + colW * i + gap / 2;
@@ -7520,9 +7522,12 @@ function drawFilledGauges(doc, startY, compliant, advisory, action, observation,
 }
 
 /**
- * One speedo plate: a square panel with a ruled colour head, a straight-tick
- * scale swept left to right, a needle on the value and the count beneath it.
- * Every mark is a straight line with a square end - the report has no curves.
+ * One gauge plate: a square panel with a ruled colour head and a solid arc.
+ * The arc is a half circle: a pale track in the status tint, filled from the
+ * left in the full status colour by count / total, with the count in the
+ * middle and the status name beneath. Simon chose it on 23 Nov 2026 in place
+ * of the tick scale and needle. It is the one curve in the report and its
+ * ends are square; nothing else in the report is curved.
  */
 function drawTachographDial(doc, px, py, pw, ph, value, total, color, label) {
   const ratio = total > 0 ? Math.min(1, Math.max(0, value / total)) : 0;
@@ -7538,49 +7543,65 @@ function drawTachographDial(doc, px, py, pw, ph, value, total, color, label) {
   doc.setFillColor(color[0], color[1], color[2]);
   doc.rect(px, py, pw, 1.5, 'F');
 
-  // --- the scale: 25 straight ticks across a half turn --------------------
-  const cx   = px + pw / 2;
-  const cy   = py + 18.4;               // pivot, with the sweep above it
-  const rOut = 11.4, rIn = 8.2;
-  const TICKS = 25;
-  const filled = Math.round(ratio * (TICKS - 1));
-  for (let i = 0; i < TICKS; i++) {
-    const t = i / (TICKS - 1);
-    const ang = Math.PI - Math.PI * t;   // left round to right
-    const major = (i % 6 === 0);
-    const on = (ratio > 0 && i <= filled);
-    const inner = major ? rIn - 1.1 : rIn;
-    if (on) { doc.setDrawColor(color[0], color[1], color[2]); doc.setLineWidth(major ? 1.1 : 0.85); }
-    else    { doc.setDrawColor(tint[0], tint[1], tint[2]);    doc.setLineWidth(major ? 0.9 : 0.6); }
-    doc.line(cx + inner * Math.cos(ang), cy - inner * Math.sin(ang),
-             cx + rOut  * Math.cos(ang), cy - rOut  * Math.sin(ang));
+  // --- the arc: the pale track, then the filled share over it -------------
+  // jsPDF 2.5.1 has no open arc, so each one is a single continuous path of
+  // cubic Bezier segments of 45 degrees or less (no joins or gaps along the
+  // 2.4 mm stroke). Square ends; the line cap and join go back as they were.
+  const cx = px + pw / 2;
+  const cy = py + 17.8;                 // centre of the arc, level with its ends
+  const r  = 9.7;                       // to the middle of the stroke
+  function arc(share) {
+    const a0 = Math.PI, a1 = Math.PI - Math.PI * share;   // from the left end, over the top
+    const n = Math.max(1, Math.ceil((a0 - a1) / (Math.PI / 4) - 1e-9));
+    const step = (a1 - a0) / n;
+    const k = 4 / 3 * Math.tan(step / 4) * r;
+    const at = function (a) { return [cx + r * Math.cos(a), cy - r * Math.sin(a)]; };
+    const segs = [];
+    let a = a0, p = at(a);
+    for (let i = 0; i < n; i++) {
+      const b = a + step, q = at(b);
+      segs.push([-k * Math.sin(a), -k * Math.cos(a),
+                 q[0] - p[0] + k * Math.sin(b), q[1] - p[1] + k * Math.cos(b),
+                 q[0] - p[0], q[1] - p[1]]);
+      a = b; p = q;
+    }
+    const s = at(a0);
+    doc.lines(segs, s[0], s[1], [1, 1], 'S', false);
   }
+  doc.saveGraphicsState();
+  doc.setLineCap('butt');
+  doc.setLineJoin('miter');
+  doc.setLineWidth(2.4);
+  doc.setDrawColor(tint[0], tint[1], tint[2]);
+  arc(1);
+  if (ratio > 0) {
+    doc.setDrawColor(color[0], color[1], color[2]);
+    arc(ratio);
+  }
+  doc.restoreGraphicsState();
 
-  // --- the needle and its square hub --------------------------------------
-  const nAng = Math.PI - Math.PI * ratio;
-  doc.setDrawColor(dark[0], dark[1], dark[2]);
-  doc.setLineWidth(1.0);
-  doc.line(cx, cy, cx + (rIn - 1.4) * Math.cos(nAng), cy - (rIn - 1.4) * Math.sin(nAng));
-  doc.setFillColor(dark[0], dark[1], dark[2]);
-  doc.rect(cx - 1.1, cy - 1.1, 2.2, 2.2, 'F');
-
-  // --- the axis rule under the sweep --------------------------------------
-  doc.setDrawColor(226, 229, 233);
-  doc.setLineWidth(0.25);
-  doc.line(cx - rOut, cy + 2.6, cx + rOut, cy + 2.6);
-
-  // --- the count, then the category in ruled capitals ----------------------
-  doc.setFontSize(14);
+  // --- the count, large in the middle of the arc --------------------------
+  // A count too wide for the inside of the arc (three digits) is stepped
+  // down until it clears the stroke; one and two digits stay at 20 pt.
+  const count = String(value);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(dark[0], dark[1], dark[2]);
-  doc.text(String(value), cx, cy + 8.4, { align: 'center' });
+  doc.setTextColor(17, 24, 39);
+  const room = r - 1.2 - 0.8;           // inside edge of the stroke, less a clear gap
+  let size = 20;
+  for (; size > 12; size--) {
+    doc.setFontSize(size);
+    const halfW = doc.getTextWidth(count) / 2;
+    const digitH = size * 0.3528 * 0.73;
+    if (Math.sqrt(halfW * halfW + digitH * digitH) <= room) break;
+  }
+  doc.setFontSize(size);
+  doc.text(count, cx, cy, { align: 'center' });
 
-  doc.setFontSize(6.6);
-  doc.setFont('helvetica', 'bold');
+  // --- the status beneath ---------------------------------------------------
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
   doc.setTextColor(107, 114, 128);
-  try { doc.setCharSpace(0.5); } catch (e) {}
-  doc.text(label, cx, py + ph - 3.1, { align: 'center' });
-  try { doc.setCharSpace(0); } catch (e) {}
+  doc.text(label, cx, py + 23.8, { align: 'center' });
 }
 
 /**
