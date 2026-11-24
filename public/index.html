@@ -7721,8 +7721,41 @@ function renderRich(doc, runs, x, startY, maxW, fs, lh, color, opts){
   color = color || [40,40,40];
   var cx=x, cy=startY, fh = fs * 0.3528;
   function nl(){ cx=x; cy+=lh; if(cy>maxY && onBreak){ cy=onBreak(); } }
-  (runs||[]).forEach(function(run){
-    if(run.text==='\n'){ nl(); return; }
+  function setRunFont(run){
+    if(run.i) doc.setFont('helvetica', run.b?'bolditalic':'italic');
+    else doc.setFont('Inter', run.b?'bold':'normal');
+    doc.setFontSize(fs);
+  }
+  // how many lines the paragraph starting at runs[from] will take, wrapped
+  // exactly as it is drawn below
+  function paraLines(from){
+    var px=x, n=1;
+    for(var k=from; k<runs.length && runs[k].text!=='\n'; k++){
+      setRunFont(runs[k]);
+      runs[k].text.split(/(\s+)/).forEach(function(tok){
+        if(!tok) return;
+        var w = doc.getTextWidth(tok);
+        if(/^\s+$/.test(tok)){
+          if(px===x) return;
+          if(px + w > x + maxW){ px=x; n++; return; }
+          px += w; return;
+        }
+        if(px>x && px + w > x + maxW){ px=x; n++; }
+        px += w;
+      });
+    }
+    return n;
+  }
+  var paraStart = false;   // the first paragraph stays with its heading
+  (runs||[]).forEach(function(run, ri){
+    if(run.text==='\n'){ nl(); paraStart = true; return; }
+    // a paragraph is not split over two pages: if it will not fit in what is
+    // left of this page, and would fit on a page of its own, it starts the next
+    if(paraStart){
+      paraStart = false;
+      var n = paraLines(ri);
+      if(onBreak && cx===x && n>1 && cy + (n-1)*lh > maxY && 20 + (n-1)*lh <= maxY) cy = onBreak();
+    }
     run.text.split(/(\s+)/).forEach(function(tok){
       if(!tok) return;
       var ws = /^\s+$/.test(tok);
@@ -7738,6 +7771,8 @@ function renderRich(doc, runs, x, startY, maxW, fs, lh, color, opts){
         cx += w; return;
       }
       if(cx>x && cx + w > x + maxW) nl();
+      // a page break draws the footer in its own small type: put ours back
+      setRunFont(run);
       if(run.hl){ var col=_pdfColor(run.hl); if(col){ doc.setFillColor(col[0],col[1],col[2]); doc.rect(cx-0.2, cy-fh*0.72, w+0.4, fh*0.92, 'F'); } }
       doc.setTextColor(color[0],color[1],color[2]);
       doc.text(tok, cx, cy);

@@ -1327,3 +1327,45 @@ test('the Client Report draws each score gauge as a solid arc with its count, an
   assert.equal(draft1, draft0, 'making the Client Report changed the inspection');
   assert.deepEqual(errs, []);
 });
+
+test('a paragraph in the report is never split over two pages, and its type never shrinks after a page break', { skip: !CHROME && 'Chrome not found' }, async () => {
+  // 2026-11-24: the paragraph naming the regulations ran off the foot of page 4
+  // and carried on over the page, where its first word was drawn in the
+  // footer's small type. In the order it happens: the text starts low on a
+  // page, under bullets, and the long paragraph will not fit in what is left.
+  const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new' });
+  const page = await browser.newPage();
+  const errs = [];
+  page.on('pageerror', e => errs.push(e.message.slice(0, 200)));
+  let r;
+  try {
+    await page.goto(url.pathToFileURL(path.join(here, '..', 'public', 'index.html')).href, { waitUntil: 'load', timeout: 60000 });
+    await new Promise(res => setTimeout(res, 1500));
+    r = await page.evaluate(() => {
+      const NL = String.fromCharCode(10);
+      const doc = new window.jspdf.jsPDF();
+      doc.addFileToVFS('Inter-Regular.ttf', window.AHS_INTER_REGULAR); doc.addFont('Inter-Regular.ttf', 'Inter', 'normal');
+      doc.addFileToVFS('Inter-Bold.ttf', window.AHS_INTER_BOLD); doc.addFont('Inter-Bold.ttf', 'Inter', 'bold');
+      const long = Array.from({ length: 110 }, (_, i) => 'word' + i).join(' ');
+      const runs = [{ text: 'Opening paragraph under its heading.' }, { text: NL }, { text: NL },
+        { text: 'Bullet one' }, { text: NL }, { text: 'Bullet two' }, { text: NL }, { text: NL },
+        { text: long }, { text: NL }, { text: NL }, { text: 'Closing line.' }];
+      const drawn = [], orig = doc.text.bind(doc);
+      doc.text = function (t, x, y) { drawn.push({ t: String(t), p: doc.internal.getNumberOfPages(), y: y, fs: doc.getFontSize() }); return orig.apply(null, arguments); };
+      let pg = 1;
+      renderRich(doc, runs, 20, 225, 170, 10, 5.5, [55, 65, 81],
+        { maxY: 265, onBreak: function () { addPageFooter(doc, pg, '?'); doc.addPage(); pg++; return 20; } });
+      const words = drawn.filter(d => /^word\d+$/.test(d.t));
+      return { count: words.length, pages: [...new Set(words.map(d => d.p))], sizes: [...new Set(words.map(d => d.fs))],
+        opening: drawn.find(d => d.t === 'Opening').p, openingY: drawn.find(d => d.t === 'Opening').y, firstY: words[0].y };
+    });
+  } finally {
+    await browser.close();
+  }
+  assert.equal(r.count, 110, 'words of the paragraph went missing');
+  assert.deepEqual(r.pages, [2], 'the paragraph was split over two pages');
+  assert.deepEqual(r.sizes, [10], 'part of the paragraph was drawn in a different size of type');
+  assert.equal(r.firstY, 20, 'the paragraph did not start at the top of the next page');
+  assert.deepEqual([r.opening, r.openingY], [1, 225], 'the first paragraph left its heading behind');
+  assert.deepEqual(errs, []);
+});
