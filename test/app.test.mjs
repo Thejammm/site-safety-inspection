@@ -121,8 +121,18 @@ test('a poor site signal degrades to amber and a retry, never a hang or a red ba
   assert.ok(apiFn, 'api() not found');
   assert.match(apiFn[1], /AbortController/, 'requests no longer time out - a stalled signal hangs the app');
   assert.match(SRC, /if\(_inflight\)\{ _pushAgain = true; return _inflight; \}/, 'pushes can overlap again');
-  assert.match(SRC, /if\(!sendingPhotos\) delete blob\[PHOTO_KEY\];/, 'every save re-uploads every photo again');
-  assert.match(SRC, /else if\(!blob\[PHOTO_KEY\]\) blob\[PHOTO_KEY\] = \{\};/, 'deleting the last photo would not clear it on the server');
+  // 2026-11-24: photos no longer ride with a save at all. The old rule here
+  // sent an explicit empty photo list when a device found none, the server
+  // read that as "delete them", and two inspections lost their photos.
+  const pushOnce = SRC.match(/async function _pushOnce\(\)\s*\{([\s\S]*?)\r?\n {4}\}/);
+  assert.ok(pushOnce, '_pushOnce() not found');
+  assert.doesNotMatch(pushOnce[1], /PHOTO_KEY|__photos__/, 'a save carries photos again - an empty list could wipe the server copy');
+  const collect = SRC.match(/async function collectState\(\)\{([\s\S]*?)\r?\n {4}\}/);
+  assert.ok(collect, 'the sync collectState() not found');
+  assert.doesNotMatch(collect[1], /AHS_PHOTOS|PHOTO_KEY/, 'the saved text collects photos again');
+  assert.match(pushOnce[1], /_syncPhotos\(\);/, 'photos no longer follow a successful save');
+  assert.match(pushOnce[1], /if\(base\) body\.base = base;/, 'a save no longer says which version it was working from - an old copy can replace a newer one unasked');
+  assert.match(pushOnce[1], /if\(e && e\.status === 409\)\{ _raiseConflict\(e\.info\); return false; \}/, 'a refused save is no longer put to the person as a choice');
   assert.match(SRC, /AHS_SAVE_STATUS\.note\('offline'/, 'a lost signal raises the red NOT SAVED banner instead of the amber note');
   assert.match(SRC, /_retryTimer = setTimeout\(function\(\)\{ _retryTimer = null; push\(\); \}, _retryMs\);/, 'no automatic retry when the signal returns');
   // server side of the photo rule
@@ -271,11 +281,19 @@ test('the photo store is only ever wiped wholesale from the confirmed device wip
 test('sync pushes only the photos this report references, never the whole pool', () => {
   // The store is shared across every project on the device. Pushing all() puts
   // one client's photographs into another client's state blob.
-  const i = SRC.indexOf('AHS_PHOTOS.all()');
-  assert.ok(i > 0, 'AHS_PHOTOS.all() not found - has the sync payload changed?');
-  const after = SRC.slice(i, i + 400);
-  assert.match(after, /ids\.forEach|wanted/, 'the photo pool is no longer filtered to referenced ids');
-  assert.doesNotMatch(after, /\[\s*PHOTO_KEY\s*\]\s*=\s*pool\b/, 'the entire photo pool is being assigned to the sync blob');
+  // 2026-11-24: the uploader goes further - it never reads the pool at all. It
+  // asks the store for each id this report uses, one at a time, so a failed
+  // read of the whole pool can no longer look like "this report has no photos".
+  const pass = SRC.match(/async function _photoPass\(\)\{([\s\S]*?)\r?\n {4}\}/);
+  assert.ok(pass, '_photoPass() not found - has the photo upload changed?');
+  assert.match(pass[1], /var ids = _wantedIds\(\);/, 'the uploader no longer works from the ids this report uses');
+  assert.match(pass[1], /data = await window\.AHS_PHOTOS\.get\(id\);/, 'photos are no longer read one at a time by id');
+  assert.match(pass[1], /catch\(e\)\{ ok = false; continue; \}/, 'a store that did not answer is treated as "the photo is not here"');
+  assert.match(pass[1], /if\(!put \|\| put\.length !== data\.length\) throw/, 'an upload is counted without the server confirming what it stored');
+  const sync = SRC.slice(SRC.indexOf('AHS server-sync (additive'), SRC.indexOf('REV 2: WALK-ROUND CAPTURE'));
+  assert.doesNotMatch(sync, /AHS_PHOTOS\.all\(\)/, 'the sync layer reads the whole photo pool again');
+  assert.doesNotMatch(sync, /AHS_PHOTOS\.(del|clear)\(/, 'the sync layer can remove a photo from the device');
+  assert.doesNotMatch(sync, /method:\s*'DELETE'[^\n]*photos/, 'the app can ask the server to delete a photo');
 });
 
 test('a failed save always raises the banner, never only a pill or the console', () => {

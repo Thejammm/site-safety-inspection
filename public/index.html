@@ -3268,6 +3268,70 @@ async function persistPhoto(imgObj) {
   }
 }
 
+// A photo the report lists but this device cannot show. The box says which
+// photo it is - its caption, where it belongs and when it was taken - so it
+// can be put back from the camera roll into the same place in the report.
+function missingPhotoBox(imgObj, index) {
+  const box = document.createElement('div');
+  box.className = 'img-item img-missing';
+  box.setAttribute('data-image-id', imgObj.id);
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'img-remove-x';
+  removeBtn.textContent = '✕';
+  removeBtn.setAttribute('data-image-id', imgObj.id);
+  removeBtn.setAttribute('title', 'Remove this photo from the report');
+  box.appendChild(removeBtn);
+  const line = (cls, text) => { const d = document.createElement('div'); d.className = cls; d.textContent = text; box.appendChild(d); return d; };
+  line('img-missing-head', 'Photo ' + (index + 1) + ' of ' + allImages.length + ' is not on this device');
+  let where = '';
+  try {
+    if (imgObj.link && window.AHS_PHOTO_LINK) {
+      const v = JSON.stringify(imgObj.link);
+      const o = window.AHS_PHOTO_LINK.options().find(x => x.value === v);
+      if (o) where = o.label;
+    }
+  } catch (e) {}
+  let when = '';
+  const m = /-(\d{13})-/.exec(String(imgObj.id));
+  if (m) {
+    const d = new Date(+m[1]);
+    if (!isNaN(d)) when = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' +
+                          d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  }
+  if (imgObj.caption) line('img-missing-line', 'Caption: ' + imgObj.caption);
+  if (where) line('img-missing-line', 'Belongs to: ' + where);
+  if (when) line('img-missing-line', 'Taken: ' + when);
+  let state = null;
+  try { state = window.AHS_SYNC && window.AHS_SYNC.missingText(imgObj.id); } catch (e) {}
+  line('img-missing-state', state || 'It is still in the report. Close the app fully and reopen it to try again, or add it again here.');
+  const pick = document.createElement('input');
+  pick.type = 'file'; pick.accept = 'image/*'; pick.style.display = 'none';
+  const add = document.createElement('button');
+  add.type = 'button';
+  add.className = 'img-missing-add';
+  add.textContent = 'Add this photo';
+  add.onclick = () => pick.click();
+  pick.onchange = async () => {
+    const f = pick.files && pick.files[0];
+    if (!f) return;
+    add.disabled = true; add.textContent = 'Adding…';
+    try {
+      imgObj.dataUrl = await fileToDataUrl(f);
+      imgObj.missing = false;
+      await persistPhoto(imgObj);        // under the same id, so caption and place are kept
+      await renderImages();
+      try { if (window.AHS_SYNC) window.AHS_SYNC.photoAdded(); } catch (e) {}
+    } catch (e) {
+      add.disabled = false; add.textContent = 'Add this photo';
+      alert('That picture could not be added. Try another file.');
+    }
+  };
+  box.appendChild(add);
+  box.appendChild(pick);
+  return box;
+}
+
 // Renders the preview area from the allImages array
 async function renderImages() {
   if (!imgPreview) return;
@@ -3283,14 +3347,7 @@ async function renderImages() {
     if (!imgObj.dataUrl && !imgObj.file) {
       try { imgObj.dataUrl = await window.AHS_PHOTOS.get(imgObj.id); } catch (e) {}
       if (!imgObj.dataUrl) {
-        const box = document.createElement('div');
-        box.className = 'img-item';
-        box.setAttribute('data-image-id', imgObj.id);
-        box.setAttribute('style', 'outline:3px solid #b91c1c;min-height:120px;display:flex;align-items:center;' +
-          'justify-content:center;text-align:center;padding:12px;font-size:13px;color:#b91c1c');
-        box.textContent = 'Photo could not be read on this device. It is still in the report; ' +
-          'close the app fully and reopen it to try again.';
-        imgPreview.appendChild(box);
+        imgPreview.appendChild(missingPhotoBox(imgObj, index));
         return;
       }
       imgObj.missing = false;
@@ -5454,7 +5511,9 @@ window.showPhraseModal = showPhraseModal;
         }
 
         allImages = built;
-        if (missing) {
+        if (missing && window.AHS_SYNC && window.AHS_SYNC.claimMissing(missing)) {
+          // signed-in use: the sync layer looks for them in the cloud and reports what it finds
+        } else if (missing) {
           window.AHS_SAVE_STATUS.fail('photos',
             missing + ' photo' + (missing === 1 ? ' could' : 's could') + ' not be read on this device.' +
             ' They are still in the report. Close the app fully and reopen it to try again.',
@@ -5660,7 +5719,8 @@ window.showPhraseModal = showPhraseModal;
   // not exported before, so deleting a photo never actually triggered a save.
   window.AHS_DRAFT = {
     saveNow, scheduleSave, restoreIfPresent, clearDraft, key: AHS_DRAFT.KEY,
-    collect: collectState, apply: applyState
+    collect: collectState, apply: applyState,
+    isReady: function () { return _restoredOnce && !_restoring; }
   };
 
 })();
@@ -7847,7 +7907,10 @@ function addPageFooter(doc, pageNum, totalPages) {
       window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(e){ console.warn('service worker not registered:', e.message); }); });
     }
     // rev3: when signal comes back, push straight away instead of waiting for the next edit
-    window.addEventListener('online', function(){ try{ scheduleSave(); }catch(_){} });
+    window.addEventListener('online', function(){ try{ scheduleSave(); _syncPhotos(); }catch(_){} });
+    // back in front (from the camera, another app, another tab): carry on with any
+    // photos still to go, and see whether another device has saved since
+    document.addEventListener('visibilitychange', function(){ try{ if(document.visibilityState === 'visible' && _user){ _syncPhotos(); _checkNewer(); } }catch(_){} });
     document.addEventListener('visibilitychange', function(){ try{ if(document.visibilityState === 'visible' && _user && _isDirty()) push(); }catch(_){} });
 
     var TENANT        = 'archer';
@@ -7875,7 +7938,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       if(opts.abortRef){ opts.abortRef.abort = ctl ? function(){ try{ ctl.abort(); }catch(_){} } : null; delete opts.abortRef; }
       try{
         var res = await fetch(path, opts);
-        if(!res.ok){ var e=new Error('http_'+res.status); e.status=res.status; throw e; }
+        if(!res.ok){ var e=new Error('http_'+res.status); e.status=res.status; try{ e.info = await res.json(); }catch(_){} throw e; }
         return res.status===204 ? null : res.json();
       } finally { if(timer) clearTimeout(timer); }
     }
@@ -7912,6 +7975,10 @@ function addPageFooter(doc, pageNum, totalPages) {
       location.reload();
     }
 
+    // The report as text: every synced key and nothing else. Photos travel on
+    // their own, one at a time (_syncPhotos). A save used to carry the photos,
+    // and a device that could not read them sent an empty list that the server
+    // took as "delete them" - which is how two inspections lost theirs.
     async function collectState(){
       var blob={};
       SYNC_KEYS.forEach(function(k){ var v=localStorage.getItem(k); if(v!==null) blob[k]=v; });
@@ -7919,36 +7986,336 @@ function addPageFooter(doc, pageNum, totalPages) {
         var key=localStorage.key(i);
         if(key && SYNC_PREFIXES.some(function(p){ return key.indexOf(p)===0; })) blob[key]=localStorage.getItem(key);
       }
-      try{
-        // Only the photos this draft actually references. The store is one
-        // pool shared by every project on the device - pushing all of it
-        // would upload every project's photos into every project's blob.
-        var wanted = {};
-        Object.keys(blob).forEach(function(k){
-          if(SYNC_PREFIXES.some(function(p){ return k.indexOf(p)===0; })){
-            try{
-              var d=JSON.parse(blob[k]);
-              (d.images||[]).forEach(function(im){ if(im && im.id) wanted[im.id]=true; });
-              // REV 2: photos taken during capture but not yet built into the report
-              if(d.capture && d.capture.sections){
-                Object.keys(d.capture.sections).forEach(function(sk){
-                  var its=d.capture.sections[sk].items||{};
-                  Object.keys(its).forEach(function(pk){ (its[pk].photos||[]).forEach(function(id){ wanted[id]=true; }); });
-                });
-              }
-            }catch(_){}
-          }
-        });
-        var ids = Object.keys(wanted);
-        if(ids.length){
-          var pool = await window.AHS_PHOTOS.all();
-          var photos = {};
-          ids.forEach(function(id){ if(pool[id]) photos[id]=pool[id]; });
-          if(Object.keys(photos).length) blob[PHOTO_KEY] = photos;
-        }
-      }catch(e){ console.warn('Could not read photos for upload:', e); }
       return blob;
     }
+
+    // Every photo this inspection uses, the current report first: its
+    // pictures, those taken in the criteria screen, then earlier visits.
+    var PHOTO_ID_RE = /img-(?:[a-z]+-)?\d{13}-[a-z0-9]+/g;
+    function _wantedIds(){
+      var seen={}, out=[];
+      function add(id){ if(id && typeof id==='string' && !seen[id]){ seen[id]=true; out.push(id); } }
+      try{
+        for(var i=0;i<localStorage.length;i++){
+          var key=localStorage.key(i);
+          if(!key || !SYNC_PREFIXES.some(function(p){ return key.indexOf(p)===0; })) continue;
+          var raw=localStorage.getItem(key)||'';
+          try{
+            var d=JSON.parse(raw);
+            (d.images||[]).forEach(function(im){ if(im) add(im.id); });
+            if(d.capture && d.capture.sections){
+              Object.keys(d.capture.sections).forEach(function(sk){
+                var its=d.capture.sections[sk].items||{};
+                Object.keys(its).forEach(function(pk){ (its[pk].photos||[]).forEach(add); });
+              });
+            }
+          }catch(_){}
+          (raw.match(PHOTO_ID_RE)||[]).forEach(add);
+        }
+        ((localStorage.getItem('AHS_INSPECTIONS_V1')||'').match(PHOTO_ID_RE)||[]).forEach(add);
+      }catch(_){}
+      return out;
+    }
+
+    // ── This device ──
+    function _deviceId(){
+      var v=_rawGet('ahsDeviceId');
+      if(!v){ v='d-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10); try{ _rawSet('ahsDeviceId', v); }catch(_){} }
+      return v;
+    }
+    function _deviceName(){
+      var u=navigator.userAgent||'';
+      if(/iPad/.test(u) || (/Macintosh/.test(u) && navigator.maxTouchPoints>1)) return 'iPad';
+      if(/iPhone/.test(u)) return 'iPhone';
+      if(/Android/.test(u)) return 'Android device';
+      if(/Windows/.test(u)) return 'Windows laptop';
+      if(/Macintosh/.test(u)) return 'Mac';
+      return 'Another device';
+    }
+    function _q(extra){ return '?tenantId='+encodeURIComponent(TENANT)+'&project='+encodeURIComponent(project())+(extra||''); }
+
+    // ── Photos: one at a time, in both directions ──
+    // Up: each photo this report uses that the server does not hold is read
+    // from this device by its id and sent on its own, then the next. A weak
+    // signal costs the photo in hand; the rest carry on from where it stopped.
+    // Down: each one the server holds and this device does not is fetched.
+    // Nothing here can remove a photo, on the server or on the device.
+    var _onServer={}, _onDevice={}, _lost={}, _badPhoto={}, _photoFor=null, _photoCount=null;
+    var _photoRun=null, _photoAgain=false, _photoTimer=null, _photoWait=15000, _claimed=false, _authDone=false;
+    function _syncPhotos(){
+      if(!_user) return Promise.resolve(false);
+      if(_photoRun){ _photoAgain = true; return _photoRun; }
+      _photoRun = (async function(){
+        var done = false;
+        try{ done = await _photoPass(); }
+        catch(e){ console.warn('Photo sync will try again:', e && e.message); try{ await _showFetched(); _reportMissing(false); }catch(_){} }
+        finally{ _photoRun = null; }
+        clearTimeout(_photoTimer);
+        if(_photoAgain){ _photoAgain = false; setTimeout(_syncPhotos, 0); }
+        else if(!done){ _photoTimer = setTimeout(_syncPhotos, _photoWait); _photoWait = Math.min(_photoWait*2, 60000); }
+        else { _photoWait = 15000; }
+        var waiting = _photoCount ? (_photoCount.total - _photoCount.up - _photoCount.lost) : 0;
+        if(!done && waiting > 0) window.AHS_SAVE_STATUS.note('photoup', waiting + ' photo' + (waiting===1?' has':'s have') + ' not uploaded yet. ' + (waiting===1?'It is':'They are') + ' safe on this device and will go up when the signal allows - keep the app open');
+        else window.AHS_SAVE_STATUS.ok('photoup');
+        return done;
+      })();
+      return _photoRun;
+    }
+    function _countPhotos(ids){
+      var up=0, lost=0;
+      ids.forEach(function(id){ if(_onServer[id]) up++; else if(_lost[id] || _badPhoto[id]) lost++; });
+      _photoCount = { total: ids.length, up: up, lost: lost };
+      setStatus();
+    }
+    async function _photoPass(){
+      var proj = project(), key = TENANT+'|'+proj;
+      if(_photoFor !== key){ _photoFor = key; _onServer = {}; _lost = {}; }
+      var ids = _wantedIds();
+      if(!ids.length){ _photoCount = null; setStatus(); _reportMissing(true); return true; }
+      var unknown = ids.filter(function(id){ return !_onServer[id]; });
+      if(unknown.length){
+        var h = await api('/api/photos/have'+_q(), {method:'POST', body:JSON.stringify({ids:unknown}), timeoutMs:20000});
+        ((h && h.have)||[]).forEach(function(id){ _onServer[id] = true; });
+      }
+      _lost = {};
+      _countPhotos(ids);
+      var ok = true, got = 0;
+      for(var i=0;i<ids.length;i++){
+        if(project() !== proj) return false;                 // the project changed under us: start again for the new one
+        var id = ids[i], data = null;
+        if(_onServer[id] && _onDevice[id]) continue;
+        if(_badPhoto[id]) continue;
+        try{ data = await window.AHS_PHOTOS.get(id); }
+        catch(e){ ok = false; continue; }                    // the store did not answer: not the same as "not here"
+        if(data) _onDevice[id] = true;
+        if(data && !_onServer[id]){
+          try{
+            var put = await api('/api/photos/'+encodeURIComponent(id)+_q(), {method:'PUT', body:JSON.stringify({data:data}), timeoutMs:60000});
+            if(!put || put.length !== data.length) throw new Error('the server did not confirm the photo');
+            _onServer[id] = true;
+          }catch(e){
+            ok = false;
+            if(e && (e.status===400 || e.status===413)){ _badPhoto[id] = true; ok = true; }
+            else if(_isNetworkFailure(e)){ _countPhotos(ids); break; }
+          }
+        } else if(!data && _onServer[id]){
+          try{
+            var p = await api('/api/photos/'+encodeURIComponent(id)+_q(), {timeoutMs:60000});
+            if(!p || !p.data) throw new Error('empty photo');
+            await window.AHS_PHOTOS.put(id, p.data);
+            _onDevice[id] = true; got++;
+            if(got % 3 === 0) await _showFetched();
+          }catch(e){
+            ok = false;
+            if(_isNetworkFailure(e)) break;
+          }
+        } else if(!data){
+          _lost[id] = true;                                  // not on this device, not on the server
+        }
+        _countPhotos(ids);
+      }
+      await _showFetched();
+      _reportMissing(ok);
+      return ok;
+    }
+    // Draw photos that have just arrived. Waits for the page's own restore, so
+    // two draws never run into each other.
+    async function _showFetched(){
+      try{
+        for(var n=0; n<120 && window.AHS_DRAFT && window.AHS_DRAFT.isReady && !window.AHS_DRAFT.isReady(); n++) await new Promise(function(r){ setTimeout(r, 250); });
+        if(typeof allImages === 'undefined' || typeof renderImages !== 'function') return;
+        if(allImages.some(function(im){ return !im.dataUrl && !im.file; })) await renderImages();
+        if(window.AHS_VISIT && window.AHS_VISIT.refreshBadges) window.AHS_VISIT.refreshBadges();
+      }catch(_){}
+    }
+    // Say plainly what is still missing once the cloud has been asked.
+    function _reportMissing(checked){
+      var n = 0;
+      try{ n = allImages.filter(function(im){ return !im.dataUrl && !im.file; }).length; }catch(_){}
+      if(!n){ if(_claimed){ _claimed = false; window.AHS_SAVE_STATUS.ok('photos'); } return; }
+      var s = n + ' photo' + (n===1?'':'s'), are = (n===1?' is':' are');
+      if(!_user) window.AHS_SAVE_STATUS.fail('photos', s + ' could not be read on this device. ' + (n===1?'It is':'They are') + ' still in the report. Sign in to fetch ' + (n===1?'it':'them') + ' from the cloud', new Error('not signed in'));
+      else if(checked) window.AHS_SAVE_STATUS.note('photos', s + are + ' not on this device or in the cloud. Each empty box under Images says which photo it is, so it can be added again');
+      else window.AHS_SAVE_STATUS.note('photos', s + are + ' not on this device yet and the cloud could not be reached. Trying again');
+      _claimed = true;
+    }
+    // Before leaving a project: its photos must be on the server, because the
+    // uploader only works on the project that is open.
+    async function _photosAway(){
+      try{ await _syncPhotos(); }catch(_){}
+      var c = _photoCount, waiting = c ? (c.total - c.up - c.lost) : 0;
+      if(waiting <= 0) return true;
+      alert(waiting + ' photo' + (waiting===1?'':'s') + ' from "' + project() + '" ' + (waiting===1?'has':'have') + ' not finished uploading.' + String.fromCharCode(10,10) +
+            'Stay on this inspection until the status at the top shows them all uploaded, then switch. Nothing has been changed.');
+      return false;
+    }
+
+    // ── Two copies of one inspection ──
+    // The server refuses a save from a device that is working from an older
+    // copy than the one it holds (another device saved in between). Nothing is
+    // overwritten until the person chooses, and the copy not chosen is kept
+    // under Projects, Earlier versions.
+    var _conflict = null, _conflictOpen = false;
+    function _raiseConflict(info){
+      _conflict = info || {};
+      setStatus();
+      window.AHS_SAVE_STATUS.note('conflict', 'This inspection was also changed on another device. <button type="button" onclick="window.AHS_SYNC.choose()" style="margin:0 8px;border:1px solid #fff;background:transparent;color:#fff;padding:4px 10px;font:inherit;cursor:pointer">Choose which copy to keep</button> Nothing has been overwritten');
+      _openConflict();
+    }
+    function _localWhen(){
+      try{
+        for(var i=0;i<localStorage.length;i++){
+          var k=localStorage.key(i);
+          if(k && k.indexOf('AHS_REPORT_DRAFT_V1:')===0){ var t=JSON.parse(localStorage.getItem(k)).t; if(t) return _fmtWhen(new Date(t).toISOString()); }
+        }
+      }catch(_){}
+      return '';
+    }
+    function _plainBox(title){
+      var ov = el('div',{style:'position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;'});
+      var box = el('div',{style:'background:#fff;border-top:3px solid #4BBFD6;padding:20px;width:480px;max-width:100%;max-height:85vh;overflow:auto;font:14px/1.5 system-ui,sans-serif;color:#222'});
+      box.appendChild(el('h3',{style:'margin:0 0 10px;font:600 18px system-ui'}, _esc(title)));
+      ov.appendChild(box); document.body.appendChild(ov);
+      return { ov: ov, box: box };
+    }
+    function _plainBtn(label, primary){
+      return el('button',{type:'button',style:'padding:10px 14px;border:1px solid '+(primary?'#4A4F55':'#c9d2da')+';background:'+(primary?'#4A4F55':'#fff')+';color:'+(primary?'#fff':'#1c2530')+';font:600 14px system-ui;cursor:pointer;text-align:left'}, _esc(label));
+    }
+    function _openConflict(){
+      if(!_conflict || _conflictOpen) return;
+      _conflictOpen = true;
+      var d = _plainBox('Two copies of this inspection');
+      var other = (_conflict.deviceName || 'Another device'), when = _fmtWhen(_conflict.updatedAt), mine = _localWhen();
+      d.box.appendChild(el('div',{style:'margin-bottom:8px'}, '<b>'+_esc(other)+'</b> saved "'+_esc(project())+'"'+(when?' on '+_esc(when):'')+'.'));
+      d.box.appendChild(el('div',{style:'margin-bottom:8px'}, 'This '+_esc(_deviceName())+' has changes that have not been uploaded'+(mine?' (last changed '+_esc(mine)+')':'')+'.'));
+      d.box.appendChild(el('div',{style:'margin-bottom:14px;color:#555'}, 'Only one can be the report. Choose which to keep. The other copy is not thrown away: it is kept under Projects, Earlier versions. Photos are not affected by this choice.'));
+      var col = el('div',{style:'display:flex;flex-direction:column;gap:8px'});
+      var keep = _plainBtn('Keep the copy on this '+_deviceName(), true), use = _plainBtn('Use the copy from '+other), later = _plainBtn('Decide later (nothing is uploaded until you choose)');
+      function close(){ _conflictOpen = false; d.ov.remove(); }
+      keep.onclick = async function(){
+        close(); _conflict = null; window.AHS_SAVE_STATUS.ok('conflict');
+        try{ _rawSet('ahsSyncForce','1'); }catch(_){}
+        var ok = await push();
+        if(!ok && !_conflict) alert(_saveFailMsg(project(), 'It will be uploaded as the chosen copy when the connection returns.'));
+      };
+      use.onclick = async function(){
+        use.disabled = keep.disabled = later.disabled = true; use.textContent = 'Fetching the other copy…';
+        if(await _useOther()) return;                       // the page reloads
+        close(); _openConflict();
+      };
+      later.onclick = close;
+      col.appendChild(keep); col.appendChild(use); col.appendChild(later);
+      d.box.appendChild(col);
+    }
+    // Take the server's copy. This device's copy is filed as an earlier version
+    // FIRST; if that cannot be done, nothing is changed.
+    async function _useOther(){
+      try{
+        try{ await _syncPhotos(); }catch(_){}
+        var mine = await collectState();
+        await api('/api/state/versions'+_q(), {method:'POST', body:JSON.stringify({tenantId:TENANT, project:project(), state:mine, deviceName:_deviceName()}), timeoutMs:20000});
+        var r = await api('/api/state'+_q('&photos=0'));
+        if(!r || !r.state) throw new Error('nothing came back');
+        _clearSyncedKeys();
+        await applyState(r.state);
+        _resetBase(r.updatedAt);
+        try{ sessionStorage.setItem('ahsSyncHydrated', String(r.updatedAt)); }catch(_){}
+        _conflict = null;
+        _reload();
+        return true;
+      }catch(e){
+        alert('That could not be done just now. Check your signal and try again. Nothing has been changed.');
+        return false;
+      }
+    }
+    function _resetBase(updatedAt){
+      try{
+        _rawSet('ahsSyncPushedSeq', String(_dirtySeq()));
+        if(updatedAt) _rawSet('ahsSyncBase', String(updatedAt)); else localStorage.removeItem('ahsSyncBase');
+      }catch(_){}
+    }
+    // A long-open tab: has another device saved this inspection since we last
+    // looked? Never reloads by itself (a photo may be half taken): it offers.
+    var _newerAt = 0;
+    async function _checkNewer(){
+      if(!_user || _conflict || _inflight || _pulling || _isDirty() || Date.now() - _newerAt < 60000) return;
+      _newerAt = Date.now();
+      try{
+        var base = _rawGet('ahsSyncBase'); if(!base) return;
+        var me = (await listProjects()).filter(function(p){ return p.project === project(); })[0];
+        if(_inflight || _isDirty() || String(_rawGet('ahsSyncBase')) !== String(base)) return;
+        if(me && me.updatedAt && String(me.updatedAt) !== String(base)){
+          window.AHS_SAVE_STATUS.note('newer', 'A newer copy of this inspection was saved on another device on ' + _esc(_fmtWhen(me.updatedAt)) + '. <button type="button" onclick="window.AHS_SYNC.loadNewer()" style="margin:0 8px;border:1px solid #fff;background:transparent;color:#fff;padding:4px 10px;font:inherit;cursor:pointer">Load it</button> Nothing on this device has changed');
+        } else window.AHS_SAVE_STATUS.ok('newer');
+      }catch(_){}
+    }
+
+    // ── Earlier versions ──
+    async function _openVersions(){
+      var d = _plainBox('Earlier versions of "' + project() + '"');
+      var list = el('div',{style:'border:1px solid #e5e7eb;max-height:300px;overflow:auto;margin-bottom:14px'}, '<div style="padding:12px;color:#666">Loading…</div>');
+      d.box.appendChild(el('div',{style:'margin-bottom:10px;color:#555'}, 'The server keeps a copy whenever a different device saves, when you choose between two copies, and about every ten minutes while you work. Opening one makes it the report. What is on screen now is kept as an earlier version.'));
+      d.box.appendChild(list);
+      var close = _plainBtn('Close'); close.onclick = function(){ d.ov.remove(); };
+      d.box.appendChild(close);
+      var vs;
+      try{ vs = (await api('/api/state/versions'+_q())).versions || []; }
+      catch(e){ list.innerHTML = '<div style="padding:12px;color:#92400e">The list could not be fetched. Check your signal and try again.</div>'; return; }
+      if(!vs.length){ list.innerHTML = '<div style="padding:12px;color:#666">No earlier versions yet. They are kept from 24 November 2026 onwards.</div>'; return; }
+      list.innerHTML = '';
+      vs.forEach(function(v){
+        var row = el('div',{style:'display:flex;gap:10px;align-items:center;padding:8px 10px;border-bottom:1px solid #f0f0f0'});
+        row.appendChild(el('div',{style:'flex:1;min-width:0'}, '<div style="font-weight:600">'+_esc(_fmtWhen(v.savedAt))+'</div><div style="font-size:12px;color:#666">'+_esc(v.device||'Device not recorded')+(v.reason==='not used'?' - the copy not chosen':'')+'</div>'));
+        var open = _plainBtn('Open'); open.style.padding = '6px 12px';
+        open.onclick = async function(){
+          if(!confirm('Open the version saved ' + _fmtWhen(v.savedAt) + '?' + String.fromCharCode(10,10) + 'It becomes the report. What is on screen now is kept as an earlier version.')) return;
+          d.ov.remove(); await _restoreVersion(v.id);
+        };
+        row.appendChild(open); list.appendChild(row);
+      });
+    }
+    async function _restoreVersion(id){
+      if(!(await _flushCurrent())){
+        alert(_saveFailMsg(project(), 'What is on screen has to be saved before an earlier version replaces it, so nothing has been changed.'));
+        return;
+      }
+      var v;
+      try{ v = await api('/api/state/versions/'+encodeURIComponent(id)+_q()); }
+      catch(e){ alert('That version could not be fetched. Check your signal and try again. Nothing has been changed.'); return; }
+      if(!v || !v.state){ alert('That version is empty, so nothing has been changed.'); return; }
+      _clearSyncedKeys();
+      await applyState(v.state);
+      _bumpDirty();                                   // it is now this device's work, to be uploaded
+      try{ _rawSet('ahsSyncForce','1'); }catch(_){}   // as a deliberate choice, so what it replaces is kept
+      _reload();
+    }
+
+    // What the rest of the page may ask of the sync layer.
+    window.AHS_SYNC = {
+      // The page found photos it cannot show. Online, the sync layer will look
+      // for them in the cloud and report; offline it leaves the page's own message.
+      claimMissing: function(n){
+        if(navigator.onLine === false) return false;
+        _claimed = true;
+        // the sign-in check has already come back "signed out": nothing will fetch them, so say that now
+        if(_authDone && !_user){ setTimeout(function(){ _showFetched().then(function(){ _reportMissing(false); }); }, 0); return true; }
+        window.AHS_SAVE_STATUS.note('photos', n + ' photo' + (n===1?' is':'s are') + ' not on this device yet. Looking for ' + (n===1?'it':'them') + ' in the cloud');
+        return true;
+      },
+      missingText: function(id){
+        if(!_user) return _authDone ? null : 'Looking for it in the cloud…';
+        if(_lost[id] || _badPhoto[id]) return 'It is not on this device or in the cloud. Add it again from your photos.';
+        return 'Fetching it from the cloud…';
+      },
+      photoAdded: function(){ _syncPhotos(); },
+      choose: function(){ _openConflict(); },
+      loadNewer: function(){
+        window.AHS_SAVE_STATUS.ok('newer');
+        if(_isDirty()){ push(); return; }
+        try{ sessionStorage.removeItem('ahsSyncHydrated'); }catch(_){}
+        pull();
+      }
+    };
 
     async function applyState(blob){
       if(!blob||typeof blob!=='object') return;
@@ -8021,29 +8388,31 @@ function addPageFooter(doc, pageNum, totalPages) {
       var seq = _dirtySeq();                        // what this push covers
       var blob = await collectState();
       if(!Object.keys(blob).length) return true;   // nothing to save is not a failure
-      // Photos ride only when the set changed since the last successful upload.
-      // The server keeps its copy when the key is absent (routes/state.js merges),
-      // so a text edit sends kilobytes instead of re-serialising every photo on
-      // the main thread. An explicit empty object still clears them server-side.
-      var sig = _photoSig(blob[PHOTO_KEY]);
-      var sendingPhotos = (sig !== _lastPhotoSig);
-      if(!sendingPhotos) delete blob[PHOTO_KEY];
-      else if(!blob[PHOTO_KEY]) blob[PHOTO_KEY] = {};
+      if(_conflict){ _raiseConflict(_conflict); return false; }   // waiting for a choice between two copies
+      // Text only. The save says which server version this device was working
+      // from, so the server can refuse to put an out-of-date copy over a newer one.
+      var force = (_rawGet('ahsSyncForce') === '1');
+      var body = {tenantId:TENANT, project:project(), state:blob, deviceId:_deviceId(), deviceName:_deviceName()};
+      var base = _rawGet('ahsSyncBase');
+      if(base) body.base = base;
+      if(force) body.force = true;
       try{
         _pushAbort = {};
-        var resp = await api('/api/state',{method:'POST',body:JSON.stringify({tenantId:TENANT,project:project(),state:blob}),
-                                 timeoutMs: sendingPhotos ? 45000 : 15000, abortRef: _pushAbort});
+        var resp = await api('/api/state',{method:'POST',body:JSON.stringify(body),
+                                 timeoutMs: 20000, abortRef: _pushAbort});
         _markPushed(seq, resp && resp.updatedAt);
-        window.AHS_SAVE_STATUS.ok('unsynced');
-        if(sendingPhotos) _lastPhotoSig = sig;
+        if(force){ try{ localStorage.removeItem('ahsSyncForce'); }catch(_){} }
+        window.AHS_SAVE_STATUS.ok('unsynced'); window.AHS_SAVE_STATUS.ok('newer');
         _lastPushOffline = false; _retryMs = 15000;
         if(_retryTimer){ clearTimeout(_retryTimer); _retryTimer = null; }
         setStatus('saved');
         window.AHS_SAVE_STATUS.ok('server'); window.AHS_SAVE_STATUS.ok('offline');
+        _syncPhotos();                              // the photos follow, one at a time
         return true;
       }
       catch(e){
         if(_selfAbort){ _selfAbort = false; return false; }   // we cut it short ourselves: not a signal problem
+        if(e && e.status === 409){ _raiseConflict(e.info); return false; }   // another device saved in between: ask
         if(_isNetworkFailure(e)){
           // Carry on: the work is on this device. Amber, not red, and retried
           // quietly with backoff until the signal comes back.
@@ -8069,31 +8438,35 @@ function addPageFooter(doc, pageNum, totalPages) {
     }
     // What to tell the user when a save they asked for did not happen.
     function _saveFailMsg(name, then){
+      if(_conflict) return '"' + name + '" has two different copies, one on this device and one saved from another. Press Save and choose which to keep. ' + then;
       return _lastPushOffline
         ? 'No signal right now, so "' + name + '" could not be uploaded. ' + then + ' Your work is saved on this device and will upload when the connection returns.'
         : 'Could not save "' + name + '" to the cloud. Check you are signed in and try again. Your work is still here.';
     }
     async function pull(){
-      // Work on this device that has not reached the server ALWAYS wins. An
-      // offline inspection reopened with signal used to be replaced by the
-      // older server copy here. Hydrate only when the device is clean AND the
-      // server holds something newer than what this device last synced.
+      // Work on this device that has not reached the server ALWAYS wins over a
+      // silent replace. An offline inspection reopened with signal used to be
+      // replaced by the older server copy here. Hydrate only when the device is
+      // clean AND the server holds something other than what it last synced.
+      // (If both have changed, the push below is refused and the person is asked.)
       if(_isDirty()){
         window.AHS_SAVE_STATUS.note('unsynced', 'Work on this device has not been uploaded yet - uploading now');
         var ok = await push();
-        if(!ok) setStatus('offline');
+        if(!ok && !_conflict) setStatus('offline');
+        if(_conflict) window.AHS_SAVE_STATUS.ok('unsynced');
         return;
       }
       _pulling = true;
       try{
-        var r = await api('/api/state?tenantId='+encodeURIComponent(TENANT)+'&project='+encodeURIComponent(project()));
+        var r = await api('/api/state'+_q('&photos=0'));
         if(r && r.state && Object.keys(r.state).length){
           var base = _rawGet('ahsSyncBase');
           if(r.updatedAt && base && String(r.updatedAt) === String(base)) return;   // already what we have
-          if(!sessionStorage.getItem('ahsSyncHydrated')){
+          // once per server version, so a reload can never loop
+          if(sessionStorage.getItem('ahsSyncHydrated') !== String(r.updatedAt)){
             await applyState(r.state);
             _markClean(r.updatedAt);
-            sessionStorage.setItem('ahsSyncHydrated','1');
+            sessionStorage.setItem('ahsSyncHydrated', String(r.updatedAt));
             _reload();
             return;
           }
@@ -8189,20 +8562,28 @@ function addPageFooter(doc, pageNum, totalPages) {
         alert(_saveFailMsg(project(), 'Switching now would leave that work behind, so nothing has been switched - carry on with this inspection.'));
         return;
       }
+      if(!(await _photosAway())) return;
+      // Fetch the one being opened BEFORE anything on this device changes. It
+      // used to switch the name first, and a failed fetch left the old
+      // inspection on screen under the new project's name.
+      var r;
+      try{ r = await api('/api/state?tenantId='+encodeURIComponent(TENANT)+'&project='+encodeURIComponent(name)+'&photos=0'); }
+      catch(e){
+        alert('"' + name + '" could not be fetched. Check your signal and try again. Nothing has been switched.');
+        return;
+      }
       setProject(name);
-      try{
-        var r = await api('/api/state?tenantId='+encodeURIComponent(TENANT)+'&project='+encodeURIComponent(name));
-        _clearSyncedKeys();
-        if(r && r.state) await applyState(r.state);
-        _markClean(r && r.updatedAt);
-        try{ sessionStorage.setItem('ahsSyncHydrated','1'); }catch(_){}
-      }catch(e){}
+      _clearSyncedKeys();
+      if(r && r.state) await applyState(r.state);
+      _resetBase(r && r.updatedAt);
+      try{ sessionStorage.setItem('ahsSyncHydrated', String((r && r.updatedAt) || '1')); }catch(_){}
       _reload();
     }
     async function saveAsProject(name){
       if(!name) return;
       try{ if(window.AHS_DRAFT && window.AHS_DRAFT.saveNow) window.AHS_DRAFT.saveNow(); }catch(_){}
       setProject(name);
+      try{ localStorage.removeItem('ahsSyncBase'); }catch(_){}   // a new name: there is no earlier version of it to be working from
       if(await push()){ setStatus('saved'); }
       else { alert('Could not save "' + name + '" to the cloud.' + String.fromCharCode(10,10) +
                    'Check you are online and try again - your work is still here.'); }
@@ -8213,20 +8594,20 @@ function addPageFooter(doc, pageNum, totalPages) {
         alert(_saveFailMsg(project(), 'Starting a blank one now would leave that work behind, so nothing has been started - carry on with this inspection.'));
         return;
       }
+      if(!(await _photosAway())) return;
       setProject(name);
       _clearSyncedKeys();
-      _markClean(null);
+      _resetBase(null);
       try{ sessionStorage.setItem('ahsSyncHydrated','1'); }catch(_){}
       _reload();
     }
     async function deleteProjectRemote(name){
       await api('/api/state?tenantId='+encodeURIComponent(TENANT)+'&project='+encodeURIComponent(name),{method:'DELETE'});
     }
+    // One step on the server: the report, its earlier versions and its photos
+    // move together, and a name already in use is refused, not overwritten.
     async function renameProjectRemote(oldName, newName){
-      var r = await api('/api/state?tenantId='+encodeURIComponent(TENANT)+'&project='+encodeURIComponent(oldName));
-      var st = (r && r.state) || {};
-      await api('/api/state',{method:'POST',body:JSON.stringify({tenantId:TENANT,project:newName,state:st})});
-      await deleteProjectRemote(oldName);
+      await api('/api/state/rename?tenantId='+encodeURIComponent(TENANT),{method:'POST',body:JSON.stringify({tenantId:TENANT,from:oldName,to:newName})});
     }
     function _suggestName(){
       var base='';
@@ -8269,7 +8650,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       nn=String(nn).trim();
       if(!nn || nn===oldName) return;
       try{ await renameProjectRemote(oldName, nn); }
-      catch(e){ alert('Could not rename the project. Check you are online and signed in.'); return; }
+      catch(e){ alert(e && e.status===409 ? 'There is already a project called "'+nn+'". Choose another name.' : 'Could not rename the project. Check you are online and signed in.'); return; }
       if(oldName===project()){ setProject(nn); }
       await _paintProjList(listEl, ov);
     }
@@ -8281,7 +8662,8 @@ function addPageFooter(doc, pageNum, totalPages) {
         '<h3 style="margin:0 0 6px;font:600 18px system-ui">Projects</h3>'+
         '<div style="font-size:12px;color:#666;margin-bottom:12px;">Current: <strong id="ahsPjCur"></strong></div>'+
         '<div style="font-size:12px;font-weight:600;color:#444;margin-bottom:6px;">Your projects - tap to open, ✎ to rename, 🗑 to delete</div>'+
-        '<div id="ahsPjList" style="border:1px solid #eee;border-radius:8px;max-height:240px;overflow:auto;margin-bottom:14px;">Loading…</div>'+
+        '<div id="ahsPjList" style="border:1px solid #eee;border-radius:8px;max-height:240px;overflow:auto;margin-bottom:8px;">Loading…</div>'+
+        '<div style="margin-bottom:14px;"><button id="ahsPjVers" type="button" style="border:0;background:none;color:#0b6b7f;text-decoration:underline;cursor:pointer;font:inherit;font-size:12.5px;padding:0;">Earlier versions of the current inspection</button></div>'+
         '<div style="font-size:12px;font-weight:600;color:#444;margin-bottom:6px;">New / save as</div>'+
         '<input id="ahsPjName" type="text" style="width:100%;padding:9px;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;margin-bottom:8px;">'+
         '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
@@ -8293,17 +8675,23 @@ function addPageFooter(doc, pageNum, totalPages) {
       box.querySelector('#ahsPjCur').textContent = project();
       box.querySelector('#ahsPjName').value = _suggestName();
       box.querySelector('#ahsPjClose').onclick=function(){ ov.remove(); };
+      box.querySelector('#ahsPjVers').onclick=function(){ ov.remove(); _openVersions(); };
       box.querySelector('#ahsPjSaveAs').onclick=async function(){ var n=box.querySelector('#ahsPjName').value.trim(); if(!n) return; ov.remove(); await saveAsProject(n); };
       box.querySelector('#ahsPjBlank').onclick=function(){ var n=box.querySelector('#ahsPjName').value.trim(); if(!n) return; if(!confirm('Start a blank inspection under "'+n+'"?\n\nYour current project stays saved separately.')) return; ov.remove(); newBlankProject(n); };
       var listEl=box.querySelector('#ahsPjList');
       await _paintProjList(listEl, ov);
     }
 
+    var _lastStatus = 'off';
     function setStatus(s){
       if(!statusEl) return;
       if(!_user){ statusEl.textContent='Local only'; return; }
+      if(s) _lastStatus = s; else s = _lastStatus;      // no argument: repaint (the photo count moved)
+      if(_conflict) s = 'conflict';
       if(s==='error' && navigator.onLine===false) s = 'offline';
-      statusEl.textContent = ({saving:'Saving…',saved:'Saved to cloud ✓',offline:'No signal - saved on this device, will upload when it returns',error:'Save error - retrying on next change',off:'Signed in'})[s] || ('Cloud: '+(_user.email||'on'));
+      var c = _photoCount, photos = '';
+      if(c && c.total) photos = ' · Photos ' + c.up + ' of ' + c.total + ' uploaded';
+      statusEl.textContent = (({saving:'Saving…',saved:'Saved to cloud ✓',offline:'No signal - saved on this device, will upload when it returns',error:'Save error - retrying on next change',off:'Signed in',conflict:'Two copies - press Save to choose'})[s] || ('Cloud: '+(_user.email||'on'))) + photos;
     }
     function el(tag,attrs,html){ var e=document.createElement(tag); if(attrs)Object.keys(attrs).forEach(function(a){e.setAttribute(a,attrs[a]);}); if(html!=null)e.innerHTML=html; return e; }
     function buildBar(){
@@ -8328,7 +8716,7 @@ function addPageFooter(doc, pageNum, totalPages) {
         try{ ok = await _flushCurrent(); }catch(_){ ok = false; }
         saveBtn.textContent = ok ? 'Saved ✓' : 'Not saved';
         saveBtn.style.color = ok ? '#0b6b7f' : '#b91c1c';
-        if(!ok) alert(_saveFailMsg(project(), 'You can carry on.'));
+        if(!ok){ if(_conflict) _openConflict(); else alert(_saveFailMsg(project(), 'You can carry on.')); }
         setTimeout(function(){ saveBtn.disabled = false; saveBtn.textContent = label; saveBtn.style.color = '#0b6b7f'; }, 2000);
       };
       bar.appendChild(statusEl); bar.appendChild(saveBtn); bar.appendChild(projBtn); bar.appendChild(btn); (slot||document.body).appendChild(bar);
@@ -8353,7 +8741,7 @@ function addPageFooter(doc, pageNum, totalPages) {
       box.querySelector('#ahsGo').onclick=async function(){
         var em=box.querySelector('#ahsE').value.trim(), pw=box.querySelector('#ahsP').value, pj=box.querySelector('#ahsJ').value.trim();
         if(pj) setProject(pj);
-        try{ var r=await api('/api/auth/login',{method:'POST',body:JSON.stringify({email:em,password:pw})}); _user=r.user; ov.remove(); bar._refresh(); await pull(); await _autoRecover(); }
+        try{ var r=await api('/api/auth/login',{method:'POST',body:JSON.stringify({email:em,password:pw})}); _user=r.user; ov.remove(); bar._refresh(); await pull(); await _autoRecover(); _syncPhotos(); }
         catch(e){ box.querySelector('#ahsErr').textContent = (e.status===401?'Invalid email or password':'Sign-in failed - try again'); }
       };
     }
@@ -8361,7 +8749,10 @@ function addPageFooter(doc, pageNum, totalPages) {
 
     async function init(){
       buildBar();
-      try{ var r=await api('/api/auth/me'); if(r&&r.user){ _user=r.user; bar._refresh(); await pull(); await _autoRecover(); } }catch(_){ /* signed out */ }
+      try{ var r=await api('/api/auth/me'); if(r&&r.user){ _user=r.user; bar._refresh(); await pull(); await _autoRecover(); _syncPhotos(); } }catch(_){ /* signed out */ }
+      _authDone = true;
+      // signed out: nothing will fetch missing photos, so say so and let the boxes say what they are
+      if(!_user && _claimed){ await _showFetched(); _reportMissing(false); }
     }
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
   })();
@@ -8397,6 +8788,13 @@ function addPageFooter(doc, pageNum, totalPages) {
   .img-item.img-off{outline:1px dashed #94a3b8;outline-offset:2px}
   .img-off-note{font-size:11px;color:#5a6b7c;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin:4px 0 2px}
   @media print{ .img-item.img-off{ display:none !important; } }
+  .img-item.img-missing{position:relative;border:1px solid #d5dbe1;border-top:3px solid #b45309;border-radius:0;box-shadow:none;background:#fbfaf7;padding:12px 12px 14px;text-align:left;min-height:120px}
+  .img-missing-head{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#1f2937;margin:0 30px 8px 0}
+  .img-item.img-missing > div{text-align:left;padding:0;text-indent:0}
+  .img-missing-line{font-size:13px;line-height:1.4;color:#374151;margin:0 0 4px;overflow-wrap:anywhere}
+  .img-missing-state{font-size:12.5px;line-height:1.4;color:#6b7280;margin:8px 0 10px}
+  .img-missing-add{border:1px solid #4A4F55;background:#fff;color:#1c2530;border-radius:0;padding:8px 12px;font:600 13px inherit;font-family:inherit;cursor:pointer}
+  @media print{ .img-missing button{ display:none !important; } }
   .cap-add{border:2px dashed #94a3b8 !important;color:#4A4F55;align-items:center;justify-content:center;text-align:center;font-weight:700;font-size:14px;box-shadow:none !important}
   .cap-add:active{background:#eef2f5}
   .cap-item{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:10px}
