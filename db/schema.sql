@@ -74,3 +74,43 @@ CREATE TABLE IF NOT EXISTS link_focus (
   focus       JSONB NOT NULL DEFAULT '[]'::jsonb,
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Report photos: one row each, keyed by the photo's own id. A save can only
+-- add to this table (routes/store.js). A row goes only when a project that
+-- used it is deleted on purpose and no other project uses it.
+CREATE TABLE IF NOT EXISTS app_photos (
+  tenant_id   TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  photo_id    TEXT NOT NULL,
+  data        TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_by  TEXT,
+  PRIMARY KEY (tenant_id, photo_id)
+);
+
+-- Which projects use which photos (a project saved under a second name uses
+-- the same ones). Added to on every save, never taken from.
+CREATE TABLE IF NOT EXISTS app_photo_use (
+  tenant_id   TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  project     TEXT NOT NULL,
+  photo_id    TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, project, photo_id)
+);
+
+-- Which device last saved a project, so a save from an out-of-date copy can be
+-- told apart from a device carrying on with its own work.
+ALTER TABLE app_state ADD COLUMN IF NOT EXISTS device_id TEXT;
+ALTER TABLE app_state ADD COLUMN IF NOT EXISTS device_name TEXT;
+ALTER TABLE app_state ADD COLUMN IF NOT EXISTS photos_copied_at TIMESTAMPTZ;
+
+-- Earlier versions of each project (text only, photos stay in app_photos).
+CREATE TABLE IF NOT EXISTS app_state_versions (
+  id           TEXT PRIMARY KEY,
+  tenant_id    TEXT NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  project      TEXT NOT NULL,
+  state        JSONB NOT NULL,
+  saved_at     TIMESTAMPTZ NOT NULL,
+  device_name  TEXT,
+  reason       TEXT NOT NULL DEFAULT 'earlier',
+  kept_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_versions_project ON app_state_versions (tenant_id, project, kept_at);

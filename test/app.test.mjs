@@ -127,8 +127,16 @@ test('a poor site signal degrades to amber and a retry, never a hang or a red ba
   assert.match(SRC, /_retryTimer = setTimeout\(function\(\)\{ _retryTimer = null; push\(\); \}, _retryMs\);/, 'no automatic retry when the signal returns');
   // server side of the photo rule
   const route = fs.readFileSync(path.join(here, '..', 'routes', 'state.js'), 'utf8');
-  assert.match(route, /require\('\.\/merge-state'\)/, 'routes/state.js no longer merges - an omitted __photos__ would wipe the server copy');
-  assert.match(route, /JSON\.stringify\(merged\)/, 'the merged state is not what gets written');
+  // 2026-11-24: an EMPTY photo list used to clear the server copy, and a device
+  // that could not read its photos sent exactly that (Blackburn, Woldgate).
+  // Photos now have their own rows and a save can only add one.
+  assert.match(route, /splitPhotos\(given\)/, 'photos are stored inside the report again, where a save can replace them');
+  assert.match(route, /await store\.addPhotos\(pool, tenantId, project, photos, req\.user\.id\);/, 'photos sent with a save are no longer kept');
+  const store = fs.readFileSync(path.join(here, '..', 'routes', 'store.js'), 'utf8');
+  assert.equal((store.match(/DELETE FROM app_photos/g) || []).length, 1, 'a photo can be deleted from somewhere other than an explicit project delete');
+  assert.match(store, /async function deleteProject[\s\S]*?DELETE FROM app_photos/, 'the one photo delete has left deleteProject');
+  assert.match(store, /ON CONFLICT \(tenant_id, photo_id\) DO NOTHING/, 'a stored photo can be replaced');
+  assert.match(fs.readFileSync(path.join(here, '..', 'server.js'), 'utf8'), /await store\.selfCheck\(pool\);/, 'the server starts without proving its statements on the database');
   // service worker: known-offline serves the shell at once
   const sw = fs.readFileSync(path.join(here, '..', 'public', 'sw.js'), 'utf8');
   assert.match(sw, /navigator\.onLine === false/, 'offline load waits the full timeout before showing the cached app');

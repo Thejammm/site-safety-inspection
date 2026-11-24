@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --env-file=.env server.js",
-    "test": "node --test test/app.test.mjs"
+    "test": "node --test test/app.test.mjs test/server-rules.test.mjs"
   },
   "engines": {
     "node": ">=18"

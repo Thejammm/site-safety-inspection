@@ -14,12 +14,14 @@ const express      = require('express');
 const cookieParser = require('cookie-parser');
 const path         = require('path');
 
-const { migrate, isHealthy } = require('./db');
+const { pool, migrate, isHealthy } = require('./db');
 const { bootstrap }          = require('./bootstrap');
 const authRoutes             = require('./routes/auth');
 const stateRoutes            = require('./routes/state');
 const adminRoutes            = require('./routes/admin');
 const linkRoutes             = require('./routes/link');
+const photoRoutes            = require('./routes/photos');
+const store                  = require('./routes/store');
 
 const app  = express();
 const PORT = parseInt(process.env.PORT, 10) || 3000;
@@ -42,6 +44,7 @@ app.get('/healthz', async (_req, res) => {
 // ── API routes ────────────────────────────────────────────────
 app.use('/api/auth',  authRoutes);
 app.use('/api/state', stateRoutes);
+app.use('/api/photos', photoRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/link',  linkRoutes);    // Compass: accreditation evidence out, focus areas in
 
@@ -72,9 +75,20 @@ app.get('*', (_req, res) => {
   try {
     await migrate();
     await bootstrap();
+    // Prove every saved-report statement against this database before taking
+    // traffic. It runs in a transaction that is rolled back. If it fails the
+    // server does not start, and the previous build carries on serving.
+    await store.selfCheck(pool);
+    console.log('✓ Saved-report self check passed');
     app.listen(PORT, HOST, () => {
       console.log(`✓ Site Safety Inspection listening on http://${HOST}:${PORT}`);
     });
+    // Once the app is up: photos still inside older saved reports get rows of
+    // their own. The reports are not changed, so a failure here costs nothing
+    // and is tried again on the next start.
+    store.copyLegacyPhotos(pool)
+      .then(r => { if(r.reports) console.log(`✓ Photos copied out of ${r.reports} older saved report(s): ${r.photos}`); })
+      .catch(e => console.error('Photo copy will be tried again on the next start:', e.message));
   } catch(err){
     console.error('FATAL: startup failed:', err);
     process.exit(1);
