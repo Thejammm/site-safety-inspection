@@ -2176,14 +2176,17 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
-// Handle click outside modal to close - but ONLY when the press STARTED on the
-// backdrop. Selecting text inside the modal and releasing on the backdrop used
-// to close it (the "disappearing modal" bug).
-(function(){
-  var fm = document.getElementById('frontpageModal'), downSelf = false;
-  fm.addEventListener('mousedown', function(e){ downSelf = (e.target === fm); });
-  fm.addEventListener('click', function(e){ if (e.target === fm && downSelf) closeFrontPageEditor(); downSelf = false; });
-})();
+// A pop-up closes on a click outside it ONLY when the press AND the release were both
+// outside. Selecting text by dragging past the edge of the box also fires a click on
+// the backdrop, which closed the box under the user's hands and lost what they had typed.
+// Every pop-up uses this guard; never write a bare click-to-close backdrop.
+function _backdropClose(ov, fn){
+  if(!ov) return;
+  ov.addEventListener('mousedown', function(e){ ov._downSelf = (e.target === ov); }, true);
+  ov.addEventListener('mouseup', function(e){ if(e.target !== ov) ov._downSelf = false; }, true);
+  ov.addEventListener('click', function(e){ if(ov._downSelf && e.target === ov) fn(); ov._downSelf = false; });
+}
+_backdropClose(document.getElementById('frontpageModal'), closeFrontPageEditor);
 
 // Initialize front page data on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -4734,11 +4737,7 @@ function hideSnippetModal() {
 }
 
 // Close when clicking outside the dialog
-document.addEventListener('click', (e) => {
-  const modal = document.getElementById('snippetModal');
-  if (!modal || modal.style.display !== 'block') return;
-  if (e.target === modal) hideSnippetModal();
-});
+_backdropClose(document.getElementById('snippetModal'), hideSnippetModal);
 
 // Close on ESC
 document.addEventListener('keydown', (e) => {
@@ -5201,11 +5200,7 @@ function hidePhraseModal() {
 }
 
 // 4) Close behaviour (click outside + ESC)
-document.addEventListener('click', (e) => {
-  const modal = document.getElementById('phraseModal');
-  if (!modal || modal.style.display !== 'block') return;
-  if (e.target === modal) hidePhraseModal();
-});
+_backdropClose(document.getElementById('phraseModal'), hidePhraseModal);
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') hidePhraseModal();
@@ -11449,13 +11444,8 @@ function addPageFooter(doc, pageNum, totalPages) {
       else startNew(v);
     };
     $('si-cancel').onclick = closeStart;
-    // Backdrop close, but ONLY when the press STARTED on the backdrop - dragging
-    // to select text and releasing on the backdrop must not close the modal.
-    var _bdClose = function(el, fn){ if(!el) return; var d=false;
-      el.addEventListener('mousedown', function(e){ d = (e.target === el); });
-      el.addEventListener('click', function(e){ if(e.target === el && d) fn(); d = false; }); };
-    _bdClose($('startInspModal'), closeStart);
-    _bdClose($('r3Dialog'), closeDialog);
+    _backdropClose($('startInspModal'), closeStart);
+    _backdropClose($('r3Dialog'), closeDialog);
     document.addEventListener('keydown', function(e){ if(e.key==='Escape'){ closeStart(); closeDialog(); } });
   }
 

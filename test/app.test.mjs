@@ -1369,3 +1369,53 @@ test('a paragraph in the report is never split over two pages, and its type neve
   assert.deepEqual([r.opening, r.openingY], [1, 225], 'the first paragraph left its heading behind');
   assert.deepEqual(errs, []);
 });
+
+// ─────────────────────────────────────────────────
+//  Pop-ups do not close under the user's hands (2026-11-24)
+// ─────────────────────────────────────────────────
+test('selecting text in a pop-up and letting go outside it does not close it; a click or tap outside does', async () => {
+  // Real presses: the fault only appears when the browser turns a drag into a
+  // click on the backdrop. The phases and phrases boxes had no guard at all;
+  // the others still closed on a press outside released inside.
+  const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--disable-gpu'], defaultViewport: { width: 1366, height: 900 } });
+  const out = {};
+  try {
+    const page = await browser.newPage();
+    await page.setRequestInterception(true);
+    page.on('request', r => /^https?:/.test(r.url()) ? r.abort() : r.continue());
+    await page.goto(url.pathToFileURL(APP).href, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await new Promise(r => setTimeout(r, 2500));
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    const shown = id => page.evaluate(i => getComputedStyle(document.getElementById(i)).display !== 'none', id);
+    const drag = async (a, b) => { await page.evaluate(() => getSelection().removeAllRanges()); await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 8 }); await page.mouse.up(); await sleep(120); };
+    for (const id of ['snippetModal', 'phraseModal', 'frontpageModal', 'startInspModal', 'r3Dialog']) {
+      const open = async () => { await page.evaluate(i => { const m = document.getElementById(i);
+        m.style.display = /snippet|phrase/.test(i) ? 'block' : 'flex'; m.classList.add('open');
+        if (i === 'r3Dialog' && !m.querySelector('.zz')) m.firstElementChild.insertAdjacentHTML('beforeend', '<input class="zz" value="text in the box">'); }, id); await sleep(200); };
+      await open();
+      const q = await page.evaluate(i => {
+        const ov = document.getElementById(i); let o = null, n = null;
+        for (let x = 6; x < innerWidth && !o; x += 20) for (let y = 6; y < innerHeight && !o; y += 20) if (document.elementFromPoint(x, y) === ov) o = { x, y };
+        for (const e of ov.querySelectorAll('input:not([type=checkbox]):not([type=radio]):not([type=date]):not([type=file])')) {
+          const r = e.getBoundingClientRect(), p = { x: r.x + 40, y: r.y + r.height / 2 }, t = document.elementFromPoint(p.x, p.y);
+          if (!n && r.width > 60 && t && ov.contains(t) && t !== ov) n = p; }
+        return { o, n };
+      }, id);
+      assert.ok(q.o && q.n, id + ': no point inside and outside to test');
+      await drag(q.n, q.o); const a = await shown(id); if (!a) await open();
+      await drag(q.o, q.n); const b = await shown(id); if (!b) await open();
+      await page.mouse.click(q.o.x, q.o.y); await sleep(150); const c = !(await shown(id));
+      await open(); await page.touchscreen.tap(q.o.x, q.o.y); await sleep(400); const d = !(await shown(id));
+      out[id] = { selectingStaysOpen: a, pressOutsideStaysOpen: b, clickCloses: c, tapCloses: d };
+      await page.evaluate(i => { document.getElementById(i).style.display = 'none'; }, id);
+    }
+  } finally {
+    await browser.close();
+  }
+  for (const id of Object.keys(out)) assert.deepEqual(out[id], { selectingStaysOpen: true, pressOutsideStaysOpen: true, clickCloses: true, tapCloses: true }, id);
+});
+
+test('no pop-up has a bare click-to-close backdrop', () => {
+  const bare = SRC.split(/\r?\n/).filter(l => /(?:event|ev|e)\.target\s*===?\s*(?:this|ov|m|fm|modal|overlay|bg|el|box)\b/.test(l) && !/_downSelf/.test(l) && /close|hide|remove\(\)|display/i.test(l));
+  assert.deepEqual(bare, []);
+});
